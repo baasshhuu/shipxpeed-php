@@ -1,0 +1,17 @@
+/vendor
+/node_modules
+.env
+.env.backup
+.env.production
+/storage/*.key
+/storage/logs/*
+/storage/debugbar/*
+/storage/app/*
+/public/storage
+/public/hot
+/public/uploads
+/public/labels
+/public/seller-logos
+*.log
+.DS_Store
+.phpunit.result.cache
