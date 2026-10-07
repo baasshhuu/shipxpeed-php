@@ -1,0 +1,32 @@
+name: Unpack uploaded source
+on:
+  push:
+    branches: [upload]
+permissions:
+  contents: write
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: upload
+          path: up
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+      - name: Reassemble, extract and commit to main
+        run: |
+          ls up/code.zip.part* | sort
+          cat $(ls up/code.zip.part* | sort) > code.zip
+          unzip -tq code.zip
+          cd main
+          unzip -o -q ../code.zip
+          printf '%s\n' '/vendor' '/node_modules' '.env' '.env.backup' '.env.production' '/storage/*.key' '/storage/logs/*' '/storage/debugbar/*' '/storage/app/*' '/public/storage' '/public/hot' '/public/uploads' '/public/labels' '/public/seller-logos' '*.log' '.DS_Store' '.phpunit.result.cache' > .gitignore
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add Shipxpeed Laravel source code"
+          git push origin main
+          git push origin --delete upload
