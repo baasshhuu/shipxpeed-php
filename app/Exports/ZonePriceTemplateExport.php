@@ -50,7 +50,11 @@ class ZonePriceTemplateExport implements FromArray, WithHeadings, ShouldAutoSize
 "shiprocket_Bluedart_1kg",
 // Shiprocket
 "Ekart500gm",
-'Ekart500gm_boxd'
+"Ekart500gm_boxd",
+"boxd_bluedart_500gm",
+"parcel_x_Xpressbee",
+"parcel_x_Shreemaruti",
+
 
 
         ];

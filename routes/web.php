@@ -36,6 +36,7 @@ use App\Http\Controllers\selleradmin\ShippingNotificationController;
 use App\Http\Controllers\Shopifyconnect\ShopifyController;
 use App\Http\Controllers\Api\StatusController;
 use App\Http\Controllers\selleradmin\ReversepickupController;   
+use App\Http\Controllers\Api\ShopifyinstallController;
 
 
 /*
@@ -48,6 +49,13 @@ use App\Http\Controllers\selleradmin\ReversepickupController;
 | contains the "web" middleware group. Now create something great!
 |
 */
+
+
+
+Route::get('/shopify/install', [ShopifyinstallController::class, 'shopifyInstall'])->name('shopify.install');
+Route::get('/shopify/install/{shop}', [ShopifyinstallController::class, 'shopifyInstallDirect'])->name('shopify.install.direct');
+Route::get('/shopify/callback', [ShopifyinstallController::class, 'shopifyCallback'])->name('shopify.callback');
+Route::get('/shopify/status', [ShopifyinstallController::class, 'getInstallationStatus'])->name('shopify.status');
 
 // Website Routes
 Route::get('/home', [HomeController::class, 'index'])->name('home');
@@ -75,8 +83,8 @@ Route::get('clear-all', function () {
     Artisan::call('config:clear');      // Config cache
     Artisan::call('route:clear');       // Route cache
     Artisan::call('view:clear');        // View cache
-    Artisan::call('event:clear');       // Event cache (if any)
-    Artisan::call('storage:link');      // Re-link storage
+    // Artisan::call('event:clear');       // Event cache (if any)
+    // Artisan::call('storage:link');      // Re-link storage
     Artisan::call('optimize:clear');    // Clears compiled files
 
     return '<h1>All Caches Cleared Successfully!</h1>';
@@ -294,7 +302,9 @@ Route::post('/custom-label', [LebalController::class, 'store'])->name('seller.cu
     Route::get('/shipment/report', [OrdersReportsController::class, 'shipment_report'])->name('seller.shipment.report');
     Route::get('/shipment-report/download', [OrdersReportsController::class, 'shipment_report_download'])->name('shipment.report.download');
 
-
+Route::get('/dashboard-data', [Dashboard::class, 'getDashboardData']);
+// Route::get('/prepaid-cod-data-get', [Dashboard::class, 'getPrepaidCodData']);
+    // Route::get('/prepaid-cod-data-get', [Dashboard::class, 'getPrepaidCodData'])->name('prepaid-cod-data-get');
 
     Route::get('/dashboard', [Dashboard::class, 'index'])->name('seller.dashboard');
     Route::get('/happy-new-year', [Dashboard::class, 'happynewyear'])->name('seller.happynewyear');
@@ -304,9 +314,15 @@ Route::post('/custom-label', [LebalController::class, 'store'])->name('seller.cu
     Route::get('/seller/order-status', [Dashboard::class, 'orderstatus'])->name('seller.orderstatus');
     Route::post('/seller-logout', [SellerAuthController::class, 'logout'])->name('seller.logout');
     Route::get('/order', [Dashboard::class, 'order'])->name('seller.order');
-    // Route::get('/help', [Dashboard::class, 'index'])->name('seller.help');
     Route::get('/orders/export-excel', [Dashboard::class, 'exportOrdersExcel'])->name('seller.orders.export-excel');
     Route::get('/orders/export-assigned-excel', [Dashboard::class, 'exportAssignedOrdersExcel'])->name('seller.orders.export-assigned-excel');
+    Route::get('/orders/export-cancelled-excel', [Dashboard::class, 'exportCancelledOrdersExcel'])->name('seller.orders.export-cancelled-excel');
+    Route::get('/orders/export-intransit-excel', [Dashboard::class, 'exportInTransitOrdersExcel'])->name('seller.orders.export-intransit-excel');
+    Route::get('/orders/export-outfordelivery-excel', [Dashboard::class, 'exportOutForDeliveryOrdersExcel'])->name('seller.orders.export-outfordelivery-excel');
+    Route::get('/orders/export-delivered-excel', [Dashboard::class, 'exportDeliveredOrdersExcel'])->name('seller.orders.export-delivered-excel');
+    Route::get('/orders/export-rto-excel', [Dashboard::class, 'exportRTOOrdersExcel'])->name('seller.orders.export-rto-excel');
+    Route::get('/orders/export-ndr-excel', [Dashboard::class, 'exportNDROrdersExcel'])->name('seller.orders.export-ndr-excel');
+    Route::get('/orders/export-cod-excel', [ResourceController::class, 'exportCodOrdersExcel'])->name('seller.orders.export-cod-excel');
         Route::post('/orders/update-warehouse', [Dashboard::class, 'updateWarehouseBulk'])
             ->name('seller.orders.update-warehouse');
 
@@ -341,7 +357,6 @@ Route::post('/seller/orders/import', [Dashboard::class, 'importOrders'])->name('
 
 
     Route::get('/ndr', [NdrController::class, 'index'])->name('seller.ndr');
-    
     Route::get('/ndr/create', [NdrController::class, 'create'])->name('seller.ndr.create');
     Route::get('/ndr/create', [NdrController::class, 'create'])->name('seller.ndr.create');
     Route::post('/ndr/store', [NdrController::class, 'store'])->name('seller.ndr.store');
@@ -398,7 +413,7 @@ Route::post('/seller/orders/import', [Dashboard::class, 'importOrders'])->name('
     Route::get('/all-charges', [ResourceController::class, 'allcharges'])->name('seller.allcharges');
     Route::get('/invoice', [ResourceController::class, 'invoice'])->name('seller.invoice');
     Route::get('/invoice/show', [InvoiceController::class, 'index'])->name('seller.invoice.show');
-    Route::get('/invoice/print', [InvoiceController::class, 'printableView'])->name('invoice.print');
+Route::get('/invoice/print', [InvoiceController::class, 'printableView'])->name('invoice.print');
 
 
     Route::get('/warehouse', [WarehosueController::class, 'index'])->name('seller.warehouse');
@@ -503,6 +518,30 @@ Route::get('impersonate/leave', function () {
 
 
 
+// Investor Routes - Simple Setup  
+Route::get('/investor', [\App\Http\Controllers\Investor\InvestorAuthController::class, 'showLoginForm']);
+Route::get('/investor/login', [\App\Http\Controllers\Investor\InvestorAuthController::class, 'showLoginForm'])->name('investor.login');
+Route::post('/investor/login', [\App\Http\Controllers\Investor\InvestorAuthController::class, 'login']);
+Route::get('/investor/register', [\App\Http\Controllers\Investor\InvestorAuthController::class, 'showRegisterForm'])->name('investor.register');
+Route::post('/investor/register', [\App\Http\Controllers\Investor\InvestorAuthController::class, 'register']);
+
+// Investor Dashboard Routes (Protected)
+Route::middleware(['auth:investor'])->group(function () {
+    Route::get('/investor/dashboard', [\App\Http\Controllers\Investor\InvestorController::class, 'dashboard'])->name('investor.dashboard');
+    Route::get('/investor/sellers', [\App\Http\Controllers\Investor\InvestorController::class, 'sellers'])->name('investor.sellers');
+    Route::get('/investor/orders', [\App\Http\Controllers\Investor\InvestorController::class, 'orders'])->name('investor.orders');
+    Route::get('/investor/sellers/data', [\App\Http\Controllers\Investor\InvestorController::class, 'getSellersData'])->name('investor.sellers.data');
+    Route::get('/investor/orders/data', [\App\Http\Controllers\Investor\InvestorController::class, 'getOrdersData'])->name('investor.orders.data');
+    Route::get('/investor/profile', [\App\Http\Controllers\Investor\InvestorController::class, 'profile'])->name('investor.profile');
+    Route::post('/investor/profile', [\App\Http\Controllers\Investor\InvestorController::class, 'updateProfile'])->name('investor.profile.update');
+    Route::post('/investor/change-password', [\App\Http\Controllers\Investor\InvestorController::class, 'changePassword'])->name('investor.password.change');
+    Route::post('/investor/logout', [\App\Http\Controllers\Investor\InvestorAuthController::class, 'logout'])->name('investor.logout');
+});
+
 Route::fallback(function () {
     abort(404);
 });
+
+   Route::get('/revenue-dashboard-data', [App\Http\Controllers\selleradmin\Dashboard::class, 'getRevenueDashboardData']);
+Route::get('/dashboard-data', [App\Http\Controllers\selleradmin\Dashboard::class, 'getDashboardData']);
+

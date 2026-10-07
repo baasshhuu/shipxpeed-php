@@ -112,11 +112,11 @@ class SellerAuthController extends Controller
             'gst_photo'         => 'nullable',
             'cancel_cheque'     => 'nullable',
         ]);
-        // dd($validator->errors());
+// dd($validator->errors());
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
-        // echo 'scscs';die;
+// echo 'scscs';die;
 
         $panCardPath      = $request->hasFile('pan_card')         ? Helper::saveFile($request->file('pan_card'), 'seller') : null;
         $adharFrontPath   = $request->hasFile('adhar_card_front') ? Helper::saveFile($request->file('adhar_card_front'), 'seller') : null;
@@ -143,16 +143,15 @@ class SellerAuthController extends Controller
         ]);
 
         Mail::to($request->email)->send(new SellerOtpMail($otp));
-        //    echo 'vicky';die;
+    //    echo 'vicky';die;
         return response()->json([
             'message' => 'OTP sent to your email. Please verify to complete registration.',
             'redirect_url' => route('seller.verify.otp.view')
         ]);
     }
-    
-
     public function verifyOtp(Request $request)
     {
+       
         $enteredOtp = $request->otp;
         $sessionData = Session::get('seller_temp_data');
 
@@ -187,7 +186,6 @@ class SellerAuthController extends Controller
         $site_settings = [
             'application_name' => 'Shipxpeed',
             'logo' => 'path/to/logo.png',
-            'collapse' => 'path/to/collapse.png',
         ];
 
         // Send Welcome Email
@@ -483,7 +481,7 @@ class SellerAuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('frontend.selleruser.login'); // home route
+        return redirect()->back();
     }
 
 

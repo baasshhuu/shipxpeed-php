@@ -24,7 +24,7 @@
         <div class="row">
             <div class="col text-center">
                 <small class="text-muted" style="letter-spacing:.02em;">
-                    {{ $site_settings['copyright'] ?? '' }}
+                    {{ $site_settings['copyright'] }}
                 </small>
             </div>
         </div>

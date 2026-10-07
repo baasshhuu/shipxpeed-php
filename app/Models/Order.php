@@ -62,6 +62,7 @@ class Order extends Model
         'order_status',
         'zone',
         'zone_courier_name',
+        'payment_method',
 
     ];
 

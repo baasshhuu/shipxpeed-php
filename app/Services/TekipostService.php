@@ -448,7 +448,7 @@ public function getServiceability(array $params): array
             $results[] = [
                 'serviceabilityId' => $slab['serviceabilityId'],
                 'courierName'      => $slab['courierName'],
-                'courierCharge'    => $charges['courierCharge'],
+                'courierCharge'    => $charges['courierCharge'] + 5,
                 'freightCharges'   => $charges['freightCharges'],
                 'codCharge'        => $charges['codCharge'],
                 'zone'             => $zone,
@@ -658,7 +658,7 @@ public function getServiceability(array $params): array
 
     public function assignOrder($params)
     {
-        // dd($params);
+        //dd($params);
         $order_id = $params['order_id'];
         $provider_name = $params['provider_name'];
 

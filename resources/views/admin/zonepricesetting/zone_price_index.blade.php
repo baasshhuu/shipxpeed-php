@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="card mb-3" style="margin: 39px 3px;">
+<div class="card mb-3">
     <div class="card-header">
         <div class="row flex-between-end">
             <div class="col-auto align-self-center">
@@ -14,67 +14,49 @@
                     </a>
                 </div>
             </div>
-        </div> 
+        </div>
     </div>
     <div class="card-body">
         <!-- Seller Filter Form -->
         <div class="row mb-4">
-            <div class="col-12">
-                <div class="card shadow-sm border-0" style="background: linear-gradient(98deg,#f7fafc 60%,#e6f0fa 100%); border-radius: 14px;">
-                    <div class="card-body py-3 px-4">
-                        <form method="GET" action="{{ route('zone.price.index') }}" class="row g-2 align-items-end">
-                            <div class="col-md-6 col-lg-8">
-                                <label class="form-label fw-semibold mb-1" style="color:#1b2836;font-size:14px;" for="seller_id">
-                                    <i class="fas fa-store-alt me-1 text-primary"></i> Filter by Seller
-                                </label>
-                                <select class="form-select form-select-sm border-1" id="seller_id" name="seller_id" style="border-radius: 7px; min-height: 34px; font-size: 14px; padding-top: 2px; padding-bottom: 2px;">
-                                    <option value="" class="text-muted">-- All Sellers --</option>
-                                    @foreach(\App\Models\SellerList::all() as $seller)
-                                        <option value="{{ $seller->id }}" {{ request('seller_id') == $seller->id ? 'selected' : '' }}>
-                                            {{ $seller->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-6 col-lg-4 d-flex gap-2 justify-content-end">
-                                <button type="submit" class="btn btn-primary btn-sm px-3 shadow-sm" style="border-radius: 7px; min-height:32px; font-size:14px;">
-                                    <i class="fas fa-filter me-1"></i> Filter
-                                </button>
-                                @if(request('seller_id'))
-                                <a href="{{ route('zone.price.index') }}" class="btn btn-outline-secondary btn-sm px-3 shadow-sm" style="border-radius: 7px; min-height:32px; font-size:14px;">
-                                    <i class="fas fa-times me-1"></i> Clear
-                                </a>
-                                @endif
-                            </div>
-                        </form>
+            <div class="col-md-12">
+                <form method="GET" action="{{ route('zone.price.index') }}" class="d-flex align-items-end gap-3">
+                    <div class="flex-grow-1">
+                        <label class="form-label" for="seller_id">Filter by Seller</label>
+                        <select class="form-control" id="seller_id" name="seller_id">
+                            <option value="">-- All Sellers --</option>
+                            @foreach(\App\Models\SellerList::all() as $seller)
+                                <option value="{{ $seller->id }}" {{ request('seller_id') == $seller->id ? 'selected' : '' }}>
+                                    {{ $seller->name }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
-                </div>
+                    <div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-filter"></i> Filter
+                        </button>
+                        @if(request('seller_id'))
+                        <a href="{{ route('zone.price.index') }}" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-times"></i> Clear
+                        </a>
+                        @endif
+                    </div>
+                </form>
             </div>
         </div>
-
+        
         @if(request('seller_id'))
-        <div class="row mb-3">
-            <div class="col-12">
-                <div class="alert alert-info d-flex align-items-center shadow-sm" style="border-radius:9px;background: linear-gradient(90deg, #f4faff, #d9eefd 80%); border-left: 5px solid #57a3e8; min-height:36px; font-size:14px;">
-                    <i class="fas fa-info-circle fs-6 me-2 text-primary"></i>
-                    <div>
-                        <span class="fw-semibold" style="color: #22587c;">
-                            Showing zone prices for: 
-                            <strong>{{ \App\Models\SellerList::find(request('seller_id'))->name ?? 'Unknown Seller' }}</strong>
-                        </span>
-                        <span class="ms-2 text-muted">
-                            ({{ $zonePrices->total() }} record{{ $zonePrices->total()!=1 ? 's' : '' }} found)
-                        </span>
-                    </div>
-                </div>
-            </div>
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> 
+            Showing zone prices for: <strong>{{ \App\Models\SellerList::find(request('seller_id'))->name ?? 'Unknown Seller' }}</strong>
+            ({{ $zonePrices->total() }} records found)
         </div>
         @endif
-   
         
         <div class="table-responsive">
             <table class="table table-bordered table-hover" id="zonePriceTable">
-                <thead class="table-dark" style="text-align:center;">
+                <thead class="table-dark">
                     <tr>
                         <th>ID</th>
                         <th>Seller</th>
@@ -89,7 +71,7 @@
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody style="text-align:center;">
+                <tbody>
                     @forelse($zonePrices as $price)
                     <tr>
                         <td>{{ $price->id }}</td>

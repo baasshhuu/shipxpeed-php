@@ -48,6 +48,11 @@ return [
             'driver'    => 'passport',
             'provider'  => 'users',
         ],
+
+                'investor' => [
+            'driver' => 'session',
+            'provider' => 'investors',
+        ],
         // 	 'seller' => [
         //         'driver'    => 'session', // Change 'passport' to 'session'
         //         'provider'  => 'seller_lists',
@@ -79,6 +84,11 @@ return [
         'sellers' => [
             'driver' => 'eloquent',
             'model' => App\Models\SellerList::class,
+        ],
+
+             'investors' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Investor::class,
         ],
     ],
 
@@ -113,6 +123,13 @@ return [
             'table'     => 'password_resets',
             'expire'    => 60,
             'throttle'  => 60,
+        ],
+
+                'investors' => [
+            'provider' => 'investors',
+            'table' => 'password_reset_tokens',
+            'expire' => 60,
+            'throttle' => 60,
         ],
     ],
 

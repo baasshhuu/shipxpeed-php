@@ -19,6 +19,8 @@ use App\Http\Controllers\Shipxpeedapi\TrackController;
 use App\Http\Controllers\Shipxpeedapi\ParcelxController;
 use App\Http\Controllers\Shipxpeedapi\TestwebhookController;
 use App\Http\Controllers\Shipxpeedapi\BoxdController;
+use App\Http\Controllers\Api\ShopifyController;
+use App\Http\Controllers\selleradmin\Dashboard;
 
 /*
 |--------------------------------------------------------------------------
@@ -35,7 +37,7 @@ Route::get('/', function () {
     return response()->json([
         'message' => "Adiyogi eTally :: Api Working Fine."
     ]);
- });
+});
 
 Route::get('/test-xpressbees', function () {
     $token = \App\Helper\Helper::getXpressbeesToken();
@@ -43,7 +45,15 @@ Route::get('/test-xpressbees', function () {
 });
 
 // status fatch
-Route::get('/track/delhivery', [App\Http\Controllers\Api\StatusController::class, 'apiTrackDelhivery']);
+// Route::get('/dashboard-data', [App\Http\Controllers\selleradmin\Dashboard::class, 'getDashboardData']);
+// Route::get('/revenue-dashboard-data', [App\Http\Controllers\selleradmin\Dashboard::class, 'getRevenueDashboardData']);
+Route::get('/send-cod-mai', [App\Http\Controllers\Api\StatusController::class, 'sendCodMail']);
+
+Route::get('/recharge-summary', [App\Http\Controllers\Api\StatusController::class, 'rechargeSummary']);
+
+Route::post('/parcelx/bulk-cancel', [App\Http\Controllers\Api\StatusController::class, 'bulkCancel']);
+
+Route::get('/track/', [App\Http\Controllers\Api\StatusController::class, 'apiTrackDelhivery']);
 Route::get('/track/boxd', [App\Http\Controllers\Api\StatusController::class, 'trackBoxd']);
 Route::get('/track/tekipost', [App\Http\Controllers\Api\StatusController::class, 'trackTekipost']);
 Route::get('/track/trackDTDC', [App\Http\Controllers\Api\StatusController::class, 'trackDTDC']);
@@ -57,6 +67,7 @@ Route::get('/shiprocket/login', [App\Http\Controllers\Api\StatusController::clas
 Route::get('/track/trackShadowfax', [App\Http\Controllers\Api\StatusController::class, 'trackShadowfax']);
 Route::get('/track/trackShiprocket', [App\Http\Controllers\Api\StatusController::class, 'trackShiprocket']);
 Route::post('/process-rto-excel', [StatusController::class, 'processRTOFromExcel']);
+Route::post('/update-status-from-excel', [StatusController::class, 'updateStatusFromExcel']);
 Route::get('/processrto', [StatusController::class, 'processrto']);
 Route::get('/cancelShipment', [StatusController::class, 'cancelShipment']);
 Route::delete('/destroy', [StatusController::class, 'destroy']);
@@ -105,13 +116,13 @@ Route::post('/webhooks', [TrackController::class, 'handleShiprocketWebhook']);
 // Route::post('/webhooks/Shiprocket', [TrackController::class, 'handleCourierWebhook']);
 // In routes/api.php or routes/web.php
 // Route::post('/webhook/Shiprocket', [TrackController::class, 'handleShiprocketWebhook']);
-Route::post('/webhook/parcelx', [ParcelxController::class, 'handleParcelXWebhook']); 
+Route::post('/webhook/parcelx', [ParcelxController::class, 'handleParcelXWebhook']);
 Route::post('/webhook/seloship', [SeloshipController::class, 'handleSeloshipWebhook']);
-Route::post('/webhook/boxd', [ParcelxController::class, 'handlboxdWebhook']); 
+Route::post('/webhook/boxd', [BoxdController::class, 'handlboxdWebhook']);
 
 Route::post('/smartship/webhook', [WarehosueController::class, 'smartshipWebhook']);
 
-Route::post('/test-webhook', [TestwebhookController::class, 'getAllwebhookstatus']); 
+Route::post('/test-webhook', [TestwebhookController::class, 'getAllwebhookstatus']);
 
 
 
@@ -148,3 +159,13 @@ Route::post('/track-shipment', [TrackController::class, 'trackShipment']);
 // thard party apis 
 
 
+
+
+
+
+
+
+
+
+Route::get('/shopify/install', [App\Http\Controllers\Api\ShopifyController::class, 'shopifyInstall']);
+Route::get('/shopify/callback', [App\Http\Controllers\Api\ShopifyController::class, 'shopifyCallback']);

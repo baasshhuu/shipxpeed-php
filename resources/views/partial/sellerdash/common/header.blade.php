@@ -36,14 +36,14 @@
    <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
-    <style>
-        .kyc-profile {
-        width: 50%;
-        margin: 0 auto;
-        margin-top: 20px;
-        margin-bottom: 27px;
-    }
+<style>
+    .kyc-profile {
+    width: 50%;
+    margin: 0 auto;
+    margin-top: 20px;
+    margin-bottom: 27px;
+}
 
-    </style>
+</style>
 </head>
 

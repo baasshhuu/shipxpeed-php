@@ -10,159 +10,69 @@ use App\Models\PriceSetting;
 class RateCardController extends Controller
 {
 
-// public function checkRate(Request $request)
-// {
-//     // dd($request);
-//     $seller = auth()->guard('seller')->user();
-//     if (!$seller || $seller->status != 1) {
-//         return redirect()->back()->withErrors(['error' => 'You must be logged in as a seller with an active account.']);
-//     }
-    
-//     $sellerId = Auth::guard('seller')->id();
-//     $PriceSetting = PriceSetting::where('seller_id', $sellerId)->first();
-//     // Seller shipping charge %; default 30 agar nahi mila
-//     $sellerprice = $PriceSetting ? $PriceSetting->shipping_charge : 30;
-    
-//     $validated = $request->validate([
-//         'origin' => 'required|string',
-//         'destination' => 'required|string',
-//         'payment_type' => 'required|in:cod,prepaid',
-//         'order_amount' => 'required|string',
-//         'weight' => 'required|string',
-//         'length' => 'required|string',
-//         'breadth' => 'required|string',
-//         'height' => 'required|string',
-//     ]);
-
-//     $token = env('XPRESSBEES_API_TOKEN');
-//     // dd($token);
-
-//     $response = Http::withHeaders([
-//             'Content-Type' => 'application/json',
-//             'Authorization' => 'Bearer ' . $token,
-//         ])
-//         ->withoutVerifying()
-//         ->timeout(30)
-//         ->post('https://shipment.xpressbees.com/api/courier/serviceability', $validated);
-
-//     \Log::info('XpressBees API Response', [
-//         'status' => $response->status(),
-//         'body' => $response->body(),
-//     ]);
-
-//     if ($response->successful()) {
-//         $data = $response->json()['data'] ?? [];
-
-//         // Convert percentage to multiplier
-//         $multiplier = 1 + ($sellerprice / 100);
-//         // dd($multiplier);
-
-//         // Apply seller % markup dynamically
-//         $updatedData = collect($data)->map(function ($item) use ($multiplier) {
-//             $item['freight_charges'] = round($item['freight_charges'] * 2);
-//             $item['cod_charges'] = round($item['cod_charges'] *  2);
-//             $item['total_charges'] = round($item['total_charges'] * $multiplier, 2);
-//             return $item;
-//         })->toArray();
-
-//         return redirect()->back()->with([
-//             'rate_data' => $updatedData,
-//             'success' => 'Rate fetched with markup successfully!',
-//         ]);
-//     } else {
-//         return redirect()->back()->withErrors(['error' => 'Failed to fetch rate.']);
-//     }
-// }
-
 public function checkRate(Request $request)
 {
-    try {
+    // dd($request);
+    $seller = auth()->guard('seller')->user();
+    if (!$seller || $seller->status != 1) {
+        return redirect()->back()->withErrors(['error' => 'You must be logged in as a seller with an active account.']);
+    }
+    
+    $sellerId = Auth::guard('seller')->id();
+    $PriceSetting = PriceSetting::where('seller_id', $sellerId)->first();
+    // Seller shipping charge %; default 30 agar nahi mila
+    $sellerprice = $PriceSetting ? $PriceSetting->shipping_charge : 30;
+    
+    $validated = $request->validate([
+        'origin' => 'required|string',
+        'destination' => 'required|string',
+        'payment_type' => 'required|in:cod,prepaid',
+        'order_amount' => 'required|string',
+        'weight' => 'required|string',
+        'length' => 'required|string',
+        'breadth' => 'required|string',
+        'height' => 'required|string',
+    ]);
 
-        $seller = auth()->guard('seller')->user();
+    $token = env('XPRESSBEES_API_TOKEN');
+    // dd($token);
 
-        if (!$seller || $seller->status != 1) {
-            return back()->withErrors([
-                'error' => 'You must be logged in as an active seller.'
-            ]);
-        }
-
-        $sellerId = Auth::guard('seller')->id();
-
-        $PriceSetting = PriceSetting::where(
-            'seller_id',
-            $sellerId
-        )->first();
-
-        $sellerprice = $PriceSetting
-            ? $PriceSetting->shipping_charge
-            : 30;
-
-        $validated = $request->validate([
-            'origin' => 'required|string',
-            'destination' => 'required|string',
-            'payment_type' => 'required|in:cod,prepaid',
-            'order_amount' => 'required|numeric',
-            'weight' => 'required|numeric',
-            'length' => 'required|numeric',
-            'breadth' => 'required|numeric',
-            'height' => 'required|numeric',
-        ]);
-
-        $token = env('XPRESSBEES_API_TOKEN');
-
-        $response = Http::withHeaders([
+    $response = Http::withHeaders([
             'Content-Type' => 'application/json',
             'Authorization' => 'Bearer ' . $token,
         ])
         ->withoutVerifying()
         ->timeout(30)
-        ->post(
-            'https://shipment.xpressbees.com/api/courier/serviceability',
-            $validated
-        );
+        ->post('https://shipment.xpressbees.com/api/courier/serviceability', $validated);
 
-        \Log::info('XpressBees Response', [
-            'status' => $response->status(),
-            'body' => $response->body(),
-        ]);
+    \Log::info('XpressBees API Response', [
+        'status' => $response->status(),
+        'body' => $response->body(),
+    ]);
 
-        if (!$response->successful()) {
-            return back()->withErrors([
-                'error' => 'Failed to fetch rate.'
-            ]);
-        }
+    if ($response->successful()) {
+        $data = $response->json()['data'] ?? [];
 
-        $responseData = $response->json();
-        $data = $responseData['data'] ?? [];
-
+        // Convert percentage to multiplier
         $multiplier = 1 + ($sellerprice / 100);
+        // dd($multiplier);
 
+        // Apply seller % markup dynamically
         $updatedData = collect($data)->map(function ($item) use ($multiplier) {
-
-            $item['freight_charges'] =
-                round(($item['freight_charges'] ?? 0) * 2);
-
-            $item['cod_charges'] =
-                round(($item['cod_charges'] ?? 0) * 2);
-
-            $item['total_charges'] =
-                round(($item['total_charges'] ?? 0) * $multiplier, 2);
-
+            $item['freight_charges'] = round($item['freight_charges'] * 2);
+            $item['cod_charges'] = round($item['cod_charges'] *  2);
+            $item['total_charges'] = round($item['total_charges'] * $multiplier, 2);
             return $item;
         })->toArray();
 
-        return back()->with([
+        return redirect()->back()->with([
             'rate_data' => $updatedData,
-            'success' => 'Rate fetched successfully!'
+            'success' => 'Rate fetched with markup successfully!',
         ]);
-
-    } catch (\Exception $e) {
-
-        \Log::error($e->getMessage());
-
-        return back()->withErrors([
-            'error' => $e->getMessage()
-        ]);
+    } else {
+        return redirect()->back()->withErrors(['error' => 'Failed to fetch rate.']);
     }
 }
+
+
 }

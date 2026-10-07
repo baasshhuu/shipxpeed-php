@@ -356,7 +356,7 @@ public function verifyOtp(Request $request)
 
     $response = $this->verifyOtpWithCashfree($request->ref_id, $request->otp);
     // dd($response);
-    
+   
     // If the Cashfree API call was successful, return the actual data
     if ($response['ok']) {
         return response()->json([
@@ -520,11 +520,11 @@ private function cashfreePost(string $url, array $payload): array
         'error' => null,
     ];
     dd([
-        'url' => $url,
-        'payload' => $payload,
-        'http' => $http,
-        'response' => $json,
-    ]);
+    'url' => $url,
+    'payload' => $payload,
+    'http' => $http,
+    'response' => $json,
+]);
 }
 
 

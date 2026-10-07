@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Recharge;
 use App\Models\Order;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class ResourceController extends Controller
 {
@@ -100,7 +101,7 @@ public function cod()
     $seller = Auth::guard('seller')->user();
 
     // Initialize with empty paginated collection
-    $codOrders = Order::where('id', '<', 0)->paginate(10);
+    $codOrders = Order::where('id', '<', 0)->paginate(50);
     $totalAmount = 0;
     $totalPay = 0;
     $totalCodRemittance = 0;
@@ -118,13 +119,23 @@ public function cod()
 
         $totalAmount = $sellerRechargeAmount - $sellerUsedAmount;
 
-        $codOrders = Order::where('seller_id', $seller->id)
+        // Build base query
+        $query = Order::where('seller_id', $seller->id)
             ->where('payment_type', 'cod')
-            ->where('payment_status', '!=', 'Paid')
-            ->where('shipping_status', 'delivered')
-            ->select('order_number', 'shipping_status', 'collectable_amount', 'courier_id', 'awb_number', 'created_at', 'payment_status')
+            ->where('shipping_status', 'delivered');
+
+        // Apply date filter if provided
+        if (request()->has('date_from') && request()->date_from) {
+            $query->whereDate('created_at', '>=', request()->date_from);
+        }
+        
+        if (request()->has('date_to') && request()->date_to) {
+            $query->whereDate('created_at', '<=', request()->date_to);
+        }
+
+        $codOrders = $query->select('order_number', 'shipping_status', 'collectable_amount', 'all_courier_name', 'awb_number', 'created_at', 'payment_status', 'payment_method')
             ->orderBy('created_at', 'desc')
-            ->paginate(10);
+            ->paginate(50);
 
         $totalPay = Order::where('seller_id', $seller->id)
             ->where('payment_type', 'cod')
@@ -158,6 +169,9 @@ public function cod()
         'remittanceDate' => $remittanceDate
     ]);
 }
+
+
+
 public function recharge()
 {
     $seller = Auth::guard('seller')->user();
@@ -422,17 +436,20 @@ public function api()
 public function shippingcharge()
 {
     $seller = Auth::guard('seller')->user();
-
+// dd($seller);
     // Initialize as paginated empty collection
     $orders = Order::where('id', '<', 0)->paginate(10); // Empty paginated collection
+    // dd($orders);
     $recharges = [];
     $totalAmount = 0;
 
     if ($seller && $seller->status == 1) {
         $orders = Order::where('seller_id', $seller->id)
-                      ->where('order_status', '!=', 'cancelled')
+                    //   ->where('order_status', '!=', 'cancelled')
+                      ->select('id', 'order_number', 'awb_number', 'all_courier_name', 'consignee', 'seller_amount_walate', 'shipping_charges', 'created_at')
                       ->latest()
                       ->paginate(10);
+                    //   dd($orders);
                       
         $recharges = Recharge::where([
             'seller_id' => $seller->id,
@@ -613,6 +630,95 @@ public function shippingcharge()
             'seller' => $seller,
             'totalAmount' => $totalAmount
         ]);
+    }
+
+    public function exportCodOrdersExcel()
+    {
+        $seller = Auth::guard('seller')->user();
+        
+        if (!$seller || $seller->status != 1) {
+            return redirect()->back()->with('error', 'Unauthorized access');
+        }
+
+        // Build base query
+        $query = Order::where('seller_id', $seller->id)
+            ->where('payment_type', 'cod')
+            ->where('shipping_status', 'delivered');
+
+        // Apply date filter if provided
+        if (request()->has('date_from') && request()->date_from) {
+            $query->whereDate('created_at', '>=', request()->date_from);
+        }
+        
+        if (request()->has('date_to') && request()->date_to) {
+            $query->whereDate('created_at', '<=', request()->date_to);
+        }
+
+        // Get current page data only (same as displayed in table)
+        $currentPage = request()->get('page', 1);
+        $perPage = 50;
+        $offset = ($currentPage - 1) * $perPage;
+
+        $codOrders = $query->select(
+            'order_number', 
+            'shipping_status', 
+            'collectable_amount', 
+            'all_courier_name', 
+            'awb_number', 
+            'created_at', 
+            'payment_status', 
+            'payment_method',
+            'consignee',
+            'delivered_date'
+        )->orderBy('created_at', 'desc')
+        ->offset($offset)
+        ->limit($perPage)
+        ->get();
+
+        $filename = 'cod_orders_page_' . $currentPage . '_' . date('Y_m_d_H_i_s') . '.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function () use ($codOrders, $currentPage) {
+            $file = fopen('php://output', 'w');
+            
+            // Add CSV headers
+            fputcsv($file, [
+                'Order Number',
+                'AWB Number', 
+                'Customer Name',
+                'Courier Name',
+                'Collectable Amount',
+                'Payment Status',
+                'Payment Method',
+                'Shipping Status',
+                'Order Date',
+                'Delivered Date'
+            ]);
+
+            // Add data rows
+            foreach ($codOrders as $order) {
+                fputcsv($file, [
+                    $order->order_number,
+                    $order->awb_number ?? 'N/A',
+                    $order->consignee ?? 'N/A',
+                    $order->all_courier_name ?? 'N/A',
+                    '₹' . number_format($order->collectable_amount, 2),
+                    $order->payment_status ?? 'Pending',
+                    $order->payment_method ?? 'COD',
+                    ucfirst($order->shipping_status),
+                    $order->created_at ? $order->created_at->format('d/m/Y') : 'N/A',
+                    $order->delivered_date ? \Carbon\Carbon::parse($order->delivered_date)->format('d/m/Y') : 'N/A'
+                ]);
+            }
+            
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
 }

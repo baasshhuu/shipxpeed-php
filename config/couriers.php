@@ -17,5 +17,6 @@ return [
      'shiprocket' => \App\Services\ShiprocketService::class,
      'selloship' => \App\Services\selloshipService::class,
 
+    'delhivery_zapdeal' => \App\Services\DelhiveryZapdealService::class,
     // …add as you onboard more
 ];

@@ -159,11 +159,11 @@ class ShopifyController extends Controller
         try {
             // dd($request);
             $validatedData = $request->validate([
-                'store_url' => 'required|url',
-                'api_key' => 'required|string',
-                'admin_api_token' => 'required|string',
-                'host_name' => 'required|string',
-                'sync_start_date' => 'required|date',
+                'store_url' => 'nullable|url',
+                'api_key' => 'nullable|string',
+                'admin_api_token' => 'nullable|string',
+                'host_name' => 'nullable|string',
+                'sync_start_date' => 'nullable|date',
             ]);
 
             $seller = Auth::guard('seller')->user();
@@ -171,9 +171,9 @@ class ShopifyController extends Controller
             ShopifyConnection::create([
                 'seller_id' => $seller->id,
                 'store_url' => $validatedData['store_url'],
-                'api_key' => $validatedData['api_key'],
-                'admin_api_token' => $validatedData['admin_api_token'],
-                'host_name' => $validatedData['host_name'],
+                // 'api_key' => $validatedData['api_key'],
+                // 'admin_api_token' => $validatedData['admin_api_token'],
+                // 'host_name' => $validatedData['host_name'],
                 'sync_start_date' => $validatedData['sync_start_date'],
                 'status' => 'connected'
             ]);
@@ -181,7 +181,7 @@ class ShopifyController extends Controller
             return redirect()->back()->with('success', 'Shopify integration successful! Your store has been connected.');
             
         } catch (\Exception $e) {
-            // dd($e->getMessage());
+            dd($e->getMessage());
             Log::error('Shopify Integration Error: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Failed to connect Shopify store. Please try again.');
         }

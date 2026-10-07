@@ -302,7 +302,7 @@
             </div>
         </div>
         <div class="text-center mt-4 mb-3">
-            <div style="background: #f8f9fa; border-radius: 7px; display: inline-block; padding: 0.7rem 0.8rem; box-shadow: 0 2px 8px rgba(0,0,0,0.05); font-size: 0.9rem;margin-bottom:20px; color: #333;">
+            <div style="background: #f8f9fa; border-radius: 10px; display: inline-block; padding: 1rem 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.05); font-size: 1.05rem; color: #333;">
                 <strong>Note:</strong> WhatsApp messages will be charged at <span style="color: #28a745; font-weight:600;">₹1</span> per message and Email messages at <span style="color: #007bff; font-weight:600;">₹0.50</span> per message.
             </div>
         </div>

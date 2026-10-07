@@ -4,12 +4,12 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <title>{{ $site_settings['application_name'] ?? ''}}</title>
+    <title>{{ $site_settings['application_name'] }}</title>
     <meta name="description" content="">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <link href="{{ $site_settings['favicon'] ?? '' }}" rel="icon">
-    <link href="{{ $site_settings['favicon'] ?? '' }}" rel="apple-touch-icon">
+    <link href="{{ $site_settings['favicon'] }}" rel="icon">
+    <link href="{{ $site_settings['favicon'] }}" rel="apple-touch-icon">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://html.shipxpeed.com/">
     <meta property="og:title" content="Shipxpeed - Fast & Reliable Shipping">

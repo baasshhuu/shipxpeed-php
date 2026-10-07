@@ -15,7 +15,7 @@
 
 @section('content')
 
-<div class="card mb-3" style="margin-top: 40px;">
+<div class="card mb-3">
     <div class="card-header">
         <h5>RTO Status Update</h5>
     </div>

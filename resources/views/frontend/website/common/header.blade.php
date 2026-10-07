@@ -3,12 +3,16 @@
 <header id="header" class="header position-sticky top-0" style="z-index:1030;">
   <div class="container-xxl d-flex align-items-center justify-content-between px-2 header-inner-nav" style="width:100%;">
     <!-- Desktop Nav with logo INSIDE rounded nav bar even when scrolled -->
-    <nav class="main-nav-content d-none d-xl-flex flex-row align-items-center justify-content-between shadow nav-elevated">
+    <nav
+      class="main-nav-content d-none d-xl-flex flex-row align-items-center justify-content-between shadow nav-elevated"
+    >
       <!-- Left: Logo sits flush to left, but inside border radius -->
       <div class="header-logo d-flex align-items-center flex-shrink-0 header-logo-wrapper">
         <a href="{{ route('home') }}" class="d-flex align-items-center text-decoration-none logo py-0 px-2">
-          <img src="{{ asset('uploads/settings/'.($settings['logo'] ?? 'default-logo.png')) }}"  alt="Shipxpeed Logo" class="main-logo"
-              style="height:30px;max-width:100px;object-fit:contain;transition:height 0.18s;">
+          <img src="{{ asset('storage/' . $site_settings['logo']) }}"
+               alt="Shipxpeed Logo"
+               class="main-logo"
+               style="height:30px;max-width:100px;object-fit:contain;transition:height 0.18s;">
         </a>
       </div>
       <ul class="center-nav-list d-flex flex-row align-items-center justify-content-center list-unstyled mb-0"
@@ -16,9 +20,13 @@
         <!-- Features Dropdown -->
         <li class="dropdown">
           <a href="#" class="nav-link dropdown-toggle px-3 py-2 rounded-pill d-flex align-items-center nav-icon-text"
-             id="featuresDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="color:#183153;">
+             id="featuresDropdown"
+             data-bs-toggle="dropdown"
+             aria-expanded="false"
+             style="color:#183153;">
             <span class="d-flex align-items-center" style="gap:0.05em;">
-              <span>Features</span><i class="bi bi-chevron-down ms-1" style="font-size:0.7em; color:#0171d3;"></i>
+              <span>Features</span>
+              <i class="bi bi-chevron-down ms-1" style="font-size:0.7em; color:#0171d3;"></i>
             </span>
           </a>
           <ul class="dropdown-menu mt-2 border-0 shadow-sm rounded-3 py-2 px-2 min-w-200" aria-labelledby="featuresDropdown"
@@ -56,7 +64,8 @@
              aria-expanded="false"
              style="color:#183153;">
             <span class="d-flex align-items-center" style="gap:0.05em;">
-              <span>Company</span><i class="bi bi-chevron-down ms-1" style="font-size:0.7em; color:#28a745;"></i>
+              <span>Company</span>
+              <i class="bi bi-chevron-down ms-1" style="font-size:0.7em; color:#28a745;"></i>
             </span>
           </a>
           <ul class="dropdown-menu mt-2 border-0 shadow-sm rounded-3 py-2 px-2 min-w-200" aria-labelledby="companyDropdown" style="font-size:.95rem;">
@@ -90,12 +99,20 @@
       </ul>
       <!-- Right: Enquire Now + Sign Up -->
       <div class="header-actions d-flex align-items-center flex-shrink-0 gap-2 ms-2">
-        <a href="#"
+        <a href="{{ route('contact') }}"
            data-bs-toggle="modal"
            data-bs-target="#exampleModal"
            class="btn enquire-btn-premium rounded-pill px-3 py-2 d-flex align-items-center justify-content-center"
            style="font-size:.98rem; min-width:100px; font-weight:400; gap:.32em; border: none; box-shadow:0 3px 18px rgba(33,124,229,0.09); background:linear-gradient(98deg, #eff7fe 0%, #e6f2fb 65%, #d9e9f6 100%); color:#1e3e68; letter-spacing:0;">
           <span>Enquire Now</span>
+        </a>
+        
+       
+        <a href="{{ route('seller.login') }}"
+           class="btn signup-btn-premium rounded-pill px-3 py-2 d-flex align-items-center justify-content-center signup-animate-btn"
+           style="font-size:.98rem; min-width:98px; font-weight:400; gap:.36em; border: none; background: linear-gradient(92deg, #c4e3fb 0%, #e9f5fe 62%, #f5fcff 100%); color:#3379e6; box-shadow:0 4px 22px rgba(40,127,245,0.06); letter-spacing:0; transition: transform 0.25s cubic-bezier(0.42,0,0.58,1), box-shadow 0.25s cubic-bezier(0.42,0,0.58,1);">
+          <span style="max-width:72px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-weight: 600;display: inline-block;transition: transform 0.21s cubic-bezier(0.42,0,0.58,1);">Login</span>
+          
         </a>
         <a href="{{ route('register.get') }}"
            class="btn signup-btn-premium rounded-pill px-3 py-2 d-flex align-items-center justify-content-center signup-animate-btn"
@@ -103,23 +120,6 @@
           <span style="max-width:72px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-weight: 700;display: inline-block;transition: transform 0.21s cubic-bezier(0.42,0,0.58,1);">Sign Up</span>
           <svg class="ms-2 signup-animate-arrow" style="transition:transform 0.21s cubic-bezier(0.42,0,0.58,1);" width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M7 13l4-4-4-4" stroke="#3379e6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </a>
-        <style>
-          .signup-animate-btn:hover,
-          .signup-animate-btn:focus {
-            transform: translateY(-3px) scale(1.045);
-            box-shadow: 0 8px 32px rgba(40,127,245,0.14);
-            background: linear-gradient(92deg, #e9f5fe 30%, #c4e3fb 100%);
-          }
-          .signup-animate-btn:hover .signup-animate-arrow,
-          .signup-animate-btn:focus .signup-animate-arrow {
-            transform: translateX(4px) scale(1.12);
-          }
-          .signup-animate-btn:hover span,
-          .signup-animate-btn:focus span {
-            transform: translateX(1.3px) scale(1.04);
-          }
-        </style>
-   
       </div>
     </nav>
     <!-- Hamburger for Mobile (circular background), HIDDEN when sidebar is open -->
@@ -137,8 +137,9 @@
     <div class="d-flex justify-content-between align-items-center py-3 px-3 border-bottom">
       <!-- Logo left in sidebar header -->
       <a href="{{ route('home') }}" class="d-flex align-items-center text-decoration-none logo">
-        <img src="{{ asset('uploads/settings/'.($settings['logo'] ?? 'default-logo.png')) }}"
-          alt="Shipxpeed Logo" class="main-logo"
+        <img src="{{ asset('storage/' . $site_settings['logo']) }}"
+          alt="Shipxpeed Logo"
+          class="main-logo"
           style="height:22px;max-width:70px;object-fit:contain;">
       </a>
       <!-- Close/Cross Icon (circular background) -->

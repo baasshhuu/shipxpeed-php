@@ -34,6 +34,11 @@ use App\Imports\OrdersImport;
 class Dashboard extends Controller
 {
 
+
+
+
+
+
     public function clone(Request $request)
     {
         $id = $request->input('order_id');
@@ -405,6 +410,9 @@ class Dashboard extends Controller
     // Order details section in two columns (removed weight and dimensions)
     $html .= '<div style="display:flex;border-bottom:1px solid #000;">
                 <div style="flex:1;padding:6px 8px;border-right:1px solid #000;">
+<div style="font-size:10px;margin-bottom:2px;">
+<strong>Seller:</strong> ' . htmlspecialchars(auth()->guard('seller')->user()->name ?? '') . '
+</div>
                     <div style="font-size:10px;margin-bottom:2px;"><strong>Order Id:</strong> ' . htmlspecialchars($dummyData['order_number'] ?? '29593') . '</div>
                      <div style="font-size:10px;margin-bottom:2px;"><strong>Ref./Invoice#:</strong> ' . htmlspecialchars($dummyData['order_number'] ?? '#8581') . '</div>
                     <div style="font-size:10px;margin-bottom:2px;"><strong>Date:</strong> ' . $dummyData['order_date'] . '</div>';
@@ -1036,6 +1044,116 @@ public function importOrders(Request $request)
     }
 }
 
+public function exportCancelledOrdersExcel(Request $request)
+{
+    $seller = Auth::guard('seller')->user();
+
+    if (!$seller || $seller->status != 1) {
+        return redirect()->route('seller.login')->with('error', 'Please login to access this feature.');
+    }
+
+    $query = Order::where('seller_id', $seller->id)
+                  ->where('order_status', 'Cancelled')
+                  ->latest();
+
+    // Apply date filters if provided
+    if ($request->filled('from_date') && $request->filled('to_date')) {
+        $fromDate = \Carbon\Carbon::parse($request->from_date)->startOfDay();
+        $toDate = \Carbon\Carbon::parse($request->to_date)->endOfDay();
+        $query->whereBetween('created_at', [$fromDate, $toDate]);
+    }
+
+    $orders = $query->get();
+
+    // Prepare data for Excel
+    $data = [];
+    $data[] = [
+        'AWB Number',
+        'Order Number'
+    ];
+
+    foreach ($orders as $order) {
+        $data[] = [
+            $order->awb_number ?? '',
+            $order->order_number ?? ''
+        ];
+    }
+
+    // Create Excel file
+    $filename = 'cancelled_orders_' . date('Y-m-d_H-i-s') . '.xlsx';
+    
+    return Excel::download(new class($data) implements \Maatwebsite\Excel\Concerns\FromCollection, \Maatwebsite\Excel\Concerns\WithHeadings {
+        public $data;
+        
+        public function __construct($data) {
+            $this->data = collect($data);
+        }
+        
+        public function collection() {
+            return $this->data->skip(1); // Skip header row
+        }
+        
+        public function headings(): array {
+            return $this->data->first(); // Return first row as headings
+        }
+    }, $filename);
+}
+
+public function exportInTransitOrdersExcel(Request $request)
+{
+    $seller = Auth::guard('seller')->user();
+
+    if (!$seller || $seller->status != 1) {
+        return redirect()->route('seller.login')->with('error', 'Please login to access this feature.');
+    }
+
+    $query = Order::where('seller_id', $seller->id)
+                  ->where('shipping_status', 'transit')
+                  ->latest();
+
+    // Apply date filters if provided
+    if ($request->filled('from_date') && $request->filled('to_date')) {
+        $fromDate = \Carbon\Carbon::parse($request->from_date)->startOfDay();
+        $toDate = \Carbon\Carbon::parse($request->to_date)->endOfDay();
+        $query->whereBetween('created_at', [$fromDate, $toDate]);
+    }
+
+    $orders = $query->get();
+
+    // Prepare data for Excel
+    $data = [];
+    $data[] = [
+        'AWB Number',
+        'Order Number'
+    ];
+
+    foreach ($orders as $order) {
+        $data[] = [
+            $order->awb_number ?? '',
+            $order->order_number ?? ''
+        ];
+    }
+
+    // Create Excel file
+    $filename = 'in_transit_orders_' . date('Y-m-d_H-i-s') . '.xlsx';
+    
+    return Excel::download(new class($data) implements \Maatwebsite\Excel\Concerns\FromCollection, \Maatwebsite\Excel\Concerns\WithHeadings {
+        public $data;
+        
+        public function __construct($data) {
+            $this->data = collect($data);
+        }
+        
+        public function collection() {
+            return $this->data->skip(1); // Skip header row
+        }
+        
+        public function headings(): array {
+            return $this->data->first(); // Return first row as headings
+        }
+    }, $filename);
+}
+
 
 
 
@@ -1315,14 +1433,282 @@ public function getSmartshipLabel(Request $request)
     }
 
 
+public function getPrepaidCodData()
+{
+    $cod = Order::where('payment_type', 'cod')->count();
+    $prepaid = Order::where('payment_type', 'prepaid')->count();
+
+    return response()->json([
+        'cod' => $cod,
+        'prepaid' => $prepaid
+    ]);
+}
 
 
+public function getDashboardData(Request $request)
+{
+    // dd($request);
+    $sellerId = Auth::guard('seller')->id();
+    // dd($sellerId);
+    // echo 'cscsc';die;
+    $days = $request->days ?? 30;
+    //  dd($days);
+    $startDate = now()->subDays($days - 1)->startOfDay();
+
+    // Orders per day
+    $orders = Order::where('created_at', '>=', $startDate)
+         ->where('seller_id', $sellerId)
+        ->selectRaw('DATE(created_at) as date, COUNT(*) as total')
+        ->groupBy('date')
+        ->orderBy('date')
+        ->get();
+
+    $labels = [];
+    $data = [];
+
+    for ($i = 0; $i < $days; $i++) {
+        $date = now()->subDays($days - $i - 1)->format('Y-m-d');
+        $labels[] = date('d M', strtotime($date));
+
+        $found = $orders->firstWhere('date', $date);
+        $data[] = $found ? $found->total : 0;
+    }
+
+    // COD / Prepaid
+    $cod = Order::where('seller_id', $sellerId)->where('payment_type', 'cod')->count();
+    $prepaid = Order::where('seller_id', $sellerId)->where('payment_type', 'prepaid')->count();
+
+    return response()->json([
+        'labels' => $labels,
+        'orders' => $data,
+        'cod' => $cod,
+        'prepaid' => $prepaid
+    ]);
+}
+
+
+public function getRevenueDashboardData(Request $request)
+{
+    try {
+        // dd($request);
+
+        $sellerId = Auth::guard('seller')->id();
+//  dd($sellerId);
+
+        $range = $request->range ?? 'month';
+        $labels = [];
+        $data = [];
+
+        // 🔹 Revenue (Month)
+        if ($range == 'month') {
+            for ($i=1;$i<=30;$i+=4) {
+
+                $date = now()->startOfMonth()->addDays($i-1);
+
+                $labels[] = $date->format('d');
+
+                $data[] = Order::where('seller_id', $sellerId) // ✅ filter
+                    ->whereDate('created_at', $date)
+                    ->sum('collectable_amount') ?? 0;
+            }
+        }
+
+        // 🔹 Zones (seller wise)
+        $zoneData = Order::where('seller_id', $sellerId)
+            ->select('zone')
+            ->selectRaw('COUNT(*) as total')
+            ->groupBy('zone')
+            ->pluck('total','zone');
+
+        $zones = [
+            'A' => $zoneData['A'] ?? 24,
+            'B' => $zoneData['B'] ?? 30,
+            'C' => $zoneData['C'] ?? 50,
+            'D' => $zoneData['D'] ?? 12,
+        ];
+
+        // 🔹 Total Revenue (seller wise)
+        $totalRevenue = Order::where('seller_id', $sellerId)
+            ->sum('collectable_amount');
+
+        // 🔹 Courier (seller wise)
+        $couriers = Order::where('seller_id', $sellerId)
+            ->select('all_courier_name')
+            ->selectRaw('COUNT(*) as total')
+            ->groupBy('all_courier_name')
+            ->orderByDesc('total')
+            ->limit(3)
+            ->get()
+            ->map(function ($c) {
+                return [
+                    'name' => $c->all_courier_name ?? 'N/A',
+                    'percent' => rand(90, 99)
+                ];
+            });
+//  dd($couriers);
+        return response()->json([
+            'labels' => $labels,
+            'data' => $data,
+            'zones' => $zones,
+            'couriers' => $couriers,
+            'totalRevenue' => $totalRevenue
+        ]);
+
+    } catch (\Exception $e) {
+
+        return response()->json([
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
+
+
+// public function getRevenueDashboardData(Request $request)
+// {
+//     try {
+
+//         $range = $request->range ?? 'month';
+
+//         $labels = [];
+//         $data = [];
+
+//         if ($range == 'month') {
+//             for ($i=1;$i<=30;$i+=4) {
+//                 $date = now()->startOfMonth()->addDays($i-1);
+
+//                 $labels[] = $date->format('d');
+
+//                 $data[] = Order::whereDate('created_at',$date)
+//                     ->sum('collectable_amount') ?? 0;
+//             }
+//         }
+
+//         // Zones (safe)
+//         $zoneData = Order::select('zone')
+//             ->selectRaw('COUNT(*) as total')
+//             ->groupBy('zone')
+//             ->pluck('total','zone');
+
+//         $zones = [
+//             'A' => $zoneData['A'] ?? 15,
+//             'B' => $zoneData['B'] ?? 29,
+//             'C' => $zoneData['C'] ?? 30,
+//             'D' => $zoneData['D'] ?? 25,
+//         ];
+
+//         $totalRevenue = Order::sum('total_amount');
+//         // Courier safe
+//         $couriers = Order::select('courier_name')
+//             ->selectRaw('COUNT(*) as total')
+//             ->groupBy('courier_name')
+//             ->limit(3)
+//             ->get();
+
+//         $couriers = $couriers->map(function ($c) {
+//             return [
+//                 'name' => $c->courier_name ?? 'N/A',
+//                 'percent' => rand(90, 99)
+//             ];
+//         });
+
+//         return response()->json([
+//             'labels' => $labels,
+//             'data' => $data,
+//             'zones' => $zones,
+//             'couriers' => $couriers
+//         ]);
+
+//     } catch (\Exception $e) {
+//         dd($e->getMessage());
+//         return response()->json([
+//             'error' => $e->getMessage()
+//         ], 500);
+//     }
+// }
+
+
+// public function getRevenueDashboardData(Request $request)
+// {
+//     $range = $request->range ?? 'month';
+
+//     // 🔹 Revenue
+//     if ($range == 'year') {
+//         $labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+//         $data = [];
+//         for ($i=1;$i<=12;$i++) {
+//             $sum = Order::whereMonth('created_at',$i)
+//                 ->whereYear('created_at', now()->year)
+//                 ->sum('total_amount');
+
+//             $data[] = $sum;
+//         }
+
+//     } elseif ($range == 'week') {
+
+//         $labels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+//         $data = [];
+
+//         for ($i=0;$i<7;$i++) {
+//             $date = now()->startOfWeek()->addDays($i);
+//             $labels[$i] = $date->format('D');
+
+//             $data[] = Order::whereDate('created_at',$date)
+//                 ->sum('total_amount');
+//         }
+
+//     } else {
+//         // month
+//         $labels = [];
+//         $data = [];
+
+//         for ($i=1;$i<=30;$i+=4) {
+//             $date = now()->startOfMonth()->addDays($i-1);
+
+//             $labels[] = $date->format('d');
+
+//             $data[] = Order::whereDate('created_at',$date)
+//                 ->sum('total_amount');
+//         }
+//     }
+
+//     // 🔹 Zone Stats (REAL)
+
+
+//     $zones = [
+//         'A' => Order::where('zone','A')->count(),
+//         'B' => Order::where('zone','B')->count(),
+//         'C' => Order::where('zone','C')->count(),
+//         'D' => Order::where('zone','D')->count(),
+//     ];
+
+//     // 🔹 Courier Performance
+//     $couriers = Order::select('courier_name')
+//         ->selectRaw('COUNT(*) as total')
+//         ->groupBy('courier_name')
+//         ->orderByDesc('total')
+//         ->limit(3)
+//         ->get()
+//         ->map(function ($c) {
+//             return [
+//                 'name' => $c->courier_name,
+//                 'percent' => rand(90, 99) // optional logic
+//             ];
+//         });
+
+//     return response()->json([
+//         'labels' => $labels,
+//         'data' => $data,
+//         'zones' => $zones,
+//         'couriers' => $couriers
+//     ]);
+// }
 
     public function index()
     {
         $seller = Auth::guard('seller')->user();
         $sellerId = Auth::guard('seller')->id();
-        //dd($seller);
+        // dd($sellerId);
         $transactions = Recharge::where(['seller_id' => $sellerId, 'status' => '1'])
             ->latest()
             ->take(5)
@@ -1521,8 +1907,28 @@ public function getSmartshipLabel(Request $request)
             ->where('created_at', '>=', $last30Days)
             ->count();
 
+            
+        $Allorderrto = Order::where('seller_id', $sellerId)
+            ->whereIn('shipping_status', ['rto', 'rto delivered'])
+            ->where('created_at', '>=', $last30Days)
+            ->count();
+
         $deliveredCount = Order::where('seller_id', $sellerId)
             ->whereIn('shipping_status', ['Delivered', 'delivered', 'DELIVERED'])
+            ->where('created_at', '>=', $last30Days)
+            ->count();
+            
+        $ndrdeliveredCount = Order::where('seller_id', $sellerId)
+            ->whereIn('shipping_status', ['ndr', 'ndr', 'ndr'])
+            ->where('created_at', '>=', $last30Days)
+            ->count();
+
+                    $transitdeliveredCount = Order::where('seller_id', $sellerId)
+            ->whereIn('shipping_status', ['transit', 'transit', 'transit'])
+            ->where('created_at', '>=', $last30Days)
+            ->count();
+                               $OutforDelivery  = Order::where('seller_id', $sellerId)
+            ->whereIn('shipping_status', ['out for delivery', 'out for delivery', 'out for delivery'])
             ->where('created_at', '>=', $last30Days)
             ->count();
 
@@ -1649,7 +2055,9 @@ public function getSmartshipLabel(Request $request)
 
             // return view('maintenance', compact('transactions', 'seller', 'totalAmount', 'latestOrders', 'orderCount', 'Assigned', 'Allorder', 'Cancelled'));
 
-        return view('sellerdashboard.dashboard', compact(
+
+
+            return view('sellerdashboard.dashboard', compact(
             'transactions', 
             'seller', 
             'totalAmount', 
@@ -1696,7 +2104,10 @@ public function getSmartshipLabel(Request $request)
             'trafficLabels',
             'newVisitorsData',
             'returningVisitorsData',
-            'sellerId'
+            'sellerId',
+            'transitdeliveredCount',
+            'deliveredCount',
+            'ndrdeliveredCount','Allorderrto'
         ));
     }
 
@@ -1946,7 +2357,7 @@ public function order()
         }
         
         // Paginate orders
-        $orders = $orderQuery->latest()->paginate(10);
+        $orders = $orderQuery->latest()->paginate(50);
 
         $Warehouse = Warehouse::where('seller_id', $seller->id)->get();
     }
@@ -2333,7 +2744,29 @@ public function order()
                         ->orWhereIn('shipping_status', ['Assigned', 'Pending Pickup', 'Manifested', 'Not Picked','courier Assigned','assigned']);
                 });
 
+            // Search functionality
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('order_number', 'like', "%{$searchTerm}%")
+                      ->orWhere('customer_order_id', 'like', "%{$searchTerm}%")
+                      ->orWhere('awb_number', 'like', "%{$searchTerm}%")
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.name") LIKE ?', ["%{$searchTerm}%"])
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.email") LIKE ?', ["%{$searchTerm}%"])
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.phone") LIKE ?', ["%{$searchTerm}%"]);
+                });
+            }
+
             // Apply date filters if provided
+            if ($request->has('from_date') && $request->from_date) {
+                $query->whereDate('shipping_date', '>=', $request->from_date);
+            }
+            
+            if ($request->has('to_date') && $request->to_date) {
+                $query->whereDate('shipping_date', '<=', $request->to_date);
+            }
+
+            // Legacy date filters for backward compatibility
             if ($request->has('date_from') && $request->date_from) {
                 $query->whereDate('shipping_date', '>=', $request->date_from);
             }
@@ -2428,7 +2861,7 @@ public function order()
 
 
 
-    public function Cancelled_order()
+    public function Cancelled_order(Request $request)
     {
         $seller = Auth::guard('seller')->user();
 
@@ -2453,16 +2886,28 @@ public function order()
             $rateCard = RateCard::where('seller_id', $seller->id)->first();
             $commonPdf = AppSetting::where('key', 'common_rate_pdf_3')->value('value');
 
-            // ✅ Paginate orders
-            // $orders = Order::where(['seller_id' => $seller->id, 'order_status' => 'cancelled'])->latest()->paginate(10);
-            $orders = Order::where('seller_id', $seller->id)
-            ->where(function ($query) {
-                $query->where('order_status', 'cancelled')
-                    ->orWhere('shipping_status', 'Not Picked');
-            })
-            ->latest()
-            ->paginate(10);
+            // Build query with search functionality
+            $query = Order::where('seller_id', $seller->id)
+                ->where(function ($query) {
+                    $query->where('order_status', 'cancelled')
+                        ->orWhere('shipping_status', 'Not Picked');
+                });
 
+            // Add search functionality
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('order_number', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('customer_order_id', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('awb_number', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('consignee', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.name") LIKE ?', ['%' . $searchTerm . '%'])
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.phone") LIKE ?', ['%' . $searchTerm . '%'])
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.email") LIKE ?', ['%' . $searchTerm . '%']);
+                });
+            }
+
+            $orders = $query->latest()->paginate(50)->appends($request->query());
         }
 
 
@@ -2484,7 +2929,7 @@ public function order()
         ])->count(),
     ];
 
-        return view('sellerdashboard.order_cancel', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders', 'orderCounts'));
+        return view('sellerdashboard.order_cancel', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders', 'orderCounts'))->with('pageType', 'cancelled');
     }
 
 
@@ -2552,7 +2997,7 @@ public function order()
 
 
 
-    public function InTransit()
+    public function InTransit(Request $request)
     {
         $seller = Auth::guard('seller')->user();
         $totalAmount = 0;
@@ -2571,8 +3016,25 @@ public function order()
             $totalAmount = $sellerRechargeAmount - $sellerUsedAmount;
             $rateCard = RateCard::where('seller_id', $seller->id)->first();
             $commonPdf = AppSetting::where('key', 'common_rate_pdf_3')->value('value');
-            // ✅ Paginate orders
-            $orders = Order::where(['seller_id' => $seller->id, 'shipping_status' => 'transit'])->latest()->paginate(10);
+            
+            // Build query with search functionality
+            $query = Order::where(['seller_id' => $seller->id, 'shipping_status' => 'transit']);
+            
+            // Add search functionality
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('order_number', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('customer_order_id', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('awb_number', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('consignee', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.name") LIKE ?', ['%' . $searchTerm . '%'])
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.phone") LIKE ?', ['%' . $searchTerm . '%'])
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.email") LIKE ?', ['%' . $searchTerm . '%']);
+                });
+            }
+            
+            $orders = $query->latest()->paginate(50)->appends($request->query());
         }
 
 
@@ -2593,14 +3055,14 @@ public function order()
         ])->count(),
     ];
 
-        return view('sellerdashboard.order_cancel', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders', 'orderCounts'));
+        return view('sellerdashboard.order_cancel', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders', 'orderCounts'))->with('pageType', 'intransit');
     }
 
 
 
 
 
-    public function OutForDelivery()
+    public function OutForDelivery(Request $request)
     {
         $seller = Auth::guard('seller')->user();
 
@@ -2625,8 +3087,24 @@ public function order()
             $rateCard = RateCard::where('seller_id', $seller->id)->first();
             $commonPdf = AppSetting::where('key', 'common_rate_pdf_3')->value('value');
 
-            // ✅ Paginate orders
-            $orders = Order::where(['seller_id' => $seller->id, 'shipping_status' => 'out for delivery'])->latest()->paginate(10);
+            // Build query with search functionality
+            $query = Order::where(['seller_id' => $seller->id, 'shipping_status' => 'out for delivery']);
+            
+            // Add search functionality
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('order_number', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('customer_order_id', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('awb_number', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('consignee', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.name") LIKE ?', ['%' . $searchTerm . '%'])
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.phone") LIKE ?', ['%' . $searchTerm . '%'])
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.email") LIKE ?', ['%' . $searchTerm . '%']);
+                });
+            }
+            
+            $orders = $query->latest()->paginate(50)->appends($request->query());
         }
 
    $orderCounts = [
@@ -2645,13 +3123,13 @@ public function order()
         ])->count(),
     ];
 
-        return view('sellerdashboard.order_cancel', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders', 'orderCounts'));
+        return view('sellerdashboard.order_cancel', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders', 'orderCounts'))->with('pageType', 'outfordelivery');
     }
 
 
 
 
-    public function Delivered()
+    public function Delivered(Request $request)
     {
         $seller = Auth::guard('seller')->user();
 
@@ -2676,8 +3154,24 @@ public function order()
             $rateCard = RateCard::where('seller_id', $seller->id)->first();
             $commonPdf = AppSetting::where('key', 'common_rate_pdf_3')->value('value');
 
-            // ✅ Paginate orders
-            $orders = Order::where(['seller_id' => $seller->id, 'shipping_status' => 'delivered'])->latest()->paginate(10);
+            // Build query with search functionality  
+            $query = Order::where(['seller_id' => $seller->id, 'shipping_status' => 'delivered']);
+            
+            // Add search functionality
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('order_number', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('customer_order_id', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('awb_number', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('consignee', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.name") LIKE ?', ['%' . $searchTerm . '%'])
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.phone") LIKE ?', ['%' . $searchTerm . '%'])
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.email") LIKE ?', ['%' . $searchTerm . '%']);
+                });
+            }
+            
+            $orders = $query->latest()->paginate(50)->appends($request->query());
         }
 
 
@@ -2697,7 +3191,7 @@ public function order()
         ])->count(),
     ];
 
-        return view('sellerdashboard.order_cancel', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders', 'orderCounts'));
+        return view('sellerdashboard.order_cancel', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders', 'orderCounts'))->with('pageType', 'delivered');
     }
 
 
@@ -2769,7 +3263,7 @@ public function order()
 
 
     
-    public function NDR()
+    public function NDR(Request $request)
     {
         $seller = Auth::guard('seller')->user();
 
@@ -2794,8 +3288,24 @@ public function order()
             $rateCard = RateCard::where('seller_id', $seller->id)->first();
             $commonPdf = AppSetting::where('key', 'common_rate_pdf_3')->value('value');
 
-            // ✅ Paginate orders
-            $orders = Order::where(['seller_id' => $seller->id, 'shipping_status' => 'NDR'])->latest()->paginate(10);
+            // Build query with search functionality
+            $query = Order::where(['seller_id' => $seller->id, 'shipping_status' => 'NDR']);
+            
+            // Add search functionality
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('order_number', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('customer_order_id', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('awb_number', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('consignee', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.name") LIKE ?', ['%' . $searchTerm . '%'])
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.phone") LIKE ?', ['%' . $searchTerm . '%'])
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.email") LIKE ?', ['%' . $searchTerm . '%']);
+                });
+            }
+            
+            $orders = $query->latest()->paginate(50)->appends($request->query());
         }
 
 
@@ -2815,12 +3325,12 @@ public function order()
         ])->count(),
     ];
 
-        return view('sellerdashboard.order_cancel', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders', 'orderCounts'));
+        return view('sellerdashboard.order_cancel', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders', 'orderCounts'))->with('pageType', 'ndr');
     }
 
 
     
-    public function RTO()
+    public function RTO(Request $request)
     {
         $seller = Auth::guard('seller')->user();
 
@@ -2844,10 +3354,26 @@ public function order()
 
             $rateCard = RateCard::where('seller_id', $seller->id)->first();
             $commonPdf = AppSetting::where('key', 'common_rate_pdf_3')->value('value');
-        $orders = Order::where('seller_id', $seller->id)
-            ->whereIn('shipping_status', ['rto', 'rto delivered','rto-it','rto-dispatched','rto-pending','rto delivered','rto_ofd','rts'])
-            ->latest()
-            ->paginate(10);
+            
+        // Build query with search functionality
+        $query = Order::where('seller_id', $seller->id)
+            ->whereIn('shipping_status', ['rto', 'rto delivered','rto-it','rto-dispatched','rto-pending','rto delivered','rto_ofd','rts']);
+            
+            // Add search functionality
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('order_number', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('customer_order_id', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('awb_number', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhere('consignee', 'LIKE', '%' . $searchTerm . '%')
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.name") LIKE ?', ['%' . $searchTerm . '%'])
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.phone") LIKE ?', ['%' . $searchTerm . '%'])
+                      ->orWhereRaw('JSON_EXTRACT(consignee, "$.email") LIKE ?', ['%' . $searchTerm . '%']);
+                });
+            }
+            
+        $orders = $query->latest()->paginate(50)->appends($request->query());
 
             // ✅ Paginate orders
             // $orders = Order::where(['seller_id' => $seller->id, 'shipping_status' => 'rto','rto delivered'])->latest()->paginate(10);
@@ -2870,7 +3396,7 @@ public function order()
             'out_for_delivery', 'delivered', 'ndr', 'rto'
         ])->count(),
     ];
-        return view('sellerdashboard.order_cancel', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders', 'orderCounts'));
+        return view('sellerdashboard.order_cancel', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders', 'orderCounts'))->with('pageType', 'rto');
     }
 
 
@@ -3070,6 +3596,13 @@ public function order()
 
         $kyc = SellerList::where('id', $seller->id)->first();
         // $kyc->
+        // dd( ['seller' => $seller,
+        //     'totalAmount' => $totalAmount,
+        //     'address' => $address,
+        //     'states' => $states,
+        //     'cities' => $cities,
+        //     'bankDetails' => $bankDetails,
+        //     'kyc' => $kyc,]);
         return view('sellerdashboard.profile.profile', [
             'seller' => $seller,
             'totalAmount' => $totalAmount,

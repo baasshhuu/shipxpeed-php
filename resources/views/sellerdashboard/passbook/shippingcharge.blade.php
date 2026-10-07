@@ -246,7 +246,7 @@
     }
     .passbook-page .pagination {
         justify-content: center;
-        margin-top: 1.5rem;
+        /* margin-top: 1.5rem; */
     }
     .passbook-page .pagination .page-link {
         border-radius: 8px;
@@ -477,7 +477,7 @@
                                 <th>Recharge Amount</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody style="text-align: center;">
                             @forelse ($orders as $order)
                                 <tr class="pb-slide-in">
                                     <td data-label="Order ID">

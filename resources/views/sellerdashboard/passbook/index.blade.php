@@ -811,9 +811,8 @@
                             <tr>
                                 
                                 <th><i class="ti ti-tag me-1"></i>Transaction Type</th>
-                                <th><i class="ti ti-barcode me-1"></i>AWB Number</th>
                                 <th><i class="ti ti-currency-rupee me-1"></i>Amount</th>
-                                <th><i class="ti ti-currency-rupee me-1"></i>Description</th>
+                                 <th><i class="ti ti-currency-rupee me-1"></i>Description</th>
 
                             </tr>
                         </thead>
@@ -826,18 +825,6 @@
                                             <i class="ti {{ $txn->type == 'Credit' ? 'ti-arrow-up' : 'ti-arrow-down' }} me-1"></i>
                                             {{ ucfirst($txn->type) }}
                                         </span>
-                                    </td>
-                                    <td class="pb-transaction-amount">
-                                        <div>
-                                            <a href="javascript:void(0)" class="awb-link fw-medium" data-order-id="{{ $txn->order_id }}" onclick="toggleOrderDetails(this)">
-                                                {{ $txn->awb_number ?? 'N/A' }}
-                                            </a>
-                                        </div>
-                                        <div>
-                                            <span class="text-muted small" style="font-size:.82rem;">
-                                                Order ID: <span class="fw-semibold">{{ $txn->order_id ?? '-' }}</span>
-                                            </span>
-                                        </div>
                                     </td>
                                     <td class="pb-transaction-amount">₹{{ number_format($txn->amount, 2) }}</td>
                                     <td class="pb-transaction-amount">{{ $txn->description ?? 'N/A' }}</td>

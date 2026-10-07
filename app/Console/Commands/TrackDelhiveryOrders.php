@@ -12,27 +12,18 @@ use Illuminate\Support\Facades\DB;
 
 class TrackDelhiveryOrders extends Command
 {
+        protected $signature = 'orders:track-delhivery';
+    protected $description = 'Track Delhivery Orders';
+
     // protected $signature = 'track:delhivery';
     // protected $description = 'Track Delhivery AWB orders every 5 minutes';
 
-  protected $signature = 'track:delhivery';
-  protected $description = 'Track Delhivery and SedoFedEx AWB orders every 5 minutes';
+//  protected $signature = 'track:delhivery';
+  //protected $description = 'Track Delhivery and SedoFedEx AWB orders every 5 minutes';
 
 
 
-    public function handle()
-    {
-        Log::channel('scheduler')->info('▶️ Starting courier tracking at ' . now());
 
-        $this->trackDelhivery();
-        $this->trackSedoFedex();
-        $this->trackBoxd(); // 👈 Boxd tracking
-        $this->RTO_Amount();
-        $this->trackTekipost();
-        $this->cancelled_Amount();
-
-        Log::channel('scheduler')->info('✅ Courier tracking run completed.');
-    }
 
     /**
      * Track Boxd courier orders and update their status

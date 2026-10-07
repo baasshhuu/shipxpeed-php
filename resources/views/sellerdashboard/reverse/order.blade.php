@@ -1,4 +1,5 @@
 @extends('layouts.sellerdash')
+
 @section('content')
 
 <style>

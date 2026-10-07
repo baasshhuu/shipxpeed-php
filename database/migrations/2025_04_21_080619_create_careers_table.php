@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('title');
             $table->string('location');
             $table->string('timing');
-       
+           
             $table->text('short_description');
             $table->timestamps();
             $table->softDeletes();

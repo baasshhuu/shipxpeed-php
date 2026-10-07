@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -42,10 +40,10 @@
         </a> --}}
 
         <a href="/shipxpeed_api_documentation_with_clean_instructions.pdf" 
-            class="btn btn-primary btn-download mt-3" 
-            download>
-            <i class="bi bi-download me-2"></i>Download SHIPXPEED API PDF
-        </a>
+   class="btn btn-primary btn-download mt-3" 
+   download>
+   <i class="bi bi-download me-2"></i>Download SHIPXPEED API PDF
+</a>
 
         <p class="mt-4 small text-muted">Last updated: July 2025</p>
     </div>

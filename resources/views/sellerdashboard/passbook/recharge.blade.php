@@ -409,9 +409,9 @@
 
         /* Order Number Styling */
         .order-number {
-            font-weight: 800;
+            
             color: #6366f1;
-            font-size: 1rem;
+            font-size: 0.9rem;
             background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -420,9 +420,9 @@
 
         /* Amount Styling */
         .amount-value {
-            font-weight: 800;
+            /* font-weight: 800; */
             color: #059669;
-            font-size: 1.1rem;
+            font-size: 0.9rem;
         }
 
         /* Courier Info */

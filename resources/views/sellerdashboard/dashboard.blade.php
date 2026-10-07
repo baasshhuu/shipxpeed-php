@@ -804,7 +804,13 @@
                         <!-- Modal Header -->
                         <div class="modal-header d-flex justify-content-between align-items-center">
                             <h5 class="modal-title" id="kycModalLabel">Complete Your KYC</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <button type="button"
+                                    class="border-0 bg-transparent fs-4"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close">
+                                &times;
+                            </button>
+                            <!-- <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button> -->
                         </div>
 
                         <!-- Modal Body -->
@@ -1010,7 +1016,13 @@
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h5 class="modal-title" id="agreementModalLabel">Client Service Agreement</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                <button type="button"
+                                    class="border-0 bg-transparent fs-4"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close">
+                                    &times;
+                                </button>
+                                <!-- <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button> -->
                             </div>
                             <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                                 <!-- Agreement Content (from PDF) -->
@@ -1023,7 +1035,7 @@
                                             id="current-date">___ Date</span>
                                         and between:</p>
                                     <p><strong>Shipxpeed Logistics LLP</strong>, a limited liability partnership having its
-                                        registered office at T-3,5th floor,Office No-537, Sector-Tech Zone IV, Greater Noida, Uttar Pradesh 201308, India (hereinafter referred to as “Shipxpeed” or “Company”), which
+                                        registered office at Grandthum, Tower B,10th floor,Office No-1032, Sector-Tech Zone IV, Greater Noida, Uttar Pradesh 201308, India (hereinafter referred to as “Shipxpeed” or “Company”), which
                                         expression shall unless it be repugnant to the context or meaning thereof be deemed
                                         to include its successors and permitted assigns,</p>
                                     <p>AND</p>
@@ -1074,8 +1086,7 @@
                                     <ul>
                                         <li>The Client shall complete onboarding by submitting KYC details including PAN,
                                             GST, Aadhaar (if applicable), and bank details.</li>
-                                        <li>All KYC will be conducted via direct API verification. No document upload is
-                                            required.</li>
+                                    
                                         <li>Upon successful verification of all mandatory fields, accounts will be
                                             auto-approved.</li>
                                     </ul>
@@ -1170,17 +1181,17 @@
 
                                     <h5>8. PLATFORM FEATURES</h5>
                                     <ul>
-                                        <li>OTP-based email verification at registration.</li>
-                                        <li>Dynamic rate fetching with 30% markup (editable).</li>
+                                        <li>Seamless Order processing system via multiple couriers</li>
+                                        <li>NDR Management</li>
                                         <li>Real-time shipment tracking via panel or API.</li>
-                                        <li>Support ticket system active.</li>
-                                        <li>KYC and bank details downloadable via Excel (admin only).</li>
+                                        <li>Communication module</li>
+                                        <li>AI-Based courier allocation system</li>
                                     </ul>
 
                                     <h5>9. CLAIMS AND LIABILITY</h5>
                                     <ul>
-                                        <li>Claims must be made within 48 hours of delivery.</li>
-                                        <li>Max liability: ₹2,500 or invoice value (whichever is lower).</li>
+                                        <li>In case of any loss or liability case , the seller must escalate to the Ops & Support team within 24 hours.</li>
+                                        <li>Max liability: ₹1000 or invoice value (whichever is lower)</li>
                                         <li>Valid POD and unboxing proof required for all claims.</li>
                                     </ul>
 
@@ -1221,14 +1232,13 @@
                                     <p>This document is the complete agreement and overrides any previous communications.
                                     </p>
 
-                                    <h5>17. NOTICES</h5>
-                                    <p>All legal notices to:<br>
-                                        Shipxpeed Logistics LLP<br>
-                                        T-3,5th floor,Office No-537, Sector-Tech Zone IV, Greater Noida, Uttar Pradesh 201308<br>
-                                        📧 support@shipxpeed.com
+                                    <h5>16. WEIGHT DISPUTES</h5>
+
+                                    <p>In the event of any weight discrepancy or weight update relating to a shipment, the final determination shall rest solely with ShipXpeed. The Seller may request documentary proof supporting such determination. ShipXpeed shall use reasonable efforts to obtain and provide such proof to the Seller, subject to the courier partner making the relevant documentation or evidence available to ShipXpeed.
                                     </p>
 
-                                    <h5>18. ACCEPTANCE</h5>
+                                   
+                                    <h5>17. ACCEPTANCE</h5>
                                     <p>I, the undersigned Client, hereby declare that I have read, understood, and agreed to
                                         all the terms mentioned in this legally binding Agreement.</p>
                                 </div>
@@ -1428,80 +1438,77 @@
                     });
                 }
             </script>
-
-            <!-- Dashboard Main Content -->
+            <!-- Notice Section -->
             <div class="container-fluid mb-3 px-0" style="position:relative;z-index:1;    margin-left: 12px;">
-        <div class="notice-marquee-wrapper position-relative" style="background:#fff6e5; border:1px solid #ffd27c; border-radius:7px;font-size:16px; overflow:hidden;">
-            <span class="notice-label position-absolute start-0 top-0 bottom-0 d-flex align-items-center px-3 fw-bold" style="background:#ffde92;color:#914f00;height:100%;letter-spacing:0.08em;z-index:2;border-radius:7px 0 0 7px;box-shadow:1px 0 6px rgba(0,0,0,0.02);">
-                NOTICE -
-            </span>
-            <div class="marquee-container" style="margin-left:110px; padding:0 12px; overflow:hidden; height:30px;">
-                <div class="notice-marquee-message d-flex align-items-center" id="noticeMarqueeMessage" style="white-space:nowrap; display:flex; font-weight:500; color:#9d6e1e;">
-                    <!-- The repeated messages will be generated with JS -->
+                <div class="notice-marquee-wrapper position-relative" style="background:#fff6e5; border:1px solid #ffd27c; border-radius:7px;font-size:16px; overflow:hidden;">
+                    <span class="notice-label position-absolute start-0 top-0 bottom-0 d-flex align-items-center px-3 fw-bold" style="background:#ffde92;color:#914f00;height:100%;letter-spacing:0.08em;z-index:2;border-radius:7px 0 0 7px;box-shadow:1px 0 6px rgba(0,0,0,0.02);">
+                        NOTICE -
+                    </span>
+                    <div class="marquee-container" style="margin-left:110px; padding:0 12px; overflow:hidden; height:30px;">
+                        <div class="notice-marquee-message d-flex align-items-center" id="noticeMarqueeMessage" style="white-space:nowrap; display:flex; font-weight:500; color:#9d6e1e;">
+                            <!-- The repeated messages will be generated with JS -->
+                        </div>
+                    </div>
                 </div>
+                
+                <style>
+                    .notice-marquee-wrapper {
+                        box-shadow: 0 1px 7px -3px #ffe7b7;
+                    }
+                    .notice-label {
+                        font-size: 15px;
+                        text-shadow: 0 1px 2px #ffeec8;
+                    }
+                    .marquee-container {
+                        position:relative;
+                        height:42px;
+                        display:flex;
+                        align-items:center;
+                        overflow:hidden;
+                    }
+                    .notice-marquee-message {
+                        animation: notice-marquee-left-right 18s linear infinite;
+                    }
+                    @keyframes notice-marquee-left-right {
+                        0% { transform:translateX(0%);}
+                        100% { transform:translateX(-50%);}
+                    }
+                </style>
+                <script>
+                    (function() {
+                        var noticeText = "Due to rising fuel costs, a minimal fuel surcharge may be applicable on shipments from 16 April 2026.";
+                        var container = document.getElementById("noticeMarqueeMessage");
+                        if (!container) return;
+                        // Create repeated texts to always fill (at least) twice the marquee container's width
+                        var repeatCount = 12; // Enough to overflow for most screens
+                        var nodes = [];
+                        for (var i = 0; i < repeatCount; i++) {
+                            var span = document.createElement("span");
+                            span.style.marginRight = "42px";
+                            span.textContent = noticeText;
+                            nodes.push(span);
+                        }
+                        nodes.forEach(function(node){ container.appendChild(node); });
+                        
+                        // Recalculate animation duration based on total message length
+                        function updateMarqueeAnimation() {
+                            var marquee = container;
+                            var containerWidth = marquee.parentElement.offsetWidth;
+                            var messagesWidth = marquee.scrollWidth;
+                            // No blank space: loop halfway (since content is repeated)
+                            if (messagesWidth > 0) {
+                                var duration = (messagesWidth / 80); // adjust 80: lower=faster
+                                marquee.style.animationDuration = duration + "s";
+                            }
+                        }
+                        window.addEventListener('resize', updateMarqueeAnimation);
+                        updateMarqueeAnimation();
+                    })();
+                </script>
             </div>
-        </div>
-        <style>
-        .notice-marquee-wrapper {
-            box-shadow: 0 1px 7px -3px #ffe7b7;
-        }
-        .notice-label {
-            font-size: 15px;
-            text-shadow: 0 1px 2px #ffeec8;
-        }
-        .marquee-container {
-            position:relative;
-            height:42px;
-            display:flex;
-            align-items:center;
-            overflow:hidden;
-        }
-        .notice-marquee-message {
-            animation: notice-marquee-left-right 18s linear infinite;
-        }
-        @keyframes notice-marquee-left-right {
-            0% { transform:translateX(0%);}
-            100% { transform:translateX(-50%);}
-        }
-        </style>
-        <script>
-        (function() {
-            var noticeText = "Due to rising fuel costs, a minimal fuel surcharge may be applicable on shipments from 16 April 2026.";
-            var container = document.getElementById("noticeMarqueeMessage");
-            if (!container) return;
-            // Create repeated texts to always fill (at least) twice the marquee container's width
-            var repeatCount = 12; // Enough to overflow for most screens
-            var nodes = [];
-            for (var i = 0; i < repeatCount; i++) {
-                var span = document.createElement("span");
-                span.style.marginRight = "42px";
-                span.textContent = noticeText;
-                nodes.push(span);
-            }
-            nodes.forEach(function(node){ container.appendChild(node); });
-            
-            // Recalculate animation duration based on total message length
-            function updateMarqueeAnimation() {
-                var marquee = container;
-                var containerWidth = marquee.parentElement.offsetWidth;
-                var messagesWidth = marquee.scrollWidth;
-                // No blank space: loop halfway (since content is repeated)
-                if (messagesWidth > 0) {
-                    var duration = (messagesWidth / 80); // adjust 80: lower=faster
-                    marquee.style.animationDuration = duration + "s";
-                }
-            }
-            window.addEventListener('resize', updateMarqueeAnimation);
-            updateMarqueeAnimation();
-        })();
-        </script>
-    </div>
-            <div class="modern-dashboard">
-    
-
-    
-    
-            <div class="container-fluid px-0">
+            <!-- Dashboard Main Content -->
+<div class="modern-dashboard">
+    <div class="container-fluid px-0">
         <!-- Welcome Section -->
         <div class="row align-items-center mb-3 flex-wrap">
             <div class="col-12 d-flex flex-row align-items-center justify-content-between flex-wrap gap-2 px-0" style="min-width:0;">
@@ -1535,12 +1542,12 @@
                         aria-labelledby="dashboardFilterBtn"
                         tabindex="-1"
                     >
-                        <button type="button" class="dropdown-item w-100 text-start" data-value="1">Today</button>
-                        <button type="button" class="dropdown-item w-100 text-start" data-value="7">Last 7 days</button>
-                        <button type="button" class="dropdown-item w-100 text-start" data-value="15">Last 15 days</button>
-                        <button type="button" class="dropdown-item w-100 text-start" data-value="30">This Month</button>
-                        <button type="button" class="dropdown-item w-100 text-start" data-value="31">Last Month</button>
-                        <button type="button" class="dropdown-item w-100 text-start" data-value="custom">Custom</button>
+                        <!-- <button type="button" class="dropdown-item w-100 text-start" data-value="1">Today</button> -->
+                        <!-- <button type="button" class="dropdown-item w-100 text-start" data-value="7">Last 7 days</button> -->
+                        <!-- <button type="button" class="dropdown-item w-100 text-start" data-value="15">Last 15 days</button> -->
+                        <button type="button" class="dropdown-item w-100 text-start" data-value="30">Last 30 days</button>
+                        <!-- <button type="button" class="dropdown-item w-100 text-start" data-value="31">Last Month</button> -->
+                        <!-- <button type="button" class="dropdown-item w-100 text-start" data-value="custom">Custom</button> -->
                     </div>
                 </div>
             </div>
@@ -1871,7 +1878,7 @@
                 min-width: 32px !important;
                 width: 32px !important;
                 height: 32px !important;
-                font-size: 0.8rem !important;
+                font-size: 1.3rem !important;
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -1922,7 +1929,7 @@
                         </div>
                         <div>
                             <span class="stat-title">In-Transit</span>
-                            <span class="stat-value">{{ $orderCount }}</span>
+                            <span class="stat-value">{{ $transitdeliveredCount }}</span>
                         </div>
                     </div>
                 </div>
@@ -1937,7 +1944,7 @@
                         </div>
                         <div>
                             <span class="stat-title">Out for Delivery</span>
-                            <span class="stat-value">{{ $Assigned }}</span>
+                            <span class="stat-value">{{ $outForDeliveryCount }}</span>
                         </div>
                     </div>
                 </div>
@@ -1952,7 +1959,7 @@
                         </div>
                         <div>
                             <span class="stat-title">Delivered</span>
-                            <span class="stat-value">{{ $Cancelled }}</span>
+                            <span class="stat-value">{{ $deliveredCount }}</span>
                         </div>
                     </div>
                 </div>
@@ -1963,7 +1970,7 @@
                     <div class="d-flex align-items-center mb-1 gap-2">
                         <div class="stat-icon"
                              style="background-color: rgba(79, 70, 229, 0.1); color: var(--primary-color);">
-                            <img src="{{ asset('assets/website/img/ndr.png') }}" alt="NDR" style="height:25px; width:18px; display:block; margin:auto;">
+                            <img src="{{ asset('assets/website/img/ndr.png') }}" alt="NDR" style="height:28px; width:21px; display:block; margin:auto;">
                         </div>
                         <div>
                             <span class="stat-title">NDR</span>
@@ -1978,14 +1985,14 @@
                     <div class="d-flex align-items-center mb-1 gap-2">
                         <div class="stat-icon"
                              style="background-color: rgba(79, 70, 229, 0.1); color: var(--primary-color);">
-                             <img src="{{ asset('assets/website/img/rto.png') }}" alt="RTO" style="height:31px; width:22px; display:block; margin:auto;">
+                             <img src="{{ asset('assets/website/img/rto.png') }}" alt="RTO" style="height:35px; width:26px; display:block; margin:auto;">
                         </div>
                         <div>
                             <span class="stat-title">RTO</span>
                             @if($sellerId === 14)
                                 <span class="stat-value">3020</span>
                             @else
-                                <span class="stat-value">{{ $Allorder }}</span>
+                                <span class="stat-value">{{ $Allorderrto }}</span>
                             @endif
                         </div>
                     </div>
@@ -1994,79 +2001,7 @@
         </div>
     </div>
 
-        <!-- Delivery Status Row -->
-        <!-- <div class="row g-4 mb-4">
-            <div class="col-md-4 fade-in">
-                <div class="status-card">
-                    <div class="d-flex">
-                        <div class="status-icon" style="background-color: rgba(79, 70, 229, 0.1);color: white;">
-                            <i class="ti ti-truck"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <h3 class="mb-0 fw-bold">{{ $inTransitGrowth >= 0 ? '+' : '' }}{{ $inTransitGrowth }}%</h3>
-                                <p class="mb-0" style="border: 1px solid #bcdffb; background: #e8f4fd; color: #155fa0; border-radius: 6px;font-size: 11px;border-radius: 6px;padding: 3px 4px;font-weight: 500;">
-                                    In-Transit Orders
-                                </p>
-                            </div>
-                            <div class="d-flex align-items-center mb-2">
-                                <span class="fw-bold me-2">{{ number_format($inTransitCount, 0) }}</span>
-                                <small class="text-muted">orders this month</small>
-                            </div>
-                            <div class="modern-progress">
-                                <div class="modern-progress-bar" style="width: {{ min(100, ($inTransitCount / max($Allorder, 1)) * 100) }}%; background: linear-gradient(90deg, #f59e0b, #d97706);"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-4 fade-in">
-                <div class="status-card">
-                    <div class="d-flex">
-                        <div class="status-icon" style="background-color: rgba(79, 70, 229, 0.1); color: white;">
-                            <i class="ti ti-truck-delivery"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <h3 class="mb-0 fw-bold">{{ $outForDeliveryGrowth >= 0 ? '+' : '' }}{{ $outForDeliveryGrowth }}%</h3>
-                                <p class="mb-0" style="border: 1px solid #bcdffb; background: #e8f4fd; border-radius: 6px; padding: 2px 10px; font-weight: 500;">Out for Delivery</p>
-                            </div>
-                            <div class="d-flex align-items-center mb-2">
-                                <span class="fw-bold me-2">{{ number_format($outForDeliveryCount, 0) }}</span>
-                                <small class="text-muted">orders this month</small>
-                            </div>
-                            <div class="modern-progress">
-                                <div class="modern-progress-bar" style="width: {{ min(100, ($outForDeliveryCount / max($Allorder, 1)) * 100) }}%; background: linear-gradient(90deg, #10b981, #059669);"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-4 fade-in">
-                <div class="status-card">
-                    <div class="d-flex">
-                        <div class="status-icon" style="background-color: rgba(79, 70, 229, 0.1);color: white;">
-                            <i class="fa-solid fa-check"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <h3 class="mb-0 fw-bold">{{ $deliveredGrowth >= 0 ? '+' : '' }}{{ $deliveredGrowth }}%</h3>
-                                <p class="mb-0" style="border: 1px solid #bcdffb; background: #e8f4fd; color: #155fa0; border-radius: 6px; padding: 2px 10px; font-weight: 500;">Successfully Delivered</p>
-                            </div>
-                            <div class="d-flex align-items-center mb-2">
-                                <span class="fw-bold me-2">{{ number_format($deliveredCount, 0) }}</span>
-                                <small class="text-muted">orders this month</small>
-                            </div>
-                            <div class="modern-progress">
-                                <div class="modern-progress-bar" style="width: {{ min(100, ($deliveredCount / max($Allorder, 1)) * 100) }}%; background: linear-gradient(90deg, #4f46e5, #4338ca);"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div> -->
+      
 
         <!-- Charts Row -->
         <div class="row g-3 g-md-4 mb-4 dashboard-charts-row">
@@ -2081,8 +2016,8 @@
                             </div>
                             <div>
                                 <select id="ordersRange" class="form-select form-select-sm border-0" style="background-color: var(--bs-gray-100); width: auto; min-width:110px;">
-                                    <option value="7">Last 7 days</option>
-                                    <option value="15">Last 15 days</option>
+                                    <!-- <option value="7">Last 7 days</option>
+                                    <option value="15">Last 15 days</option> -->
                                     <option value="30">Last 30 days</option>
                                 </select>
                             </div>
@@ -2124,7 +2059,7 @@
                                             <span class="small fw-medium">COD</span>
                                         </div>
                                         <div class="text-end">
-                                            <small class="text-success">+949.9%</small>
+                                            <small class="text-success" id="codPercent">0%</small>
                                         </div>
                                     </div>
                                 </div>
@@ -2135,7 +2070,7 @@
                                             <span class="small fw-medium">Prepaid</span>
                                         </div>
                                         <div class="text-end">
-                                            <small class="text-success">+100%</small>
+                                            <small class="text-success" id="prepaidPercent">0%</small>
                                         </div>
                                     </div>
                                 </div>
@@ -2144,8 +2079,88 @@
                     </div>
                 </div>
             </div>
+
+
+<script>
+let ordersChart = null;
+let pieChart = null;
+
+function loadDashboard(days = 7) {
+    fetch(`/dashboard-data`)
+        .then(res => res.json())
+        .then(data => {
+
+            console.log("API DATA:", data); // 🔥 check in console
+
+            // 🔹 Orders Chart
+            if (ordersChart) {
+                ordersChart.destroy();
+            }
+
+            const ctx1 = document.getElementById('ordersColumnChart');
+
+            if (!ctx1) return;
+
+            ordersChart = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Total Orders',
+                        data: data.orders,
+                        backgroundColor: 'rgba(79, 70, 229, 0.7)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // 🔹 Pie Chart
+            if (pieChart) {
+                pieChart.destroy();
+            }
+
+            const ctx2 = document.getElementById('prepaidCodPieChart');
+
+            if (!ctx2) return;
+
+            pieChart = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: ['COD', 'Prepaid'],
+                    datasets: [{
+                        data: [data.cod, data.prepaid],
+                        backgroundColor: ['#4ADE80', '#FEF9C3']
+                    }]
+                }
+            });
+
+            // 🔹 Percentage update
+            const total = data.cod + data.prepaid;
+
+            document.getElementById('codPercent').innerText =
+                total ? ((data.cod / total) * 100).toFixed(1) + '%' : '0%';
+
+            document.getElementById('prepaidPercent').innerText =
+                total ? ((data.prepaid / total) * 100).toFixed(1) + '%' : '0%';
+        })
+        .catch(err => console.error("ERROR:", err));
+}
+
+// 🔥 Page load
+document.addEventListener("DOMContentLoaded", function () {
+    loadDashboard(7);
+
+    document.getElementById('ordersRange').addEventListener('change', function () {
+        loadDashboard(this.value);
+    });
+});
+</script>
+
             <!-- Scripts go at the end to not break HTML structure on responsive stacking -->
-            <script>
+            <!-- <script>
                 const ordersData = {
                     days: ['1 Feb', '2 Feb', '3 Feb', '4 Feb', '5 Feb', '6 Feb', '7 Feb'],
                     totalOrders: [18, 26, 12, 24, 30, 27, 21],
@@ -2278,7 +2293,7 @@
                         }
                     });
                 });
-            </script>
+            </script> -->
             <!-- Make sure to include Chart.js library if not yet included -->
             <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         </div>
@@ -2425,7 +2440,7 @@
                 min-height: 135px !important;
                 width: 100% !important;
                 border-radius: 20px !important;
-                background: linear-gradient(120deg, #fffbe6 70%, #f1ffd6 100%);
+                /* background: linear-gradient(120deg, #fffbe6 70%, #f1ffd6 100%); */
                 box-shadow: 0 8px 16px 0 rgba(32,55,112,0.08);
                 margin: 0 auto;
             }
@@ -2495,13 +2510,14 @@
                         <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-2">
                             <div class="mb-2 mb-md-0">
                                 <h6 class="fw-bold mb-1" style="color: #064e3b;">Revenue Overview</h6>
-                                <span class="text-muted small">Total Revenue &nbsp;|&nbsp; <b>₹82,500</b></span>
+                                <span class="text-muted small">Total Revenue &nbsp;|&nbsp; <b id="totalRevenue">₹0</b></span>
+                                
                             </div>
                             <div>
                                 <select id="revenueRangeDropdown" class="form-select form-select-sm" style="min-width: 130px; box-shadow:none; border-radius: 10px;">
-                                    <option value="year">Last Year</option>
+                                    <!-- <option value="year">Last Year</option> -->
                                     <option value="month" selected>Last Month</option>
-                                    <option value="week">Last Week</option>
+                                    <!-- <option value="week">Last Week</option> -->
                                 </select>
                             </div>
                         </div>
@@ -2510,7 +2526,7 @@
                         </div>
                     </div>
                 </div>
-                <script>
+                <!-- <script>
                     function getStaticRevenueData(range) {
                         // Simple static demo data for now:
                         if (range === 'year') {
@@ -2635,7 +2651,7 @@
                             renderRevenueChart(this.value);
                         });
                     });
-                </script>
+                </script> -->
             </div>
             <div class="col-12 col-md-3 d-flex flex-column">
                 <!-- Zone Delivery Performance Section -->
@@ -2679,7 +2695,55 @@
                                 ],
                             ];
                         @endphp
+
                         <div style="flex:1;">
+
+    <!-- A Zone -->
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <span class="fw-semibold" style="color:#3730a3">A Zone</span>
+        <span id="zone-A" class="badge badge-modern" style="background:#e0e7ff;color:#3730a3;">
+            0%
+        </span>
+    </div>
+    <div class="modern-progress mb-3" style="background:#e0e7ff;">
+        <div id="zone-A-bar" class="modern-progress-bar" style="width:0%; background:#a5b4fc;"></div>
+    </div>
+
+    <!-- B Zone -->
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <span class="fw-semibold" style="color:#065f46">B Zone</span>
+        <span id="zone-B" class="badge badge-modern" style="background:#d1fae5;color:#065f46;">
+            0%
+        </span>
+    </div>
+    <div class="modern-progress mb-3" style="background:#d1fae5;">
+        <div id="zone-B-bar" class="modern-progress-bar" style="width:0%; background:#6ee7b7;"></div>
+    </div>
+
+    <!-- C Zone -->
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <span class="fw-semibold" style="color:#92400e">C Zone</span>
+        <span id="zone-C" class="badge badge-modern" style="background:#fef9c3;color:#92400e;">
+            0%
+        </span>
+    </div>
+    <div class="modern-progress mb-3" style="background:#fef9c3;">
+        <div id="zone-C-bar" class="modern-progress-bar" style="width:0%; background:#fde68a;"></div>
+    </div>
+
+    <!-- D Zone -->
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <span class="fw-semibold" style="color:#991b1b">D Zone</span>
+        <span id="zone-D" class="badge badge-modern" style="background:#fee2e2;color:#991b1b;">
+            0%
+        </span>
+    </div>
+    <div class="modern-progress mb-3" style="background:#fee2e2;">
+        <div id="zone-D-bar" class="modern-progress-bar" style="width:0%; background:#fca5a5;"></div>
+    </div>
+
+</div>
+                        <!-- <div style="flex:1;">
                         @foreach($zones as $zone)
                             @php
                                 $percent = $zone['total'] > 0 ? round(($zone['delivered']/$zone['total'])*100,1) : 0;
@@ -2694,7 +2758,7 @@
                                 <div class="modern-progress-bar" style="width: {{ $percent }}%; background: {{ $zone['progress'] }};"></div>
                             </div>
                         @endforeach
-                        </div>
+                        </div> -->
                     </div>
                 </div>
             </div>
@@ -2709,7 +2773,7 @@
                                 <small class="text-muted">Preferred shipping partners</small>
                             </div>
                         </div>
-                        <ul class="list-unstyled mb-0 mt-3" style="flex:1;">
+                        <ul class="list-unstyled mb-0 mt-3" style="flex:1;" id="courierList">
                             <li class="d-flex align-items-center mb-3">
                                 <div class="flex-fill">
                                     <span class="fw-semibold" style="color:#0f172a;">Bluedart</span>
@@ -2733,6 +2797,241 @@
                 </div>
             </div>
         </div>
+
+
+        <script>
+let revenueChart = null;
+
+function loadRevenueSection(range = 'month') {
+
+    console.log("CALLING API...");
+
+    fetch(`/revenue-dashboard-data`)
+        .then(res => res.json())
+        .then(data => {
+
+            console.log("API DATA:", data);
+
+            // 🔹 Chart update
+            if (revenueChart) revenueChart.destroy();
+
+            const ctx = document.getElementById('revenueLineChart');
+
+            revenueChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Revenue',
+                        data: data.data,
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34,197,94,0.12)',
+                        fill: true
+                    }]
+                }
+            });
+
+
+                let total = data.data.reduce((sum, val) => sum + val, 0);
+
+    let totalEl = document.getElementById('totalRevenue');
+    if (totalEl) {
+        totalEl.innerText = '₹' + total.toLocaleString();
+    }
+            // 🔹 Zones update
+            ['A','B','C','D'].forEach(zone => {
+                let val = data.zones[zone] ?? 0;
+
+                let el = document.getElementById(`zone-${zone}`);
+                let bar = document.getElementById(`zone-${zone}-bar`);
+
+                if (el) el.innerText = val + '%';
+                if (bar) bar.style.width = val + '%';
+            });
+
+            // 🔹 Courier update
+            let list = document.getElementById('courierList');
+            if (list) {
+                list.innerHTML = '';
+
+                data.couriers.forEach(c => {
+                    list.innerHTML += `
+                        <li class="d-flex align-items-center mb-2">
+                            <span>${c.name}</span>
+                            <span class="ms-auto text-success">${c.percent}%</span>
+                        </li>
+                    `;
+                });
+            }
+
+        });
+}
+
+// Init
+document.addEventListener("DOMContentLoaded", function () {
+    loadRevenueSection('month');
+
+    document.getElementById('revenueRangeDropdown')
+        .addEventListener('change', function () {
+            loadRevenueSection(this.value);
+        });
+        
+});
+</script>
+<!--         
+<script>
+let revenueChart = null;
+
+function loadRevenueSection(range = 'month') {
+
+    fetch(`/api/revenue-dashboard-data?range=${range}`)
+        .then(res => res.json())
+        .then(data => {
+
+            console.log("API DATA:", data);
+
+            // 🔹 Chart Update
+            if (revenueChart) revenueChart.destroy();
+
+            const ctx = document.getElementById('revenueLineChart');
+
+            revenueChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Revenue',
+                        data: data.data,
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34,197,94,0.12)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // 🔹 Zones Update (IMPORTANT)
+            ['A','B','C','D'].forEach(zone => {
+                let percent = data.zones[zone] ?? 0;
+
+                let el = document.getElementById(`zone-${zone}`);
+                if (el) el.innerText = percent + '%';
+            });
+
+            // 🔹 Courier Update
+            const list = document.getElementById('courierList');
+            if (list) {
+                list.innerHTML = '';
+
+                data.couriers.forEach(c => {
+                    list.innerHTML += `
+                        <li class="d-flex align-items-center mb-2">
+                            <span class="fw-semibold">${c.name}</span>
+                            <span class="text-success ms-auto">${c.percent}%</span>
+                        </li>
+                    `;
+                });
+            }
+
+        })
+        .catch(err => console.error(err));
+}
+
+// Init
+document.addEventListener("DOMContentLoaded", function () {
+
+    loadRevenueSection('month');
+
+    document.getElementById('revenueRangeDropdown')
+        .addEventListener('change', function () {
+            loadRevenueSection(this.value);
+        });
+});
+</script> -->
+<!-- 
+<script>
+let revenueChartInstance = null;
+
+function loadRevenueSection(range = 'month') {
+    fetch(`/api/revenue-dashboard-data?range=${range}`)
+        .then(res => res.json())
+        .then(data => {
+
+            console.log("Revenue Section:", data);
+
+            // 🔹 Chart Update
+            if (revenueChartInstance) {
+                revenueChartInstance.destroy();
+            }
+
+            const ctx = document.getElementById('revenueLineChart');
+
+            revenueChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Revenue',
+                        data: data.data,
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34,197,94,0.12)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // 🔹 Zone Update
+            ['A','B','C','D'].forEach(zone => {
+                const el = document.getElementById('zone-' + zone);
+                if (el) {
+                    el.innerText = data.zones[zone] ?? 0;
+                }
+            });
+
+            // 🔹 Courier Update
+            const list = document.getElementById('courierList');
+
+            if (list) {
+                list.innerHTML = '';
+
+                data.couriers.forEach(c => {
+                    list.innerHTML += `
+                        <li class="d-flex align-items-center mb-2">
+                            <span class="fw-semibold">${c.name}</span>
+                            <span class="text-success ms-auto">${c.percent}%</span>
+                        </li>
+                    `;
+                });
+            }
+        });
+}
+
+// 🔥 Init
+document.addEventListener("DOMContentLoaded", function () {
+
+    loadRevenueSection('month');
+
+    document.getElementById('revenueRangeDropdown')
+        .addEventListener('change', function () {
+            loadRevenueSection(this.value);
+        });
+});
+</script>
+ -->
+
+
+
+
+
         <!-- Data Tables Section -->
         <!-- <div class="row mb-4"> -->
             <!-- <div class="col-12 fade-in">

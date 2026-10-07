@@ -3,117 +3,81 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="container-fluid" style="padding: 19px 3px;">
+    <div class="container-fluid">
         <!-- Header Section -->
-        <div class="row mb-4" >
-            <div class="col-12" style="margin-top: 12px;margin-left:12px;">
+        <div class="row mb-4">
+            <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h2 class="text-dark mb-1" style="font-size:25px;">Seller Wallet Balance</h2>
+                        <h2 class="text-dark mb-1">Seller Wallet Balance</h2>
                         <p class="text-muted mb-0">Manage and monitor seller wallet balances</p>
                     </div>
-                    <div class="d-flex flex-wrap align-items-center gap-3" style="margin-right: 18px;">
-                        <span class="badge fs-6 px-4 py-2 shadow-sm d-flex align-items-center"
-                              style="background: linear-gradient(90deg, #e3f0ff 0%, #b3d8fd 100%); color: #1754a1; font-size: 1rem; height: 44px;">
-                            <i class="fas fa-users me-2" style="color: #1754a1;"></i>
-                            <span style="font-weight: 600;">Total Sellers: {{ $brands->total() ?? count($brands) }}</span>
+                    <div class="d-flex gap-2">
+                        <span class="badge bg-info fs-6 px-3 py-2">
+                            Total Sellers: {{ $brands->total() ?? count($brands) }}
                         </span>
-                        <a href="{{ route('recharge.export') }}"
-                           class="btn d-flex align-items-center px-4 py-2 shadow-sm"
-                           style="background: linear-gradient(90deg, #e3f0ff 0%, #b3d8fd 100%); color: #1754a1; border: none; height: 44px; font-size: 1rem; font-weight: 500; border-radius: 7px;">
-                            <i class="fas fa-download me-2"></i> Export Excel
+                        <a href="{{ route('recharge.export') }}" class="btn btn-success btn-sm">
+                            <i class="fas fa-download me-1"></i>Export Excel
                         </a>
                     </div>
-               
                 </div>
             </div>
         </div>
 
         <!-- Filters Card -->
-        <div class="card shadow-lg rounded-4 mb-4 border-0" style="background: linear-gradient(105deg, #f3f8fd 85%, #ddebf8 100%);">
-            <div class="card-header bg-white border-0 py-4 rounded-top-4 px-4 d-flex align-items-center" style="border-bottom: 2px solid #e3f1fa;">
-                <h5 class="card-title mb-0 text-dark fw-semibold d-flex align-items-center gap-2" style="font-size: 1.28rem;">
-                    <span><i class="fas fa-sliders-h fa-fw" style="color: #2563eb; font-size: 1.1em;"></i></span>
-                    <span>Filter Wallets</span>
-                </h5>
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light border-0 py-3">
+                <h6 class="card-title mb-0 text-dark">
+                    <i class="fas fa-filter me-2"></i>Filter Options
+                </h6>
             </div>
-            <div class="card-body px-4 pb-4 pt-4">
-                <form method="GET" action="{{ route('balance') }}">
-                    <div class="row g-2 align-items-end flex-nowrap flex-md-wrap">
-                        <div class="col-lg-3 col-md-4 col-12 mb-2 mb-lg-0">
-                            <label class="form-label text-secondary fw-medium mb-1">Search by Name</label>
-                            <div class="input-group border rounded-3 shadow-sm overflow-hidden flex-nowrap">
-                                <span class="input-group-text bg-white border-0">
-                                    <i class="fas fa-search text-primary"></i>
-                                </span>
-                                <input 
-                                    type="text"
-                                    name="search"
-                                    class="form-control border-0 bg-light"
-                                    style="color: #32475b; font-weight: 500;"
-                                    placeholder="Type seller name"
-                                    value="{{ request('search') }}"
-                                    autocomplete="off"
-                                    aria-label="Search by seller name"
-                                >
-                            </div>
+            <div class="card-body">
+                <form method="GET" action="{{ route('balance') }}" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small fw-bold">Search by Name</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0">
+                                <i class="fas fa-search text-muted"></i>
+                            </span>
+                            <input type="text" name="search" class="form-control border-start-0" 
+                                   placeholder="Enter seller name..."
+                                   value="{{ request('search') }}">
                         </div>
-                        <div class="col-lg-3 col-md-4 col-12 mb-2 mb-lg-0">
-                            <label class="form-label text-secondary fw-medium mb-1">Select Seller</label>
-                            <select 
-                                name="seller_id"
-                                class="form-select bg-light border-0 fw-semibold shadow-sm rounded-3"
-                                style="color: #1754a1;"
-                                aria-label="Seller select"
-                            >
-                                <option value="">All Sellers</option>
-                                @foreach($allSellers ?? [] as $seller)
-                                    <option value="{{ $seller->id }}" {{ request('seller_id') == $seller->id ? 'selected' : '' }}>
-                                        {{ $seller->name }} <small>(ID: {{ $seller->seller_id }})</small>
-                                    </option>
-                                @endforeach
-                            </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small fw-bold">Select Seller</label>
+                        <select name="seller_id" class="form-select">
+                            <option value="">All Sellers</option>
+                            @foreach($allSellers ?? [] as $seller)
+                                <option value="{{ $seller->id }}" 
+                                        {{ request('seller_id') == $seller->id ? 'selected' : '' }}>
+                                    {{ $seller->name }} (ID: {{ $seller->seller_id }})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small fw-bold">Balance Range</label>
+                        <div class="d-flex gap-2">
+                            <input type="number" name="min_balance" class="form-control" 
+                                   placeholder="Min" value="{{ request('min_balance') }}" step="0.01">
+                            <input type="number" name="max_balance" class="form-control" 
+                                   placeholder="Max" value="{{ request('max_balance') }}" step="0.01">
                         </div>
-                        <div class="col-lg-3 col-md-4 col-12 mb-2 mb-lg-0">
-                            <label class="form-label text-secondary fw-medium mb-1">Balance Range</label>
-                            <div class="input-group gap-2 flex-nowrap shadow-sm rounded-3">
-                                <input 
-                                    type="number"
-                                    name="min_balance"
-                                    class="form-control border-0 bg-light fw-semibold"
-                                    placeholder="Min ₹"
-                                    value="{{ request('min_balance') }}"
-                                    min="0"
-                                    step="0.01"
-                                    style="max-width: 90px;"
-                                >
-                                <span class="input-group-text bg-white border-0 px-2 text-muted fs-6 fw-semibold">-</span>
-                                <input 
-                                    type="number"
-                                    name="max_balance"
-                                    class="form-control border-0 bg-light fw-semibold"
-                                    placeholder="Max ₹"
-                                    value="{{ request('max_balance') }}"
-                                    min="0"
-                                    step="0.01"
-                                    style="max-width: 90px;"
-                                >
-                            </div>
-                        </div>
-                        <div class="col-lg-3 col-md-12 col-12 d-flex align-items-end gap-2 justify-content-lg-end justify-content-md-start justify-content-start mt-2 mt-lg-0">
-                            <button type="submit" class="btn btn-gradient-primary rounded-3 px-4 py-2 fw-semibold shadow-sm d-flex align-items-center"
-                                    style="background: linear-gradient(90deg, #2563eb 0%, #1cb5e0 100%); border: none; color: #fff;">
-                                <i class="fas fa-search me-2"></i>Filter
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-1"></i>Apply Filters
                             </button>
-                            <a href="{{ route('balance') }}" class="btn btn-outline-secondary rounded-3 px-4 py-2 fw-semibold shadow-sm d-flex align-items-center">
-                                <i class="fas fa-broom me-2"></i>Clear
+                            <a href="{{ route('balance') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i>Clear
                             </a>
                         </div>
                     </div>
                 </form>
             </div>
         </div>
-   
 
         <!-- Data Table Card -->
         <div class="card shadow-sm">
@@ -147,11 +111,11 @@
                                     </td>
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            <!-- <div class="avatar avatar-sm me-2">
+                                            <div class="avatar avatar-sm me-2">
                                                 <div class="avatar-name rounded-circle bg-info text-white d-flex align-items-center justify-content-center">
                                                     {{ substr($brand->seller->name ?? 'N', 0, 1) }}
                                                 </div>
-                                            </div> -->
+                                            </div>
                                             <span class="fw-semibold">{{ $brand->seller->name ?? 'N/A' }}</span>
                                         </div>
                                     </td>

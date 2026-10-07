@@ -52,7 +52,7 @@ class DatabaseBackup extends Command
 
     protected function sendFileOnMail($fileStorePath)
     {
-            Setting::select('setting_name', 'filed_value')
+        $site_settings      = Setting::select('setting_name', 'filed_value')
             ->whereIn('setting_type', [1, 3])
             ->get()
             ->pluck('filed_value', 'setting_name')

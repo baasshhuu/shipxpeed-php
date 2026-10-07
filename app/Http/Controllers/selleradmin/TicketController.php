@@ -13,9 +13,8 @@ class TicketController extends Controller
     public function index()
     {
         // echo 'xcscs';die;
-        $tickets = Ticket::all();
         $seller = Auth::guard('seller')->user();
-        $tickets = Ticket::all();
+        $tickets = Ticket::where('seller_id', $seller->id)->get();
         $totalAmount = 0;
         if ($seller && $seller->status == 1) {
             $sellerRechargeAmount = Recharge::where('seller_id', $seller->id)

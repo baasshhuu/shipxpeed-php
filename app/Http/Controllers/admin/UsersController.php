@@ -110,7 +110,6 @@ class UsersController extends Controller
         }
         return view('users.edit', compact('user', 'roles'));
     }
-    
     public function update(UserRequest $request, $slug): RedirectResponse
     {
         $user   = User::slug($slug);

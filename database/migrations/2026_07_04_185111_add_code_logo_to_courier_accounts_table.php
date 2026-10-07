@@ -11,16 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('testimonials', function (Blueprint $table) {
-            $table->tinyInteger('status')->default(1)->after('id'); // Adds a 'status' column
+        Schema::table('courier_accounts', function (Blueprint $table) {
+            //
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
-        Schema::table('testimonials', function (Blueprint $table) {
-            $table->dropColumn('status'); // Drops the column if rolled back
+        Schema::table('courier_accounts', function (Blueprint $table) {
+            //
         });
     }
-
 };

@@ -632,7 +632,7 @@ span.error {
 }
 #sidebar ul.menu-categories li.menu ul.submenu > li a:hover,
 #sidebar ul.menu-categories li.menu > .dropdown-toggle i:not(.badge-icon) {
-    color: white;
+    color: #805dca;
 }
 
 #sidebar ul.menu-categories li.menu ul.submenu > li.active a::before,
@@ -674,8 +674,7 @@ input[type="number"].rm-number {
 }
 
 #widgets {
-    margin-top: 41px;
-    margin-left: 12px;
+    margin-top: 50px;
 }
 
 .card-stats .icon-big.icon-success {

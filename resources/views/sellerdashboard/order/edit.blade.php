@@ -1,8 +1,8 @@
 @extends('layouts.sellerdash')
 
 @section('content')
-    <div class="pc-container" style="background:#646dff26;">
-        <div class="pc-content" style="margin-left:12px;">
+    <div class="pc-container">
+        <div class="pc-content">
             <div class="header-section mb-3">
                 <div class="heading">Edit Order #{{ $order->order_number }}</div>
                 <div>
@@ -428,7 +428,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <button type="submit" class="export-btn" id="submitOrderForm" style="margin-top:12px;padding:8px 8px;">
+                            <button type="submit" class="export-btn" id="submitOrderForm">
                                 <i class="fas fa-save me-2"></i> <span id="submitText">Update Order</span>
                                 <span id="loadingSpinner" class="spinner-border spinner-border-sm d-none" role="status"
                                     aria-hidden="true"></span>

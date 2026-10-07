@@ -80,6 +80,11 @@ class SellerList extends Authenticatable
         return $this->hasMany(Seller::class, 'seller_id', 'id');
     }
 
+    public function sellerAddress()
+    {
+        return $this->hasOne(SellerAddress::class, 'seller_id', 'id');
+    }
+
 
 
 

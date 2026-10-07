@@ -71,23 +71,35 @@ public function getServiceability_bulk(array $params): array
 
 public function getServiceability(array $params): array
 {
-    // dd($params);
     $order = Order::findOrFail($params['order_id']);
     $consignee = is_string($order->consignee) ? json_decode($order->consignee, true) : $order->consignee;
     $pincodeToCheck = $consignee['pincode'];
     $destinationstate = $consignee['state'];
 
-        // Check if Ekart 2KG zone pricing exists for this seller
-        // If no data exists, skip this service
-        $ekartZoneCheck = ActicvSleb::where([
-            'seller_id' => $order->seller_id,
-            'LogisticProvider' => 'Ekart500gm_boxd',
-            'status' => 1
-        ])->exists();
-
-        if (!$ekartZoneCheck) {
-            return [];
-        }
+    // Get only the active ParcelX services for this seller
+    // Include all possible case variations that might exist in database
+    $parcelxServices = [
+        'boxd_Bluedart_500gm',
+        'Ekart500gm_boxd'
+    ];
+    
+    $activeParcelxServicesRaw = ActicvSleb::where([
+        'seller_id' => $order->seller_id,
+        'status' => 1
+    ])->whereIn('LogisticProvider', $parcelxServices)
+      ->pluck('LogisticProvider')
+      ->toArray();
+    //   dd($activeParcelxServicesRaw);
+    
+    // Convert to lowercase for case-insensitive comparison
+    $activeParcelxServices = array_map('strtolower', $activeParcelxServicesRaw);
+    // dd($activeParcelxServices);
+    //   dd($activeParcelxServices);
+    // Debug: Check what active services we found
+    // dd('Active services for seller ' . $order->seller_id . ':', $activeParcelxServices);
+    
+    // Continue processing even if some services are inactive
+    // We'll filter in the loop later
 
     // Pickup Info
     $source = is_string($order->pickup) ? json_decode($order->pickup, true) : $order->pickup;
@@ -99,7 +111,7 @@ public function getServiceability(array $params): array
         ->whereRaw('LOWER(pickup_state) = ?', [strtolower($pickupstate)])
         ->whereRaw('LOWER(deliver_state) = ?', [strtolower($destinationstate)])
         ->first();
-    //   dd($zoneData);
+//   dd($zoneData);
     if (!$zoneData) {
         return [];
     }
@@ -111,65 +123,59 @@ public function getServiceability(array $params): array
     $orderAmount = $order->collectable_amount;
     $paymentType = strtolower($order->payment_type) === 'cod' ? 'COD' : 'Pre-paid';
     $seller_id = $order->seller_id;
-    // dd($paymentType);
-// dd($order->payment_type);
-    // 🧾 Step 3: Get Ekart 2KG Zone Pricing
-    $ekartZonePricing = ZonePriceSetting::where([
-        'seller_id' => $seller_id,
-        'zone' => $zone,
-        'LogisticProvider' => 'Ekart500gm_boxd',
-        'status' => 1
-    ])->first();
-// dd($ekartZonePricing);
-    if (!$ekartZonePricing) {
-        // return [];
-    $ekartZonePricing = ZonePriceSetting::where([
-    'seller_id' => 14,
-    'zone' => $zone,
-    'LogisticProvider' => 'Ekart500gm_boxd',
-    'status' => 1
-     ])->first();
-    }
 
-    // 🧾 Step 4: Calculate Ekart 2KG charges based on ZonePriceSetting
-    $calculateEkartCharge = function () use ($ekartZonePricing, $weight, $paymentType, $orderAmount) {
+    // 🧾 Step 3: Calculate ParcelX charges based on ZonePriceSetting for each service
+    $calculateParcelxCharge = function ($zonePricing, $weightSlab = 500) use ($weight, $paymentType, $orderAmount) {
+        if (!$zonePricing) {
+            return null; // Skip if no pricing found
+        }
+        
+        // Calculate weight slabs based on service type
+        // For each service, calculate how many slabs are needed based on their specific weight interval
+        $slabs = max(1, ceil($weight / $weightSlab));
         
         if ($paymentType === 'COD') {
-            // echo 'cscsc';die;
             // COD Order Logic
-            if ($ekartZonePricing->cod_fix_price > 0.00) {
-                // Use fixed COD price - NO GST, NO other charges
-                $totalPrice = $ekartZonePricing->cod_fix_price;
+            if ($zonePricing->cod_fix_price > 0) {
+                // Use fixed COD price multiplied by weight slabs - NO GST, NO other charges
+                $totalPrice = $zonePricing->cod_fix_price * $slabs;
                 return [
                     'courierCharge'  => round($totalPrice, 2),
                     'freightCharges' => round($totalPrice, 2),
                     'codCharge'      => 0,
                 ];
             } else {
-                // Use variable COD price + 18% GST
-                $basePrice = $ekartZonePricing->cod_price;
-                $prepaid_price = $ekartZonePricing->prepaid_price;
-                $basePriceprepaid_price = $basePrice + $prepaid_price;
-                $totalWithGST = $basePriceprepaid_price + ($basePrice * 18 / 100);
+                // Use variable COD price multiplied by weight slabs + 18% GST + COD charge if applicable
+                $basePrice = $zonePricing->cod_price * $slabs;
+                $prepaidPrice = $zonePricing->prepaid_price * $slabs;
+
+                // Calculate COD charge if order amount > 1400
+                $codCharge = 0;
+                if ($orderAmount > 1400) {
+                    $codChargePercent = $zonePricing->cod_charge_parsent ?? 0;
+                    $codCharge = ($orderAmount * $codChargePercent / 100);
+                }
+                
+                $totalWithGST = ($basePrice + $prepaidPrice + $codCharge) + (($basePrice + $prepaidPrice + $codCharge) * 18 / 100);
                 return [
                     'courierCharge'  => round($totalWithGST, 2),
-                    'freightCharges' => round($basePrice, 2),
-                    'codCharge'      => 0,
+                    'freightCharges' => round($basePrice + $prepaidPrice, 2),
+                    'codCharge'      => round($codCharge, 2),
                 ];
             }
         } else {
             // Prepaid Order Logic
-            if ($ekartZonePricing->prepaid_fix_price > 0.00) {
-                // Use fixed Prepaid price - NO GST, NO other charges
-                $totalPrice = $ekartZonePricing->prepaid_fix_price;
+            if ($zonePricing->prepaid_fix_price > 0) {
+                // Use fixed Prepaid price multiplied by weight slabs - NO GST, NO other charges
+                $totalPrice = $zonePricing->prepaid_fix_price * $slabs;
                 return [
                     'courierCharge'  => round($totalPrice, 2),
                     'freightCharges' => round($totalPrice, 2),
                     'codCharge'      => 0,
                 ];
             } else {
-                // Use variable Prepaid price + 18% GST
-                $basePrice = $ekartZonePricing->prepaid_price;
+                // Use variable Prepaid price multiplied by weight slabs + 18% GST
+                $basePrice = $zonePricing->prepaid_price * $slabs;
                 $totalWithGST = $basePrice + ($basePrice * 18 / 100);
                 return [
                     'courierCharge'  => round($totalWithGST, 2),
@@ -180,21 +186,59 @@ public function getServiceability(array $params): array
         }
     };
 
-    // 🧮 Step 5: Calculate final charges for Ekart 2KG
-    $charges = $calculateEkartCharge();
-    
+    // 🧮 Step 4: Build final response with individual pricing for each service
+    $slabs = [
+   
+        ['serviceabilityId' => $pincodeToCheck, 'courierName' => 'Ekart500gm_boxd', 'logisticProvider' => 'Ekart500gm_boxd', 'weightSlab' => 500],
+        ['serviceabilityId' => $pincodeToCheck, 'courierName' => 'Bluedartbox_500gm', 'logisticProvider' => 'boxd_bluedart_500gm', 'weightSlab' => 500],
+    ];
 
-    return [[
-        'serviceabilityId' => $pincodeToCheck,
-        'courierName'      => 'Ekart500gm_boxd',
-        'courierCharge'    => $charges['courierCharge'],
-        'freightCharges'   => $charges['freightCharges'],
-        'codCharge'        => $charges['codCharge'],
-        'zone'             => $zone,
-        'zone_courier_name' => 'Ekart500gm_boxd',
-        'minWeight'        => $weight,
-        'volWeight'        => $weight,
-    ]];
+    $results = [];
+    foreach ($slabs as $slab) {
+        // Only process services that are active for this seller (case-insensitive check)
+        if (!in_array(strtolower($slab['logisticProvider']), $activeParcelxServices)) {
+            continue; // Skip inactive services
+        }
+        
+        // Get zone pricing for this specific service
+        $zonePricing = ZonePriceSetting::where([
+            'seller_id' => $seller_id,
+            'zone' => $zone,
+            'LogisticProvider' => $slab['logisticProvider'],
+            'status' => 1
+        ])->first();
+
+        if (!$zonePricing) {
+        $zonePricing = ZonePriceSetting::where([
+        'seller_id' => 14,
+        'zone' => $zone,
+        'LogisticProvider' => $slab['logisticProvider'],
+        'status' => 1
+        ])->first();
+            }
+
+        $charges = $calculateParcelxCharge($zonePricing, $slab['weightSlab']);
+        
+        // Debug: Check what's happening with each service
+        // dd('Processing: ' . $slab['logisticProvider'], 'Zone Pricing:', $zonePricing, 'Charges:', $charges);
+        
+        // Only add if pricing exists for this service
+        if ($charges !== null) {
+            $results[] = [
+                'serviceabilityId' => $slab['serviceabilityId'],
+                'courierName'      => $slab['courierName'],
+                'courierCharge'    => $charges['courierCharge'] + 5,
+                'freightCharges'   => $charges['freightCharges'],
+                'codCharge'        => $charges['codCharge'],
+                'zone'             => $zone,
+                'zone_courier_name' => $slab['logisticProvider'],
+                'minWeight'        => $weight,
+                'volWeight'        => $weight,
+            ];
+        }
+    }
+//  dd($results);
+    return $results;
 }
 
 
@@ -267,22 +311,22 @@ public function registerHub(array $hubDetails)
 
     public function assignOrder($params)
     {
-
+// dd($params);
         $order_id = $params['order_id'];
         $provider_name = $params['provider_name'];
         // dd($provider_name);
-        if ($provider_name == 'Ekart 500 GM') {
+        if ($provider_name == 'Ekart 500gm') {
             // $productId = "1746709645240";
             // $carrierId = "1738577045";
             $courierId = "Ekart 500gm";
             $productId = "1770095900731";
             $carrierId = "1765284951";
-            $logistic_name = 'Ekart 500 GM';
-        } elseif ($provider_name == 'Bluedart Air 500gms') {
-            $productId = "1750498184844";
-            $carrierId = "1750343798";
+            $logistic_name = 'Ekart 500gm';
+        } elseif ($provider_name == 'BlueDart Air 500 GM') {
+            $productId = "1762763121502";
+            $carrierId = "1738577045";
             $courierId = "678b3ac540f9b7f91a8b4c3f";
-            $logistic_name = 'Bluedart Air 500gms';
+            $logistic_name = 'BlueDart Air 500 GM';
         } elseif ($provider_name == 'Delhivery Air' || $provider_name == 'Delhivery 250gms') {
             // Both use the same working configuration
             $productId = "1753163038641";
@@ -290,14 +334,14 @@ public function registerHub(array $hubDetails)
             $courierId = "1456367975";
             $logistic_name = 'Delhivery 250gms';
         } else {
-
+            // echo 'xsxsx';die;
             return ['status' => false, 'message' => 'Invalid provider name.'];
 
         }
 
 
         $seller = Auth::guard('seller')->user();
-
+    // dd($seller);
         if (!$seller || $seller->status != 1) {
             return ['status' => false, 'message' => 'Unauthorized or inactive seller.'];
         }
@@ -516,6 +560,27 @@ public function registerHub(array $hubDetails)
             'awb_number' => $awb,
             'cancel_reason' => 'Order cancellation requested by seller'
         ]);
+//         try {
+//     $response = Http::withHeaders([
+//         'secretkey' => 'POVHFT',
+//         'customerid' => 'c1754533690129',
+//         'Content-Type' => 'application/x-www-form-urlencoded',
+//     ])->asForm()->post(
+//         'https://backend.boxdlogistics.in/vendor/v1/shipment/shipment_cancel',
+//         [
+//             'awb_number' => $awb,
+//             'cancel_reason' => 'Order cancellation requested by seller'
+//         ]
+//     );
+
+// } catch (\Exception $e) {
+
+//     return [
+//         'status' => false,
+//         'message' => 'API connection failed: ' . $e->getMessage()
+//     ];
+// }
+
         // dd($response->json());
 
         if ($response->successful()) {
@@ -704,7 +769,7 @@ public function assignOrderbulk($params)
 private function processBulkOrderAssignment($params)
 {
     $orderIds = $params['order_ids'];
-    $provider_name = $params['provider_name'] ?? 'Ekart 500 GM';
+    $provider_name = $params['provider_name'] ?? 'BlueDart Air 500 GM';
     $results = [];
     $successCount = 0;
     $failureCount = 0;
@@ -752,18 +817,18 @@ private function processSingleOrderAssignmentBulk($params)
     $order_id = $params['order_id'];
     $provider_name = $params['provider_name'];
     // dd($provider_name);
-    if ($provider_name == 'Ekart 500 GM') {
+    if ($provider_name == 'BlueDart Air 500 GM') {
         // $productId = "1746709645240";
         // $carrierId = "1738577045";
         $courierId = "Ekart 500gm";
         $productId = "1770095900731";
         $carrierId = "1765284951";
-        $logistic_name = 'Ekart 500 GM';
-    } elseif ($provider_name == 'Bluedart Air 500gms') {
-        $productId = "1750498184844";
-        $carrierId = "1750343798";
-        $courierId = "678b3ac540f9b7f91a8b4c3f";
-        $logistic_name = 'Bluedart Air 500gms';
+        $logistic_name = 'BlueDart Air 500 GM';
+          } elseif ($provider_name == 'BlueDart 500 GM') {
+            $productId = "1762763121502";
+            $carrierId = "1738577045";
+            $courierId = "678b3ac540f9b7f91a8b4c3f";
+            $logistic_name = 'BlueDart 500 GM';
     } elseif ($provider_name == 'Delhivery Air' || $provider_name == 'Delhivery 250gms') {
         // Both use the same working configuration
         $productId = "1753163038641";
@@ -820,7 +885,7 @@ private function processSingleOrderAssignmentBulk($params)
     // dd($addressId);
     if (!$addressId) {
         $addressId = "1738673293717";
-        Log::warning('Using fallback address_id as warehouse registration failed');
+        // Log::warning('Using fallback address_id as warehouse registration failed');
     }
 
 

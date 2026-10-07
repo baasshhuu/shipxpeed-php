@@ -10,7 +10,7 @@
                         <div>
                             <h3 class="mb-1 text-white fw-bold" style="text-shadow:0 2px 14px #172554a0;letter-spacing:0.035em;font-size:1.7rem;">
                                 <i class="fa-solid fa-shield-halved text-primary me-2 premium-badge-shadow"></i>
-                                Help & Support 
+                                Help & Support
                             </h3>
                             <div class="mt-1 fw-normal text-light small" style="opacity:0.96;">
                                 Your dedicated support team for fast, personal, professional help.
@@ -18,7 +18,7 @@
                         </div>
                         {{-- Align the ticket button in the top right corner --}}
                         <div class="ms-auto">
-                            <a href="{{ route('seller.ticket.add') }}" class="export-btn">Add Tickets</a>
+                            <a href="{{ route('seller.ticket.add') }}" class="export-btn" style="background: aliceblue;color: black;">Add Tickets</a>
                         </div>
                     </div>
                     <div class="card-body py-4">
@@ -188,10 +188,7 @@
                 </div>
                 <div class="text-end mt-2 small fw-semibold" style="color: #334155;">
                     Our support team is here for you on priority.<br>
-                    <!-- <span class="d-inline-block mt-1 premium-support-badge px-3 py-2">
-                        <i class="fa fa-shield-halved me-1 text-navy"></i>
-                        <span>Premium Seller Care</span>
-                    </span> -->
+                   
                 </div>
             </div>
         </div>
@@ -341,7 +338,7 @@
     text-shadow:0 7px 24px #2563eb99, 0 1.5px 12px #22d3ee55;
 }
 .premium-support-card {
-    border-radius: 15px !important;
+    border-radius: 28px !important;
     width: 75rem;
     box-shadow: 0 8px 36px 0 #1e293b21, 0 4px 20px #33415524;
     border: none !important;

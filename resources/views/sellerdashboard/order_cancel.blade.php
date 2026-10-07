@@ -1990,7 +1990,7 @@
             <div class="controls-row">
                 <!-- Date Filter Section -->
                 <div class="date-filter-container">
-                    <form method="GET" action="{{ route('seller.courier.Assigned') }}" class="date-filter-form">
+                    <form method="GET" action="{{ route('seller.courier.Cancelled') }}" class="date-filter-form">
                         <div class="date-inputs-group">
                             <input type="date" name="date_from" class="enhanced-date-input" 
                                    value="{{ request('date_from') }}" placeholder="dd-mm-yyyy">

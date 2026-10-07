@@ -425,14 +425,62 @@
                     </a>
                     <div class="collapse {{ $ordersActive ? 'show' : '' }}" id="ordersMenuDesk">
                         <ul class="nav flex-column sidebar-dropdown-menu">
-                            <li>
+                            <!-- <li>
                                 <a href="{{ route('seller.order') }}" class="nav-link sidebar-sub-nav-link {{ request()->routeIs(['seller.order*', 'seller.courier.Assigned*', 'seller.courier.Cancelled*','seller.courier.InTransit*','seller.courier.OutForDelivery*','seller.courier.Delivered*','seller.courier.RTO*','seller.courier.all*','seller.courier.other*']) ? 'active' : '' }}">
                                     <span class="ms-2">Add B2C Order</span>
                                 </a>
+                                <div class="collapse {{ $ordersActive ? 'show' : '' }}" id="ordersMenuDesk">
+                                    <ul class="nav flex-column sidebar-dropdown-menu">
+                                        <li>
+                                            <a href="{{ route('seller.order') }}" class="nav-link sidebar-sub-nav-link {{ request()->routeIs(['seller.order*', 'seller.courier.Assigned*', 'seller.courier.Cancelled*','seller.courier.InTransit*','seller.courier.OutForDelivery*','seller.courier.Delivered*','seller.courier.RTO*','seller.courier.all*','seller.courier.other*']) ? 'active' : '' }}">
+                                                <span class="ms-2">Add B2C Order</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a href="{{-- route('seller.b2b.order') --}}" class="nav-link sidebar-sub-nav-link {{ request()->routeIs('seller.b2b.order*') ? 'active' : '' }}">
+                                                <span class="ms-2">Add B2B Order</span>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </li> -->
+                            <li>
+                                <!-- Parent Menu -->
+                                <a class="nav-link sidebar-sub-nav-link d-flex justify-content-between align-items-center"
+                                data-bs-toggle="collapse"
+                                href="#b2cOrderMenu"
+                                role="button"
+                                aria-expanded="{{ request()->routeIs('seller.order*') ? 'true' : 'false' }}"
+                                aria-controls="b2cOrderMenu">
+
+                                    <span>Add New Shipment</span>
+                                    <i class="fas fa-chevron-down small" style="font-size: 10px;"></i>
+                                </a>
+
+                                <!-- B2C Submenu -->
+                                <div class="collapse {{ request()->routeIs('seller.order*') ? 'show' : '' }}" id="b2cOrderMenu">
+                                    <ul class="nav flex-column sidebar-dropdown-menu">
+
+                                        <li>
+                                            <a href="{{ route('seller.order') }}"
+                                            class="nav-link sidebar-sub-nav-link {{ request()->routeIs('seller.order') ? 'active' : '' }}">
+                                                <span class="ms-2">Add B2B Order</span>
+                                            </a>
+                                        </li>
+
+                                        <li>
+                                            <a href="{{ route('seller.order') }}"
+                                            class="nav-link sidebar-sub-nav-link {{ request()->routeIs('seller.order.bulk') ? 'active' : '' }}">
+                                                <span class="ms-2">Add B2C Order</span>
+                                            </a>
+                                        </li>
+
+                                    </ul>
+                                </div>
                             </li>
                             <li>
                                 <a href="{{-- route('seller.b2b.order') --}}" class="nav-link sidebar-sub-nav-link {{ request()->routeIs('seller.b2b.order*') ? 'active' : '' }}">
-                                    <span class="ms-2">Add B2B Order</span>
+                                    <span class="ms-2">Shipment History</span>
                                 </a>
                             </li>
                         </ul>
@@ -562,7 +610,7 @@
                     </a>
                 </li>
                 <li class="nav-item {{ request()->routeIs('seller.api') ? 'active' : '' }}">
-                    <a href="{{ route('seller.api') }}" class="nav-link d-flex align-items-center">
+                    <a href="{{ route('seller.api') }}"  class="nav-link d-flex align-items-center">
                         <i class="ti ti-file-download"></i>
                         <span class="ms-2">API Documentation</span>
                         <div class="nav-indicator"></div>

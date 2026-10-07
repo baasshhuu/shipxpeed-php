@@ -14,7 +14,7 @@ $parts = array_filter(explode('.', $name));
                 <nav class="breadcrumb-style-one" aria-label="breadcrumb">
                     <ol class="breadcrumb">
                         <li class="breadcrumb-item">
-                            <a href="{{ route('dashboard') }}">Dashbard</a>
+                            <a href="{{ route('dashboard') }}">Dashboard</a>
                         </li>
                         @foreach($parts as $part)
                         <li class="breadcrumb-item @if(false) active @endif" aria-current="page">

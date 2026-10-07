@@ -1,7 +1,7 @@
 @extends('layouts.sellerdash')
 
 @section('content')
-<div class="pc-container">
+<div class="pc-container" style="margin-left:74px;">
     <div class="pc-content">
         <div class="container my-4">
             <!-- Header Section -->

@@ -171,7 +171,7 @@ return [
 
         App\Providers\BladeServiceProvider::class,
         Maatwebsite\Excel\ExcelServiceProvider::class,
-        // Yajra\DataTables\DataTablesServiceProvider::class,
+        Yajra\DataTables\DataTablesServiceProvider::class,
         App\Providers\CourierServiceProvider::class,
     ])->toArray(),
 

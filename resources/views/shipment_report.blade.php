@@ -24,10 +24,9 @@
             <button type="submit" class="btn btn-sm btn-primary">
                 <i class="fas fa-filter me-1"></i> Filter
             </button>
-            
             <a href="{{ route('shipment.report.export', request()->query()) }}" class="btn btn-sm btn-success">
-                <i class="fas fa-file-excel me-1"></i> Export Excel
-            </a>
+    <i class="fas fa-file-excel me-1"></i> Export Excel
+</a>
 
         </form>
     </div>

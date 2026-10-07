@@ -338,7 +338,7 @@ class DelhiveryB2CService implements CourierServiceInterface
         return [[
             'serviceabilityId' => $pincodeToCheck,
             'courierName'      => 'Delhivery',
-            'courierCharge'    => $charges['courierCharge'],
+            'courierCharge'    => $charges['courierCharge'] + 5,
             'freightCharges'   => $charges['freightCharges'],
             'codCharge'        => $charges['codCharge'],
             'zone'             => $zone,
@@ -909,6 +909,7 @@ public function reversegetServiceability(array $params): array
     
     public function assignOrderbulk($params)
 {
+    $params = json_decode(json_encode($params), true);
     // Handle bulk order assignment
     if (isset($params['shipments']) && is_array($params['shipments'])) {
         return $this->processBulkOrderAssignment($params);

@@ -105,6 +105,9 @@ class CourierController extends Controller
                     $courier['courierName'] === 'Bluedart 1 KG' => 'brands/1750337705_WhatsApp_Image_2025-06-19_at_5.17.34_PM__1_-removebg-preview.png',
                     $courier['courierName'] === 'parcelx_Deliveri 250gm' => 'brands/45438f4b-44ad-4c1a-bd0e-d08695b2dc16.jpeg',
                     $courier['courierName'] === 'Ekart500gm_boxd' => 'brands/ecart.png',
+                    $courier['courierName'] === 'Bluedartbox_500gm' => 'brands/1750337705_WhatsApp_Image_2025-06-19_at_5.17.34_PM__1_-removebg-preview.png',
+                $courier['courierName'] === 'Xpressbeepacel 500gm' => 'brands/Xpressbee.png',
+                $courier['courierName'] === 'Shreemaruti 500gm' => 'brands/Shreemaruti.jpg',
 
 
                     default => $localProvider->logo ?? null,
@@ -127,6 +130,7 @@ class CourierController extends Controller
                                          'Ekart_2 KG Fixed' => 'Ekart 2 KG',
                                      'parcelx_Deliveri 250gm' => 'Delhivery 250gms',
                                          'Ekart500gm_boxd' => 'Ekart 500 GM',
+                                         'Bluedartbox_500gm' => 'BlueDart Air 500 GM',
 
                                          'Xpressbee 250gms' => 'Xpressbee 250gms',
                                          'Bluedart 2kg surface' => 'Bluedart 2kg surface',
@@ -141,6 +145,8 @@ class CourierController extends Controller
                                          'Amazon 2 KG' => 'Amazon 2 KG',
                                          'Amazon 500 GM' => 'Amazon 500 GM',
     // tekipost
+                                         'Xpressbeepacel 500gm' => 'Xpressbee 500 GM',
+                                                                                 'Shreemaruti 500gm' => 'Shreemaruti 500 GM',
 
                                     default => $courier['courierName'],
                                 }
@@ -271,6 +277,9 @@ class CourierController extends Controller
                 $courier['courierName'] === 'parcelx_Deliveri 250gm' => 'brands/45438f4b-44ad-4c1a-bd0e-d08695b2dc16.jpeg',
                 $courier['courierName'] === 'Ekart500gm' => 'brands/ecart.png',
                 $courier['courierName'] === 'Ekart500gm_boxd' => 'brands/ecart.png',
+                    $courier['courierName'] === 'Bluedartbox_500gm' => 'brands/1750337705_WhatsApp_Image_2025-06-19_at_5.17.34_PM__1_-removebg-preview.png',
+                $courier['courierName'] === 'Xpressbeepacel 500gm' => 'brands/Xpressbee.png',
+                $courier['courierName'] === 'Shreemaruti 500gm' => 'brands/Shreemaruti.jpg',
 
                 // tekipost
 
@@ -311,6 +320,12 @@ class CourierController extends Controller
                                      'Amazon 500 GM' => 'Amazon 500 GM',
 // tekipost
                                         'Ekart500gm' => 'Ekart 500 GM',
+                                                                                 'Bluedartbox_500gm' => 'BlueDart Air 500 GM',
+
+
+                                                                                 'Xpressbeepacel 500gm' => 'Xpressbee 500 GM',
+                                                                                 'Shreemaruti 500gm' => 'Shreemaruti 500 GM',
+
 
                                 default => $courier['courierName'],
                             }

@@ -68,6 +68,9 @@ class ZonePriceSettingController extends Controller
 // Shiprocket
 "Ekart500gm",
 "Ekart500gm_boxd",
+"boxd_bluedart_500gm",
+"parcel_x_Xpressbee",
+"parcel_x_Shreemaruti",
 
 
     ];

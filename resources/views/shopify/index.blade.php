@@ -102,9 +102,10 @@
     }
     
     .channel-page .ch-search-input {
-        border-radius: 7px;
-        padding: 0.7rem 2rem 0.7rem 1.2rem;
-        font-size: 0.85rem;
+        border-radius: 15px;
+        border: 2px solid #e9ecef;
+        padding: 0.8rem 3rem 0.8rem 1.2rem;
+        font-size: 0.95rem;
         transition: all 0.3s ease;
         background: white;
         box-shadow: 0 2px 10px rgba(0,0,0,0.05);
@@ -141,7 +142,7 @@
     
         border: none;
         border-radius: 7px;
-        padding: 0.4rem 0.4rem;
+        padding: 0.5rem 0.5rem;
         color: white;
        
         font-size: 0.82rem;
@@ -168,12 +169,12 @@
     }
     
     .channel-page .ch-table thead th {
-        background: linear-gradient(90deg, #3576e3 0, #306cc9 100%) !important;
+        background: var(--ch-dark-gradient);
         color: white;
         border: none;
-        padding: 0.7rem 1rem;
-        /* font-weight: 600; */
-        font-size: 0.82rem;
+        padding: 1rem 1.2rem;
+        font-weight: 600;
+        font-size: 0.85rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
         position: relative;

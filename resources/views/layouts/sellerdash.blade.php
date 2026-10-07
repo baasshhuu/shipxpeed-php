@@ -250,13 +250,14 @@
                     @php
                         $seller = Auth::guard('seller')->user();
                     @endphp
-                    @if ($seller->profile && file_exists(public_path('uploads/seller_profiles/' . $seller->profile)))
-                        <img 
-                            src="{{ asset('uploads/seller_profiles/' . $seller->profile) }}" 
-                            alt="Seller Image" 
-                            class="user-avtar me-3" 
-                            width="54" height="54" 
-                            style="object-fit:cover; border-radius:50%; box-shadow:0 2px 8px rgba(59,130,246,0.09)">
+                    @if ($seller && $seller->profile && file_exists(public_path('uploads/seller_profiles/' . $seller->profile)))
+                        <img
+                            src="{{ asset('uploads/seller_profiles/' . $seller->profile) }}"
+                            alt="Seller Image"
+                            class="user-avtar me-3"
+                            width="54"
+                            height="54"
+                            style="object-fit:cover;border-radius:50%;box-shadow:0 2px 8px rgba(59,130,246,0.09)">
                     @else
                         <div class="default-avatar me-3" style="width:54px;height:54px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">
                             <i class="fa-solid fa-user"></i>
@@ -274,12 +275,16 @@
                     <a href="{{ route('profile.get') }}" class="btn btn-outline-primary btn-sm" style="font-size:0.8rem;">
                         <i class="ti ti-user-edit me-1"></i> Edit
                     </a>
+                    <form id="logout-form" action="{{ route('seller.logout') }}" method="POST" style="display:none;" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+    @csrf
+</form>
                     <form id="mobile-logout-form" action="{{ route('seller.logout') }}" method="POST" style="display:inline;">
                         @csrf
                         <button type="submit" class="btn btn-outline-danger btn-sm" style="font-size:0.8rem;">
                             <i class="ti ti-power me-1"></i>Logout
                         </button>
                     </form>
+                
                 </div>
                 <!-- Quick Actions now shown in mobile view inside Account Overview -->
                 <div class="d-block d-md-none" style="margin-top:1.5rem;">
@@ -353,7 +358,7 @@
             </div>
             <!-- Logo element for mobile view (centered on mobile) -->
             <div class="mobile-header-logo align-items-center" style="display: none;">
-                <img src="http://127.0.0.1:8000/assets/website/img/logo_without.PNG" alt="Logo" width="120" height="34" style="object-fit:contain;height:34px;">
+                <img src="https://shipxpeed.com/assets/website/img/logo_without.png" alt="Logo" width="120" height="34" style="object-fit:contain;height:34px;">
             </div>
             <div class="me-auto pc-mob-drp flex-grow-1">
                 <ul class="list-unstyled">
@@ -509,7 +514,7 @@
 
                     const dropdownItems = [
                         { href: "{{ route('profile.get') }}", text: "Edit" },
-                        { href: "{{ route('seller.logout') }}", text: "Logout" }
+                         { href: "#", text: "Logout", logout: true }
                     ];
 
                     function createProfileDropdownMenu() {
@@ -536,19 +541,44 @@
                         ul.style.right = "0";
                         ul.style.left = "auto";
 
+                        // dropdownItems.forEach(item => {
+                        //     let li = document.createElement('li');
+                        //     let a = document.createElement('a');
+                        //     a.className = "dropdown-item";
+                        //     a.href = item.href;
+                        //     a.innerText = item.text;
+                        //     a.style.whiteSpace = "nowrap";
+                        //     a.style.fontWeight = "500";
+                        //     a.style.color = "#34477b";
+                        //     a.style.padding = "0.38rem 1.1rem";
+                        //     li.appendChild(a);
+                        //     ul.appendChild(li);
+                        // });
                         dropdownItems.forEach(item => {
-                            let li = document.createElement('li');
-                            let a = document.createElement('a');
-                            a.className = "dropdown-item";
-                            a.href = item.href;
-                            a.innerText = item.text;
-                            a.style.whiteSpace = "nowrap";
-                            a.style.fontWeight = "500";
-                            a.style.color = "#34477b";
-                            a.style.padding = "0.38rem 1.1rem";
-                            li.appendChild(a);
-                            ul.appendChild(li);
-                        });
+    let li = document.createElement('li');
+    let a = document.createElement('a');
+
+    a.className = "dropdown-item";
+    a.innerText = item.text;
+
+    if(item.logout){
+        a.href = "#";
+        a.addEventListener("click", function(e){
+            e.preventDefault();
+            document.getElementById("logout-form").submit();
+        });
+    }else{
+        a.href = item.href;
+    }
+
+    a.style.whiteSpace = "nowrap";
+    a.style.fontWeight = "500";
+    a.style.color = "#34477b";
+    a.style.padding = "0.38rem 1.1rem";
+
+    li.appendChild(a);
+    ul.appendChild(li);
+});
                         return ul;
                     }
 

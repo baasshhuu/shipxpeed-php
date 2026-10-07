@@ -1,6 +1,113 @@
 @extends('frontend.website.layout.index')
 @section('main_contant')
 
+    <!-- <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+            <div class="modal-content border-0 overflow-hidden">
+                <div class="row g-0">
+
+                    <div class="col-lg-6 d-none d-lg-flex flex-column" style="background-color: #555B61;">
+
+                        <div class="h-50 p-4 text-white d-flex flex-column justify-content-center">
+                            <h3 class="h4 fw-bold mb-3">Fast & Reliable Global Shipping</h3>
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="badge bg-primary me-2">WORLDWIDE</span>
+                                <small class="text-white-50">Delivering to 230+ countries</small>
+                            </div>
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-truck text-success me-2"></i>
+                                <small>Express delivery options available</small>
+                            </div>
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-shield-alt text-warning me-2"></i>
+                                <small>Secure & insured shipments</small>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                <small>Seamless customs clearance</small>
+                            </div>
+                        </div>
+
+
+                        <div class="h-50 d-flex align-items-center p-4">
+                            <img src="{{ asset('assets/website/img/img1.jpeg') }}" alt="Global Shipping"
+                                class="img-fluid rounded w-100 object-fit-cover">
+                        </div>
+                    </div>
+
+
+                  
+                    <div class="col-lg-6">
+                        <div class="p-4 p-md-5 h-100 d-flex flex-column">
+                           
+                            <div class="modal-header border-0 px-0 pt-0">
+                                <h3 class="modal-title fw-bold fs-3 text-dark mb-1">Complete the form to access your
+                                    special rates</h3>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+
+                            <div class="modal-body">
+                                @if (session('success'))
+                                    <div class="alert alert-success">
+                                        {{ session('success') }}
+                                    </div>
+                                @endif
+
+                                @if ($errors->any())
+                                    <div class="alert alert-danger">
+                                        <ul class="mb-0">
+                                            @foreach ($errors->all() as $error)
+                                                <li>{{ $error }}</li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @endif
+
+                                <form action="{{ route('inquiries.store') }}" method="POST">
+                                    @csrf
+
+                                    <label for="name">Name</label>
+                                    <input type="text" id="name" name="name" placeholder="Enter Name"
+                                        class="form-control mb-3" value="{{ old('name') }}">
+
+                                    <label for="email">Email</label>
+                                    <input type="email" id="email" name="email" placeholder="Enter Email"
+                                        class="form-control mb-3" value="{{ old('email') }}">
+
+                                    <label for="phone">Phone</label>
+                                    <input type="text" id="phone" name="phone" placeholder="Enter Phone"
+                                        class="form-control mb-3" value="{{ old('phone') }}">
+
+                                    <label for="company_name">Company Name</label>
+                                    <input type="text" id="company_name" name="company_name"
+                                        placeholder="Enter Company Name" class="form-control mb-3"
+                                        value="{{ old('company_name') }}">
+
+                                    <div class="form-group">
+                                        <label for="service" style="color: #000">You Are Here For</label>
+                                        <select id="service" name="service" class="form-control" required>
+                                            <option value="" selected disabled>Choose Your Requirements</option>
+                                            <option value="logistics">Logistics Solutions</option>
+                                            <option value="shipping">Shipping Services</option>
+                                            <option value="tracking">Order Tracking</option>
+                                        </select>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary">Submit</button>
+                                </form>
+
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div> -->
+   
 
     <style>
         html, body {
@@ -486,8 +593,7 @@
             <img src="{{ asset('assets/website/img/herosection.PNG') }}" 
                 alt="Hero Section Background"
                 class="hero-slider__video-bg"
-                style="width:100%;height:100%;display:block;background:none;object-fit:unset;object-position:unset;image-rendering:auto;"
-            >
+                style="width:100%;height:100%;display:block;background:none;object-fit:unset;object-position:unset;image-rendering:auto;">
         </div>
         <!-- Slider arrows for desktop, positioned left/right center edges of the slider screen -->
         <div class="slider-arrows-desktop">
@@ -1074,20 +1180,44 @@
                 </h2>
                 <p>More than <span style="color:#3383dc;font-weight:700;">2,100+</span> brands choose us for a premium shipping experience</p>
             </div>
+            
             <div class="premium-marquee">
                 <div class="premium-marquee-track" aria-label="List of trusted brands/logos" tabindex="0"
                      onmouseover="this.style.animationPlayState='paused'"
                      onmouseout="this.style.animationPlayState='running'">
-                    @foreach($landingbrands as $landingbrand)
+                    <!-- @foreach($landingbrands as $landingbrand)
                         <div class="premium-logo-slide">
                             <img src="{{ Helper::showImage($landingbrand->image, true) }}" alt="Brand Logo" loading="lazy">
                         </div>
                     @endforeach
                     @foreach($landingbrands as $landingbrand)
-                        <!-- Duplicate for smooth infinite scroll -->
+                      
                         <div class="premium-logo-slide">
                             <img src="{{ Helper::showImage($landingbrand->image, true) }}" alt="Brand Logo" loading="lazy">
                         </div>
+                    @endforeach -->
+                    @foreach($landingbrands as $landingbrand)
+                        @php
+                            $imageUrl = Helper::showImage($landingbrand->image, true);
+                        @endphp
+
+                        @if(!str_contains($imageUrl, '1750648620_3757.jpeg'))
+                            <div class="premium-logo-slide">
+                                <img src="{{ $imageUrl }}" alt="Brand Logo" loading="lazy">
+                            </div>
+                        @endif
+                    @endforeach
+
+                    @foreach($landingbrands as $landingbrand)
+                        @php
+                            $imageUrl = Helper::showImage($landingbrand->image, true);
+                        @endphp
+
+                        @if(!str_contains($imageUrl, '1750648620_3757.jpeg'))
+                            <div class="premium-logo-slide">
+                                <img src="{{ $imageUrl }}" alt="Brand Logo" loading="lazy">
+                            </div>
+                        @endif
                     @endforeach
                 </div>
             </div>
@@ -1264,7 +1394,7 @@
                         </p>
                     </div>
                 </div>
-                <div class="col-12 col-sm-6 col-md-6 col-lg-3 feature-premium-card-col aos-init aos-animate" data-aos="zoom-out" data-aos-delay="400">
+                <!-- <div class="col-12 col-sm-6 col-md-6 col-lg-3 feature-premium-card-col aos-init aos-animate" data-aos="zoom-out" data-aos-delay="400">
                     <div class="icon-box feature-premium-card shadow-sm rounded-4 w-100 mx-auto position-relative responsive-premium-card">
                         <div class="icon premium-icon d-flex align-items-center justify-content-center rounded-circle shadow-sm"
                              style="background: linear-gradient(135deg, #e0e9fb 55%, #fff 100%);">
@@ -1277,7 +1407,7 @@
                             Ship to 230+ countries — one platform, borderless eCommerce made effortless.
                         </p>
                     </div>
-                </div>
+                </div> -->
             </div>
             <!-- COD Remittance Section Responsive (Unchanged content, but responsive styles are respected) -->
             <div class="cod-codremittance-section-bg w-100 my-5" style="background: none; margin-left: 0; margin-right: 0;">
@@ -1307,7 +1437,7 @@
                 <div class="cod-bg-mobile-gradient w-100" style="padding:0;margin:0;">
                     <div class="row flex-lg-row flex-column-reverse m-0 w-100" style="width:100%;">
                         <div class="col-lg-7 col-md-10 cod-image image-section aos-init aos-animate text-center mb-3 mb-lg-0" data-aos="fade-left" data-aos-delay="100" style="margin-top:10px;">
-                            <img class="cod-mobile-img" src="{{ asset('assets/website/img/newwonee.png') }}" alt="COD Illustration" style="width:100%;height:400px;max-width: 574px;">
+                            <img class="cod-mobile-img" src="{{ asset('https://shipxpeed.com/assets/website/img/newwonee.PNG') }}" alt="COD Illustration" style="width:100%;height:400px;max-width: 574px;">
                         </div>
                         <div class="col-lg-5 col-md-12 cod-content aos-init aos-animate" data-aos="fade-right" style="padding-top:22px; padding-bottom:18px;margin-top:10px;">
                             <div class="mb-3">
@@ -1431,61 +1561,174 @@
 
             <!-- Services (Shipping Process) under extended hero background -->
             <div class="services-section-under-hero position-relative pt-4 pb-5 mobile-bg-custom" style="z-index:2;">
-                <h2 style="color: #ffffff; letter-spacing: -0.7px; font-weight: 900; text-shadow: 0 4px 24px rgba(8,28,60,0.22); font-size: 2.45rem;">
-                    Our <span class="text-shipxpeed" style="color:#41daff;text-shadow: 0 4px 16px #192e53b3;">Services</span>
-                </h2>
-                <p class="lead" style="color: #e7f2ff; font-weight: 500; text-shadow: 0 2px 12px #13395b40; font-size:1.13rem;">
+                <h2 style="color: #ffffff; letter-spacing: -0.7px; font-weight: 600; text-shadow: 0 4px 24px rgba(8,28,60,0.22); font-size: 2.45rem;">
                     Everything you need for a seamless shipping experience.
-                </p>
+                </h2>
+                <!-- <p class="lead" style="color: #e7f2ff; font-weight: 500; text-shadow: 0 2px 12px #13395b40; font-size:1.13rem;">
+                    Everything you need for a seamless shipping experience.
+                </p> -->
                 <div class="shipping-slider-container mt-4">
                     <div class="shipping-slider-track">
                         <!-- Card 1 -->
+                         <!-- <img src="{{ asset('https://shipxpeed.com/assets/website/img/service1.PNG') }}" alt="Add/Sync Shipments"
+                                    class="shipping-process-img-large" style="max-height: 270px; max-width: 90%;"> -->
                         <div class="shipping-process-card shipping-slider-card impressive-card">
                             <div class="slider-img-wrapper impressive-img-shadow">
-                                <img src="{{ asset('assets/website/img/service1.png') }}" alt="Add/Sync Shipments"
+                                
+                                    <!-- <p style="font-size: 15px;
+    line-height: 1.9;
+    color: #5f6368;
+    text-align: justify;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    margin: 0;
+    padding: 18px 20px;
+    transition: all .3s ease;">Optimize your delivery operations with intelligent NDR Management. Resolve failed deliveries faster through automated workflows, real-time customer engagement,helping reduce RTOs and maximize successful deliveries.</p>
+                             -->
+                            <img src="{{ asset('https://shipxpeed.com/assets/website/img/ndr1.png') }}" alt="Add/Sync Shipments"
                                     class="shipping-process-img-large" style="max-height: 270px; max-width: 90%;">
                             </div>
                             <div class="slider-title-wrapper impressive-title-underline">
                                 <span class="card-title">
-                                    <a href="{{ route('seller.login') }}">Whatsapp Engage</a>
+                                    <a href="{{ route('seller.login') }}">NDR Management</a>
                                 </span>
                             </div>
                         </div>
                         <!-- Card 2 -->
                         <div class="shipping-process-card shipping-slider-card impressive-card">
                             <div class="slider-img-wrapper impressive-img-shadow">
-                                <img src="{{ asset('assets/website/img/service2.png') }}" alt="Choose Courier Partner"
+                                <img src="{{ asset('https://shipxpeed.com/assets/website/img/order.png') }}" alt="Choose Courier Partner"
                                     class="shipping-process-img-large" style="max-height: 270px; max-width: 90%;">
+                                    <!-- <p style="font-size: 15px;
+    line-height: 1.9;
+    color: #5f6368;
+    text-align: justify;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    margin: 0;
+    padding: 18px 20px;
+    transition: all .3s ease;">Order Management streamlines the complete order lifecycle, from order placement to fulfillment and delivery. It ensures accurate processing, real-time tracking, and seamless coordination for a faster and more efficient customer experience.</p>
+                             -->
                             </div>
                             <div class="slider-title-wrapper impressive-title-underline">
                                 <span class="card-title">
-                                    <a href="{{ route('seller.login') }}">Shipxpeed International</a>
+                                    <a href="{{ route('seller.login') }}">Order Management</a>
                                 </span>
                             </div>
                         </div>
                         <!-- Card 3 -->
                         <div class="shipping-process-card shipping-slider-card impressive-card">
                             <div class="slider-img-wrapper impressive-img-shadow">
-                                <img src="{{ asset('assets/website/img/service3.png') }}" alt="Create Shipping Label"
+                                <img src="{{ asset('https://shipxpeed.com/assets/website/img/redressal.png') }}" alt="Create Shipping Label"
                                     class="shipping-process-img-large" style="max-height: 270px; max-width: 90%;">
-                            </div>
+                                    <!-- <p style="font-size: 15px;
+    line-height: 1.9;
+    color: #5f6368;
+    text-align: justify;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    margin: 0;
+    padding: 18px 20px;
+    transition: all .3s ease;">Weight Dispute Redressal Mechanism ensures transparent and efficient resolution of shipment weight discrepancies through systematic verification. It helps maintain billing accuracy, and deliver a seamless shipping experience.</p>
+                             -->
+                        
+                        </div>
                             <div class="slider-title-wrapper impressive-title-underline">
                                 <span class="card-title">
-                                    <a href="{{ route('seller.login') }}">Shipxpeed Hyperlocal</a>
+                                    <a href="{{ route('seller.login') }}">Weight Dispute Redressal Mechanism</a>
                                 </span>
                             </div>
                         </div>
                         <!-- Card 4 -->
                         <div class="shipping-process-card shipping-slider-card impressive-card">
                             <div class="slider-img-wrapper impressive-img-shadow">
-                                <img src="{{ asset('assets/website/img/service4.png') }}" alt="Track Shipment"
+                                <img src="{{ asset('https://shipxpeed.com/assets/website/img/aibased.png') }}" alt="Track Shipment"
                                     class="shipping-process-img-large" style="max-height: 270px; max-width: 90%;">
-                            </div>
+                                <!-- <p style="font-size: 15px;
+    line-height: 1.9;
+    color: #5f6368;
+    text-align: justify;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    margin: 0;
+    padding: 18px 20px;
+    transition: all .3s ease;">AI-Based Courier Allocation intelligently selects the most suitable courier partner by analyzing factors such as cost, delivery speed, serviceability, and performance. This ensures optimized shipping, higher delivery success rates.</p>
+                             -->
+                        </div>
                             <div class="slider-title-wrapper impressive-title-underline">
                                 <span class="card-title">
-                                    <a href="{{ route('seller.login') }}">Domestic Shipment</a>
+                                    <a href="{{ route('seller.login') }}">AI Based Courier Allocation</a>
                                 </span>
                             </div>
+                        </div>
+
+                        <!-- Card 5 -->
+                        <div class="shipping-process-card shipping-slider-card impressive-card">
+                            <div class="slider-img-wrapper impressive-img-shadow">
+                                <img src="{{ asset('https://shipxpeed.com/assets/website/img/rto1.png') }}" alt="Track Shipment"
+                                    class="shipping-process-img-large" style="max-height: 270px; max-width: 100%;">
+                                    <!-- <p style="font-size: 15px;
+    line-height: 1.9;
+    color: #5f6368;
+    text-align: justify;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    margin: 0;
+    padding: 18px 20px;
+    transition: all .3s ease;">RTO Risk Reduction leverages intelligent analytics and proactive shipment monitoring to minimize Return-to-Origin (RTO) cases. By validating customer information and optimizing delivery strategies, it improves delivery success rates.</p>
+                             -->
+                        </div>
+                            <div class="slider-title-wrapper impressive-title-underline">
+                                <span class="card-title">
+                                    <a href="{{ route('seller.login') }}">RTO Risk Reduction</a>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Card 6 -->
+                        <div class="shipping-process-card shipping-slider-card impressive-card">
+                            <div class="slider-img-wrapper impressive-img-shadow">
+                                <img src="{{ asset('https://shipxpeed.com/assets/website/img/watsappp.png') }}" alt="Track Shipment"
+                                    class="shipping-process-img-large" style="max-height: 270px; max-width: 90%;">
+                                    <!-- <p style="font-size: 15px;
+    line-height: 1.9;
+    color: #5f6368;
+    text-align: justify;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    margin: 0;
+    padding: 18px 20px;
+    transition: all .3s ease;">Our WhatsApp Communication solution facilitates instant, automated messaging for shipping updates, delivery notifications, and customer support. It ensures transparent communication, and strengthens engagement throughout the shipping lifecycle.</p>
+                             -->
+                        </div>
+                            <div class="slider-title-wrapper impressive-title-underline">
+                                <span class="card-title">
+                                    <a href="{{ route('seller.login') }}">Whatsapp Communication</a>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Card 7 -->
+                        <div class="shipping-process-card shipping-slider-card impressive-card">
+                            <div class="slider-img-wrapper impressive-img-shadow">
+                                <img src="{{ asset('https://shipxpeed.com/assets/website/img/branded.png') }}" alt="Track Shipment"
+                                    class="shipping-process-img-large" style="max-height: 270px; max-width: 90%;">
+                                    <!-- <p style="font-size: 15px;
+    line-height: 1.9;
+    color: #5f6368;
+    text-align: justify;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    margin: 0;
+    padding: 18px 20px;
+    transition: all .3s ease;">Deliver a seamless post-purchase experience with branded tracking pages that showcase your logo, real-time shipment status. Strengthen customer engagement while maintaining complete transparency throughout the delivery journey.</p>
+                             -->
+                        </div>
+                            <!-- <div class="slider-title-wrapper impressive-title-underline">
+                                <span class="card-title">
+                                    <a href="{{ route('seller.login') }}">Branded Tracking</a>
+                                </span>
+                            </div> -->
                         </div>
                     </div>
                     <!-- Dots removed for mobile view as per request -->
@@ -1634,15 +1877,15 @@
                 .impressive-card {
                     display: flex !important;
                     flex-direction: column;
-                    height: 420px !important;
+                    height: 350px !important;
                     width: 99% !important;
-                    min-width: 380px !important;
+                    min-width: 290px !important;
                     max-width: 520px !important;
                     justify-content: flex-start;
                     align-items: center;
                     background: linear-gradient(135deg, #f7fcff 0%, #eaf2fa 85%, #d5e7fa 100%);
                     box-shadow: 0 10px 40px 0 rgba(54,164,255,.17), 0 3px 16px 0 rgba(40,124,245,0.11);
-                    border-radius: 2.2rem !important;
+                    border-radius: 1.8rem !important;
                     border: 2px solid #e1edfa;
                     padding: 28px 22px 12px 22px;
                     margin: 0 2vw;
@@ -1787,7 +2030,7 @@
             .shipping-process-img-large {
                 width: 100%;
                 height: 100%;
-                object-fit: contain;
+                /* object-fit: contain; */
                 max-width: 100%;
                 max-height: 100%;
                 border-radius: 16px;
@@ -2025,7 +2268,7 @@
                 <div class="left-brands-col" style="flex:1 1 430px;min-width:350px;max-width:520px;display:block;" id="desktop-brands">
                     <div class="circular-brands-visual position-relative" style="width:440px;height:430px;margin-left:0;">
                         <div class="circular-brands-center-logo" style="position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);z-index:2;width:120px;height:120px;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:50%;box-shadow:0 4px 32px rgba(50,120,200,0.10);">
-                            <img src="{{ asset('assets/website/img/newlogo.png') }}" alt="Main Logo" style="max-width:92px;max-height:92px;display:block;margin:auto;">
+                            <img src="{{ asset('assets/website/img/newlogo.PNG') }}" alt="Main Logo" style="max-width:92px;max-height:92px;display:block;margin:auto;">
                         </div>
                         <div class="circular-brands-orbit" id="circularBrandsOrbit" style="position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);width:330px;height:330px;z-index:1;">
                             @php
@@ -2235,7 +2478,7 @@
                 <div class="service-cod-box">
                     <div class="service-cod-box-inner flex-lg-row flex-md-row d-flex align-items-center justify-content-between">
                         <div class="service-cod-img-box order-lg-1 order-md-1 order-1">
-                            <img src="{{ asset('assets/website/img/45.png') }}" alt="WhatsApp Alert" />
+                            <img src="{{ asset('https://shipxpeed.com/assets/website/img/45.PNG') }}" alt="WhatsApp Alert" />
                         </div>
                         <div class="service-cod-content-box order-lg-2 order-md-2 order-2">
                             <h2>Stay Updated with Smart WhatsApp Delivery Alerts</h2>
@@ -2252,7 +2495,7 @@
                 <div class="service-cod-box">
                     <div class="service-cod-box-inner flex-lg-row flex-md-row d-flex align-items-center justify-content-between">
                         <div class="service-cod-img-box order-lg-1 order-md-1 order-1">
-                            <img src="{{ asset('assets/website/img/50.png') }}" alt="Real-Time Tracking" />
+                            <img src="{{ asset('https://shipxpeed.com/assets/website/img/50.PNG') }}" alt="Real-Time Tracking" />
                         </div>
                         <div class="service-cod-content-box order-lg-2 order-md-2 order-2">
                             <h2>Real-Time Tracking for Complete Delivery Transparency</h2>
@@ -2268,7 +2511,7 @@
                 <div class="service-cod-box">
                     <div class="service-cod-box-inner flex-lg-row flex-md-row d-flex align-items-center justify-content-between">
                         <div class="service-cod-img-box order-lg-1 order-md-1 order-1">
-                            <img src="{{ asset('assets/website/img/46.png') }}" alt="Shopify Woo Integration" />
+                            <img src="{{ asset('https://shipxpeed.com/assets/website/img/46.PNG') }}" alt="Shopify Woo Integration" />
                         </div>
                         <div class="service-cod-content-box order-lg-2 order-md-2 order-2">
                             <h2>Seamless Shopify &amp; WooCommerce Integration</h2>
@@ -2284,7 +2527,7 @@
                 <div class="service-cod-box">
                     <div class="service-cod-box-inner flex-lg-row flex-md-row d-flex align-items-center justify-content-between">
                         <div class="service-cod-img-box order-lg-1 order-md-1 order-1">
-                            <img src="{{ asset('assets/website/img/47.png') }}" alt="Account Manager Support" />
+                            <img src="{{ asset('https://shipxpeed.com/assets/website/img/47.PNG') }}" alt="Account Manager Support" />
                         </div>
                         <div class="service-cod-content-box order-lg-2 order-md-2 order-2">
                             <h2>Dedicated Key Account Manager – Support That Never Stops</h2>
@@ -2300,7 +2543,7 @@
                 <div class="service-cod-box">
                     <div class="service-cod-box-inner flex-lg-row flex-md-row d-flex align-items-center justify-content-between">
                         <div class="service-cod-img-box order-lg-1 order-md-1 order-1">
-                            <img src="{{ asset('assets/website/img/48.png') }}" alt="IVR Delivery Success" />
+                            <img src="{{ asset('https://shipxpeed.com/assets/website/img/48.PNG') }}" alt="IVR Delivery Success" />
                         </div>
                         <div class="service-cod-content-box order-lg-2 order-md-2 order-2">
                             <h2>Dedicated IVR Calling for Faster Delivery Success</h2>
@@ -2546,18 +2789,18 @@
             >
                 @php
                     $clientLogos = [
-                        ['src' => 'assets/website/img/channel/channel8.PNG', 'alt' => 'Company 1'],
-                        ['src' => 'assets/website/img/channel/channel9.PNG', 'alt' => 'Company 2'],
-                        ['src' => 'assets/website/img/channel/channel10.PNG', 'alt' => 'Company 3'],
-                        ['src' => 'assets/website/img/channel/channel11.JPG', 'alt' => 'Company 4'],
-                        ['src' => 'assets/website/img/channel/channel23.JPG', 'alt' => 'Company 5'],
-                        ['src' => 'assets/website/img/channel/channel13.PNG', 'alt' => 'Company 6'],
-                        ['src' => 'assets/website/img/channel/channel14.WEBP', 'alt' => 'Company 7'],
-                        ['src' => 'assets/website/img/channel/channel15.WEBP', 'alt' => 'Company 8'],
-                        ['src' => 'assets/website/img/channel/channel16.JPG', 'alt' => 'Company 9'],
-                        ['src' => 'assets/website/img/channel/channel17.PNG', 'alt' => 'Company 10'],
-                        ['src' => 'assets/website/img/channel/channel18.PNG', 'alt' => 'Company 11'],
-                        ['src' => 'assets/website/img/channel/channel22.WEBP', 'alt' => 'Company 12'],
+                        ['src' => 'https://shipxpeed.com/assets/website/img/channel/channel8.PNG', 'alt' => 'Company 1'],
+                        ['src' => 'https://shipxpeed.com/assets/website/img/channel/channel9.PNG', 'alt' => 'Company 2'],
+                        ['src' => 'https://shipxpeed.com/assets/website/img/channel/channel10.PNG', 'alt' => 'Company 3'],
+                        ['src' => 'https://shipxpeed.com/assets/website/img/channel/channel11.JPG', 'alt' => 'Company 4'],
+                        ['src' => 'https://shipxpeed.com/assets/website/img/channel/channel23.jpg', 'alt' => 'Company 5'],
+                        ['src' => 'https://shipxpeed.com/assets/website/img/channel/channel13.png', 'alt' => 'Company 6'],
+                        ['src' => 'https://shipxpeed.com/assets/website/img/channel/channel14.webp', 'alt' => 'Company 7'],
+                        ['src' => 'https://shipxpeed.com/assets/website/img/channel/channel15.webp', 'alt' => 'Company 8'],
+                        ['src' => 'https://shipxpeed.com/assets/website/img/channel/channel16.jpg', 'alt' => 'Company 9'],
+                        ['src' => 'https://shipxpeed.com/assets/website/img/channel/channel17.png', 'alt' => 'Company 10'],
+                        ['src' => 'https://shipxpeed.com/assets/website/img/channel/channel18.png', 'alt' => 'Company 11'],
+                        ['src' => 'https://shipxpeed.com/assets/website/img/channel/channel22.webp', 'alt' => 'Company 12'],
                     ];
                 @endphp
 
@@ -2616,7 +2859,7 @@
                                 background: none; 
                                 z-index: 3; 
                                 display:flex; align-items:center; justify-content:center;">
-                                <img src="{{ asset('assets/website/img/newlogo.png') }}" alt="Company Logo" style="width: 97px; height: 97px; object-fit: contain; border-radius: 50%;">
+                                <img src="{{ asset('https://shipxpeed.com/assets/website/img/newlogo.PNG') }}" alt="Company Logo" style="width: 97px; height: 97px; object-fit: contain; border-radius: 50%;">
                             </div>
                         </div>
                     </div>
@@ -3161,29 +3404,26 @@
         </div>
         <div class="mb-2">
           <strong>Corporate Office:</strong>
-          <div>{{ $site_settings['address'] ?? '' }}</div>
+          <div>{{ $site_settings['address'] }}</div>
         </div>
-        <div class="mb-2">
-          <strong>Registered Address:</strong>
-          <div>{{ $site_settings['secondaddress'] ?? '' }}</div>
-        </div>
+       
         <div class="mb-2">
           <strong>Contact:</strong>
-          <div>{{ $site_settings['phone'] ?? ''}}</div>
+          <div>{{ $site_settings['phone'] }}</div>
         </div>
         <div class="mb-2">
           <strong>Email:</strong>
-          <div><a href="mailto:{{ $site_settings['email'] ?? '' }}">{{ $site_settings['email'] ?? ''}}</a></div>
+          <div><a href="mailto:{{ $site_settings['email'] }}">{{ $site_settings['email'] }}</a></div>
         </div>
         <div class="mb-3">
           <strong>Website:</strong>
           <div><a href="https://www.shipxpeed.com" target="_blank">www.shipxpeed.com</a></div>
         </div>
         <div class="social-links mt-3 d-flex gap-2 flex-wrap">
-          <a href="{{ $site_settings['twitter'] ?? '' }}" target="_blank"><i class="bi bi-twitter-x"></i></a>
-          <a href="{{ $site_settings['facebook'] ?? '' }}" target="_blank"><i class="bi bi-facebook"></i></a>
-          <a href="{{ $site_settings['instagram'] ?? '' }}" target="_blank"><i class="bi bi-instagram"></i></a>
-          <a href="{{ $site_settings['linkdin'] ?? ''}}" target="_blank"><i class="bi bi-linkedin"></i></a>
+          <a href="{{ $site_settings['twitter'] }}" target="_blank"><i class="bi bi-twitter-x"></i></a>
+          <a href="{{ $site_settings['facebook'] }}" target="_blank"><i class="bi bi-facebook"></i></a>
+          <a href="{{ $site_settings['instagram'] }}" target="_blank"><i class="bi bi-instagram"></i></a>
+          <a href="{{ $site_settings['linkdin'] }}" target="_blank"><i class="bi bi-linkedin"></i></a>
         </div>
       </div>
       <!-- Right: Contact Form -->

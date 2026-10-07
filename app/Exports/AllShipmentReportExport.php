@@ -42,6 +42,7 @@ class AllShipmentReportExport implements FromCollection, WithHeadings
 
             // Consignee details decode
             $consignee = is_string($order->consignee) ? json_decode($order->consignee, true) : ($order->consignee ?? []);
+            $order_items = is_string($order->order_items) ? json_decode($order->order_items, true) : ($order->order_items ?? []);
 
             return [
                 $order->awb_number,
@@ -50,6 +51,8 @@ class AllShipmentReportExport implements FromCollection, WithHeadings
                 $order->seller->phone_number ?? 'N/A',
                 ucfirst($order->shipping_status ?? 'N/A'),
                 $order->payment_type ?? 'N/A',
+                $order_items['name'] ?? 'N/A',
+
                 $consignee['name'] ?? 'N/A',
                 $consignee['phone'] ?? 'N/A',
                 $consignee['address'] ?? 'N/A',
@@ -77,6 +80,7 @@ class AllShipmentReportExport implements FromCollection, WithHeadings
             'Seller Phone',
             'Shipping Status',
             'Payment Type',
+            'Product name',
             'Consignee Name',
             'Consignee Phone',
             'Consignee Address',

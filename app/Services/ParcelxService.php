@@ -241,7 +241,11 @@ public function getServiceability(array $params): array
         'parcel_x_Delhivery_250gm', 'Parcel_X_Delhivery_250gm', 'parcel_x_Delhivery_250GM', 'Parcel_X_Delhivery_250GM',
         'parcel_x_Amazon', 'Parcel_X_Amazon',
         'parcel_x_Amazon_1kg', 'parcel_x_Amazon_1KG', 'Parcel_X_Amazon_1kg', 'Parcel_X_Amazon_1KG',
-        'parcel_x_Amazon_2kg', 'parcel_x_Amazon_2KG', 'Parcel_X_Amazon_2kg', 'Parcel_X_Amazon_2KG'
+        'parcel_x_Amazon_2kg', 'parcel_x_Amazon_2KG', 'Parcel_X_Amazon_2kg', 'Parcel_X_Amazon_2KG',
+        'parcel_x_Shreemaruti', 'parcel_x_Shreemaruti',
+        'parcel_x_Xpressbee', 'parcel_x_Xpressbee',
+
+
     ];
     
     $activeParcelxServicesRaw = ActicvSleb::where([
@@ -306,16 +310,21 @@ public function getServiceability(array $params): array
                 ];
             } else {
                 // Use variable COD price multiplied by weight slabs + 18% GST + COD charge if applicable
-                $basePrice = $zonePricing->cod_price * $slabs;
-                $prepaidPrice = $zonePricing->prepaid_price * $slabs;
-
+                // $basePrice = $zonePricing->cod_price * $slabs;
+                // $prepaidPrice = $zonePricing->prepaid_price * $slabs;
+                  $basePrice = $zonePricing->cod_price;
+                   $prepaidPrice = $zonePricing->prepaid_price;
+                //    dd($basePrice, $prepaidPrice);
                 // Calculate COD charge if order amount > 1400
                 $codCharge = 0;
                 if ($orderAmount > 1400) {
-                    $codChargePercent = $zonePricing->cod_charge_parsent ?? 0;
+                    // $codChargePercent = $zonePricing->cod_charge_parsent ?? 0;
+                    $codChargePercent = 1.6;
+
+                    // dd($codChargePercent);
                     $codCharge = ($orderAmount * $codChargePercent / 100);
                 }
-                
+                // dd($codCharge);
                 $totalWithGST = ($basePrice + $prepaidPrice + $codCharge) + (($basePrice + $prepaidPrice + $codCharge) * 18 / 100);
                 return [
                     'courierCharge'  => round($totalWithGST, 2),
@@ -348,11 +357,14 @@ public function getServiceability(array $params): array
 
     // 🧮 Step 4: Build final response with individual pricing for each service
     $slabs = [
+         ['serviceabilityId' => $pincodeToCheck, 'courierName' => 'Amazon 2kg', 'logisticProvider' => 'parcel_x_Amazon_2kg', 'weightSlab' => 2000],
         ['serviceabilityId' => $pincodeToCheck, 'courierName' => 'Deliveri 500gm', 'logisticProvider' => 'parcel_x_Delhivery', 'weightSlab' => 500],
         ['serviceabilityId' => $pincodeToCheck, 'courierName' => 'parcelx_Deliveri 250gm', 'logisticProvider' => 'parcel_x_Delhivery_250gm', 'weightSlab' => 250],
         ['serviceabilityId' => $pincodeToCheck, 'courierName' => 'Amazon 500gm', 'logisticProvider' => 'parcel_x_Amazon', 'weightSlab' => 500],
         ['serviceabilityId' => $pincodeToCheck, 'courierName' => 'Amazon 1kg', 'logisticProvider' => 'parcel_x_Amazon_1kg', 'weightSlab' => 1000],
-        ['serviceabilityId' => $pincodeToCheck, 'courierName' => 'Amazon 2kg', 'logisticProvider' => 'parcel_x_Amazon_2kg', 'weightSlab' => 2000],
+        ['serviceabilityId' => $pincodeToCheck, 'courierName' => 'Xpressbeepacel 500gm', 'logisticProvider' => 'parcel_x_Shreemaruti', 'weightSlab' => 500],
+        ['serviceabilityId' => $pincodeToCheck, 'courierName' => 'Shreemaruti 500gm', 'logisticProvider' => 'parcel_x_Xpressbee', 'weightSlab' => 500],
+
     ];
 
     $results = [];
@@ -389,7 +401,7 @@ public function getServiceability(array $params): array
             $results[] = [
                 'serviceabilityId' => $slab['serviceabilityId'],
                 'courierName'      => $slab['courierName'],
-                'courierCharge'    => $charges['courierCharge'],
+                'courierCharge'    => $charges['courierCharge'] + 5,
                 'freightCharges'   => $charges['freightCharges'],
                 'codCharge'        => $charges['codCharge'],
                 'zone'             => $zone,
@@ -782,12 +794,13 @@ public function createWarehouse($pickup, $sellerId)
 
         // Prepare ParcelX API payload
         $warehousePayload = [
-            "address_title" => $addressTitle,
+            "address_title" => "degdslfddhuuggndiiiiiiiiiiiiiiiraghav",
             "sender_name" => $pickup['name'],
             "full_address" => $pickup['address'] . (isset($pickup['address_2']) ? ', ' . $pickup['address_2'] : ''),
             "phone" => $pickup['phone'],
             "pincode" => $pickup['pincode']
         ];
+        // dd($warehousePayload);
 
         $url = "https://app.parcelx.in/api/v3/create_warehouse";
         $response = Http::withHeaders([
@@ -870,7 +883,7 @@ public function assignOrder($params)
 
     // Decode pickup & consignee first
     $pickup = is_string($order->pickup) ? json_decode($order->pickup, true) : $order->pickup;
-
+//  dd($pickup);
     // Create warehouse using pickup address from order
     $warehouseResult = $this->createWarehouse($pickup, $seller->id);
     // dd($warehouseResult);
@@ -889,6 +902,10 @@ public function assignOrder($params)
     $courier_code = "PXDEL01";
     }else if($provider_name == 'Delhivery 250gms'){
     $courier_code = "PXDEL01";
+    }else if($provider_name == 'Xpressbee 500 GM'){
+    $courier_code = "PXXPB2B";
+    }else if($provider_name == 'Shreemaruti 500 GM'){
+    $courier_code = "PXSMUTI01";
     }else{
     $courier_code = "PXA01";
 

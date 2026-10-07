@@ -21,6 +21,19 @@ class NegativeBalanceSellerExport implements FromCollection, WithHeadings
                 ->where('seller_id', $order->seller_id)
                 ->first();
 
+            // Determine payment method - Wallet or Bank
+            // You can customize this logic based on your business requirements
+            $paymentMethod = 'Bank'; // Default to Bank
+            
+            // Check if order has wallet payment indicator
+            if (isset($order->payment_method) && $order->payment_method == 'wallet') {
+                $paymentMethod = 'Wallet';
+            } elseif (isset($order->wallet_used) && $order->wallet_used > 0) {
+                $paymentMethod = 'Wallet';
+            } elseif (!empty($bankDetails)) {
+                $paymentMethod = 'Bank';
+            }
+
             return [
                 'awb_number'       => $order->awb_number,
                 'order_number'     => $order->order_number,
@@ -32,6 +45,7 @@ class NegativeBalanceSellerExport implements FromCollection, WithHeadings
                     ? \Carbon\Carbon::parse($order->delivered_date)->addDays(7)->format('Y-m-d')
                     : 'N/A',
                 'payment_status'   => $order->payment_status ?? 'N/A',
+                'payment_method'   => $paymentMethod, // New column - Wallet or Bank
 
                 // Seller bank details
                 'account_number'   => $bankDetails->account_number ?? 'N/A',
@@ -52,6 +66,7 @@ class NegativeBalanceSellerExport implements FromCollection, WithHeadings
             'Delivered Date',
             'Remittance Date',
             'Payment Status',
+            'Payment Method', // New column - Wallet/Bank
             'Account Number',
             'IFSC Code',
             'Account Holder Name',

@@ -14,10 +14,236 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Models\SellerList;
 
 use Illuminate\Support\Facades\Schema;
 class StatusController extends Controller
 {
+
+
+
+public function sendCodMail()
+{
+    // सभी sellers के emails निकालो
+    $emails = SellerList::whereNotNull('email')->pluck('email')->toArray();
+
+    if (empty($emails)) {
+        return response()->json([
+            'status' => false,
+            'message' => 'No seller emails found'
+        ]);
+    }
+
+    // Mail data
+    $data = [
+        'date' => '04/05/2026'
+    ];
+
+    // 100-100 के batch बनाओ
+    $chunks = array_chunk($emails, 50);
+
+    foreach ($chunks as $chunkEmails) {
+
+        Mail::send('cod_mail', $data, function ($message) use ($chunkEmails) {
+            $message->to('shipxpeed@gmail.com') // main receiver
+                    ->bcc($chunkEmails) // सिर्फ 100 लोग
+                    ->subject('COD Payment Update – 04/05/2026');
+        });
+
+        // optional: थोड़ा delay दे सकते हो (spam avoid)
+        sleep(2); 
+    }
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Mail sent in batches of 100 successfully'
+    ]);
+}
+
+
+//  public function sendCodMail()
+//     {
+//         // सभी sellers के emails निकालो
+//         $emails = SellerList::whereNotNull('email')->pluck('email')->toArray();
+
+//         if (empty($emails)) {
+//             return response()->json([
+//                 'status' => false,
+//                 'message' => 'No seller emails found'
+//             ]);
+//         }
+
+//         // Mail data
+//         $data = [
+//             'date' => '04/05/2026'
+//         ];
+
+//         // एक साथ सभी को mail भेजना (BCC use करें)
+//         Mail::send('cod_mail', $data, function ($message) use ($emails) {
+//             $message->to('shipxpeed@gmail.com') // main receiver
+//                     ->bcc($emails) // सभी sellers यहाँ
+//                     ->subject('COD Payment Update – 04/05/2026');
+//         });
+
+//         return response()->json([
+//             'status' => true,
+//             'message' => 'Mail sent successfully to all sellers'
+//         ]);
+//     }
+
+
+
+
+public function rechargeSummary()
+{
+    try {
+
+        // tro amount sum
+        $troAmount = Recharge::where('description', 'RTO Debit')
+            ->sum('amount');
+
+        // waight disput sum
+        $weightDisput = Recharge::where('description', 'Weight Dispute Adjustment')
+            ->sum('amount');
+
+            $Ordercreated = Recharge::where('description', 'Order created')
+            ->sum('amount');
+
+        return response()->json([
+            'status' => true,
+            'data' => [
+                'tro_amount_total' => $troAmount,
+                'waight_disput_total' => $weightDisput,
+                'Ordercreated' => $Ordercreated,
+                'msg service' => '5300'
+
+            ]
+        ]);
+
+    } catch (\Exception $e) {
+
+        return response()->json([
+            'status' => false,
+            'message' => $e->getMessage()
+        ]);
+
+    }
+}
+
+
+public function bulkCancel(Request $request)
+{
+    $request->validate([
+        'file' => 'required|mimes:xlsx,xls,csv'
+    ]);
+
+    $file = $request->file('file');
+
+    $data = Excel::toArray([], $file);
+
+    $results = [];
+
+    foreach ($data[0] as $row) {
+
+        $awb = $row[0]; // Excel first column
+
+        if (!$awb) {
+            continue;
+        }
+
+        $response = $this->cancelShipmentpppppppp($awb);
+
+        $results[] = [
+            'awb' => $awb,
+            'status' => $response['status'],
+            'message' => $response['message']
+        ];
+    }
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Bulk cancel process completed',
+        'results' => $results
+    ]);
+}
+
+
+
+
+
+public function cancelShipmentpppppppp($awb)
+{
+    try {
+        // $seller = Auth::guard('seller')->user();
+        $order = Order::where('awb_number', $awb)->first();
+
+        if (!$order) {
+            return [
+                'status' => false,
+                'message' => 'Order not found for AWB: ' . $awb,
+                'responseCode' => 404
+            ];
+        }
+
+        // ParcelX API URL for cancellation
+        $url = "https://app.parcelx.in/api/v3/order/cancel_order";
+
+        // Prepare ParcelX payload
+        $payload = [
+            "awb" => $awb
+        ];
+
+        // Send POST request to ParcelX
+        $response = Http::withHeaders([
+            'Content-Type' => 'application/json',
+            'access-token' => 'MzM3YTIyMDA4MzQ5ZTliNDNkNWI2NGE2ZmI1NjBjMzJjMzBhMDU0ZjVjM2I0NWE0MTEyNjIyMTk3MzpjYjMyNDFiM2NmNzZiZDJkYzNlNjZlZmMxOTM5ODQxMzJjOGI0ZWEzMmQzOWZkMzNjYWI0NmE3MmM1ZDliY2Y1ODRjNTk2YzhiMDdkMGJlZTFl',
+        ])->post($url, $payload);
+
+        $responseData = $response->json();
+    //   dd($responseData);
+        // Check if cancellation succeeded - ParcelX uses 'status' not 'success'
+        if ($response->successful() && isset($responseData['status']) && $responseData['status'] === true) {
+            // Update order status
+            $order->order_status = 'cancelled';
+            $order->save();
+
+            // Refund seller
+            // Recharge::create([
+            //     'seller_id'   => $seller->id,
+            //     'type'        => 'Credit',
+            //     'amount'      => $order->seller_amount_walate,
+            //     'status'      => 1,
+            //     'description' => 'Order cancelled',
+            // ]);
+
+            return [
+                'status' => true,
+                'message' => 'ParcelX shipment cancelled successfully.',
+                'awb_number' => $awb,
+                'response' => $responseData,
+                'responseCode' => $response->status(),
+            ];
+        }
+
+        // If cancellation failed
+        return [
+            'status' => false,
+            'message' => $responseData['message'] ?? 'Failed to cancel shipment.',
+            'response' => $responseData,
+            'responseCode' => $response->status(),
+        ];
+
+    } catch (\Exception $e) {
+        return [
+            'status' => false,
+            'message' => 'API Request Failed: ' . $e->getMessage(),
+        ];
+    }
+}
+
+
+
+
 
 
 
@@ -461,6 +687,114 @@ public function destroy(Request $request)
                 'status' => false,
                 'message' => 'Error processing Excel file: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function updateStatusFromExcel(Request $request)
+    {
+        $request->validate([
+            'excel_file' => 'required|file|mimes:xlsx,xls,csv'
+        ]);
+
+        try {
+            $file = $request->file('excel_file');
+            $data = Excel::toArray([], $file)[0];
+            
+            // Remove header row if exists
+            if (isset($data[0]) && (is_string($data[0][0]) && !is_numeric($data[0][0]))) {
+                array_shift($data);
+            }
+
+            $successCount = 0;
+            $failedCount = 0;
+            $successAwbs = [];
+            $failedAwbs = [];
+
+            foreach ($data as $row) {
+                // Skip empty rows
+                if (empty($row[0]) || empty($row[1])) {
+                    continue;
+                }
+
+                $awbNumber = trim($row[0]); // Column A - Tracking Id
+                $currentStatus = trim($row[1]); // Column C - Current Status
+                
+                // Map status according to rules
+                $mappedStatus = $this->mapExcelStatusToDatabase($currentStatus);
+                
+                // Find order by AWB number
+                $order = Order::where('awb_number', $awbNumber)->first();
+                
+                if ($order) {
+                    $previousStatus = $order->shipping_status;
+                    
+                    // Update shipping status
+                    $order->shipping_status = $mappedStatus;
+                    
+                    // If status is delivered, set delivered date
+                    if ($mappedStatus === 'delivered') {
+                        $order->delivered_date = date('Y-m-d');
+                    }
+                    
+                    $order->save();
+                    
+                    $successCount++;
+                    $successAwbs[] = [
+                        'awb_number' => $awbNumber,
+                        'previous_status' => $previousStatus,
+                        'updated_status' => $mappedStatus,
+                        'excel_status' => $currentStatus
+                    ];
+                } else {
+                    $failedCount++;
+                    $failedAwbs[] = [
+                        'awb_number' => $awbNumber,
+                        'reason' => 'Order not found in database',
+                        'excel_status' => $currentStatus
+                    ];
+                }
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Status update completed successfully',
+                'total_processed' => $successCount + $failedCount,
+                'success_count' => $successCount,
+                'failed_count' => $failedCount,
+                'successful_updates' => $successAwbs,
+                'failed_updates' => $failedAwbs
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Error processing Excel file: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    private function mapExcelStatusToDatabase($excelStatus)
+    {
+        $status = strtolower(trim($excelStatus));
+        
+        // Status mapping rules
+        switch ($status) {
+            case 'pickup scheduled':
+                return 'assigned';
+            case 'in transit':
+                return 'transit';
+            case 'out for delivery':
+                return 'out for delivery';
+            case 'delivered':
+                return 'delivered';
+            case 'cancelled':
+                return 'cancelled';
+            case 'rto':
+            case 'return to origin':
+                return 'rto';
+            default:
+                // For any other status, use as-is (lowercase)
+                return $status;
         }
     }
 
@@ -2104,7 +2438,8 @@ public function apiTrackDelhivery(Request $request)
                 'ref_ids' => '',
             ]);
 
-            if (! $response->successful()) {
+            //  dd($response->json());
+            if (!$response->successful()) {
                 $results[] = [
                     'awb'     => $order->awb_number,
                     'status'  => 'error',

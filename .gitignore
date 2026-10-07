@@ -1,8 +1,8 @@
 /vendor
 /node_modules
 .env
-.env.backup
-.env.production
+.env.*
+!.env.example
 /storage/*.key
 /storage/logs/*
 /storage/debugbar/*

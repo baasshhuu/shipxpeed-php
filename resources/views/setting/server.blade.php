@@ -23,7 +23,7 @@
 @section('content')
     <div class="row">
         <div class="col-md-12">
-            <div class="card mb-3" style="padding: 19px 3px;">
+            <div class="card mb-3">
                 <div class="card-header">
                     <div class="row flex-between-end">
                         <div class="col-auto align-self-center">

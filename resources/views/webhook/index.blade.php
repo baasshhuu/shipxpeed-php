@@ -68,6 +68,7 @@
     }
     .webhook-page .wb-custom-table tbody td {
         border: none;
+        text-align: center;
         padding: 0.8rem 0.7rem;
         vertical-align: middle;
         border-bottom: 1px solid #f1f3f4;

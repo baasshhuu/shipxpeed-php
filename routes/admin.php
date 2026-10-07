@@ -60,6 +60,19 @@ use App\Http\Controllers\admin\RtoamountController;
 
 // Admin & Sub-Admin Routes
 Route::middleware(['auth', 'permission', 'authCheck', 'verified'])->group(function () {
+
+    // Courier & Rate Manager (new isolated module)
+    Route::get('courier-rate-manager', [\App\Http\Controllers\admin\CourierRateManagerController::class, 'index'])->name('courier.rate.manager');
+    Route::get('courier-rate-manager/accounts', [\App\Http\Controllers\admin\CourierRateManagerController::class, 'getCourierAccounts'])->name('courier.rate.manager.accounts');
+    Route::get('courier-rate-manager/seller-assignment', [\App\Http\Controllers\admin\CourierRateManagerController::class, 'getSellerAssignment'])->name('courier.rate.manager.seller.assignment');
+    Route::post('courier-rate-manager/assign-seller', [\App\Http\Controllers\admin\CourierRateManagerController::class, 'assignSeller'])->name('courier.rate.manager.assign.seller');
+    Route::get('courier-rate-manager/slabs', [\App\Http\Controllers\admin\CourierRateManagerController::class, 'getSlabs'])->name('courier.rate.manager.slabs');
+    Route::get('courier-rate-manager/slab-rates', [\App\Http\Controllers\admin\CourierRateManagerController::class, 'getSlabRates'])->name('courier.rate.manager.slab.rates');
+    Route::post('courier-rate-manager/save-slab', [\App\Http\Controllers\admin\CourierRateManagerController::class, 'saveSlab'])->name('courier.rate.manager.save.slab');
+    Route::get('courier-master', [\App\Http\Controllers\admin\CourierMasterController::class, 'index'])->name('courier.master.index');
+    Route::post('courier-master', [\App\Http\Controllers\admin\CourierMasterController::class, 'store'])->name('courier.master.store');
+    Route::post('courier-master/{id}/update', [\App\Http\Controllers\admin\CourierMasterController::class, 'update'])->name('courier.master.update');
+
     Profile::routes();
     Route::get('dashboard', [HomeController::class, 'index'])->name('dashboard');
         Route::get('/shipment-report', [HomeController::class, 'shipment_report'])->name('shipment.report');
@@ -300,14 +313,14 @@ Route::post('/SendWhatsApp-send-message', [\App\Http\Controllers\admin\SendWhats
      
     });
 
-    Route::match(['get', 'post'], 'pricesetting/status/{id}/{status}', [logisticsController::class, 'status'])->name('pricesetting.status');
+     Route::match(['get', 'post'], 'pricesetting/status/{id}/{status}', [logisticsController::class, 'status'])->name('pricesetting.status');
     Route::match(['get', 'post'], 'pricesetting/delete/{id}', [logisticsController::class, 'destroy'])->name('pricesetting.delete');
 
     Route::get('get-orders-page', [StatusupdateController::class, 'getOrderspage'])->name('get.orders.page');
     Route::get('get-orders', [StatusupdateController::class, 'getOrders'])->name('get.orders');
     Route::post('update-status-all', [StatusupdateController::class, 'updateStatusall'])->name('update.status.all');
 
-    Route::get('get-rto-page', [RtoamountController::class, 'getrtopage'])->name('get.rto.page');
+   Route::get('get-rto-page', [RtoamountController::class, 'getrtopage'])->name('get.rto.page');
     Route::get('get-rto', [RtoamountController::class, 'getrtoOrders'])->name('get.rto');
 
 // Route::post('update-status', [StatusupdateController::class, 'updateStatus'])->name('update.status.seller');
@@ -323,7 +336,7 @@ Route::post('/SendWhatsApp-send-message', [\App\Http\Controllers\admin\SendWhats
         Route::post('invoices/data/add', 'save')->name('invoices.data.add')->middleware('isAllow:104,can_add');
         Route::get('invoices/{id}', 'edit')->name('invoices.edit')->middleware('isAllow:104,can_edit');
         Route::post('invoices', 'slug')->name('invoices.slug')->middleware('isAllow:104,can_edit');
-        Route::post('invoices/update/{id}', 'update')->name('invoices.update')->middleware('isAllow:104,can_edit');
+         Route::post('invoices/update/{id}', 'update')->name('invoices.update')->middleware('isAllow:104,can_edit');
         Route::delete('invoices/delete/{id}', 'delete')->name('invoices.delete')->middleware('isAllow:104,can_delete');
     });
     

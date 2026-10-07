@@ -36,7 +36,7 @@
         margin-bottom: 1.5rem;
     }
     .webhook-page .wb-content-header {
-        background:linear-gradient(93deg, #8e9fd9 5%, #6791cf 75%, #5054e9 117%) !important;
+        background: var(--wb-dark-gradient);
         color: white;
         padding: 1.2rem;
         display: flex;
@@ -91,10 +91,10 @@
         text-decoration: none;
     }
     .wb-btn-secondary {
-        background: black;
+        background: #6c757d;
         border: none;
         color: white;
-        padding: 0.6rem 0.7rem;
+        padding: 0.8rem 1.5rem;
         border-radius: 8px;
         font-weight: 500;
         transition: all 0.3s ease;
@@ -182,9 +182,15 @@
     }
 </style>
 
-<div class="pc-container webhook-page" style="background:#646dff26;">
-    <div class="pc-content" style="margin-left:12px;">
-        
+<div class="pc-container webhook-page">
+    <div class="pc-content">
+        <!-- Dashboard Header -->
+        <div class="wb-dashboard-header text-center">
+            <div class="container">
+                <h1 class="wb-dashboard-title">Edit Webhook</h1>
+                <p class="wb-dashboard-subtitle">Modify your webhook configuration</p>
+            </div>
+        </div>
         
         <div class="container-fluid">
             <div class="row">

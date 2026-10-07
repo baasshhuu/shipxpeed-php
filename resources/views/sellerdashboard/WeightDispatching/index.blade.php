@@ -431,6 +431,7 @@
                                     <td>{{ $row['weightmissmatched'] ?? 'N/A' }}</td>
                                     <td>{{ $row['weightdisputecharges'] ?? '0' }}</td>
                             
+
                                     <input type="hidden" name="sellers[{{ $index }}][seller_id]" value="{{ $row['seller_id'] }}">
                                     <input type="hidden" name="sellers[{{ $index }}][amount]" value="{{ $row['weightdisputecharges'] }}">
                                     <input type="hidden" name="sellers[{{ $index }}][weight_id]" value="{{ $row['id'] }}">
@@ -457,4 +458,15 @@
     </div>
 </div>
 @endsection --}}
+
+
+
+
+
+
+
+
+
+
+
 

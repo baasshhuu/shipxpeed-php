@@ -25,7 +25,7 @@ class PaymentController extends Controller
 public function redirectToPayU($id)
 {
     $recharge = Recharge::findOrFail($id);
-    dd($recharge);
+    // dd($recharge);
     $MERCHANT_KEY = "your_merchant_key";
     $SALT = "your_salt";
     $PAYU_BASE_URL = "https://test.payu.in"; // use secure.payu.in for live

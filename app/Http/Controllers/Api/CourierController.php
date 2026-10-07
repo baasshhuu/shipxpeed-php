@@ -153,6 +153,35 @@ public function serviceabilitybulk(Request $request)
             ->values();
             // dd($results);
 
+
+        // Courier & Rate Manager grouping (new, isolated) - show only seller's assigned sub-account per master courier
+        $crmAccounts = \DB::table('courier_accounts')->get()->keyBy('logistic_provider_id');
+        $crmChosenPerCourier = [];
+        $crmFiltered = [];
+        \Log::info('CRM_DEBUG input results', ['count' => count($results), 'raw' => $results, 'seller_id' => $order->seller_id ?? 'NULL']);
+        foreach ($results as $entry) {
+            $lpId = $entry['courierId'] ?? null;
+            if ($lpId && isset($crmAccounts[$lpId])) {
+                $masterId = $crmAccounts[$lpId]->courier_id;
+                if (!isset($crmChosenPerCourier[$masterId])) {
+                    $siblingIds = \DB::table('courier_accounts')->where('courier_id', $masterId)->pluck('id');
+                    $assigned = \DB::table('seller_courier_accounts')
+                        ->where('seller_id', $order->seller_id)
+                        ->whereIn('courier_account_id', $siblingIds)
+                        ->where('status', 1)
+                        ->first();
+                    $chosenAccountId = $assigned ? $assigned->courier_account_id : \DB::table('courier_accounts')->where('courier_id', $masterId)->where('is_default', 1)->value('id');
+                    $chosenAccount = $chosenAccountId ? \DB::table('courier_accounts')->where('id', $chosenAccountId)->first() : null;
+                    $crmChosenPerCourier[$masterId] = $chosenAccount ? $chosenAccount->logistic_provider_id : null;
+                }
+                if ($lpId == $crmChosenPerCourier[$masterId]) {
+                    $crmFiltered[] = $entry;
+                }
+            } else {
+                $crmFiltered[] = $entry;
+            }
+        }
+        $results = $crmFiltered;
         return response()->json([
             'data'         => $results,
             'success'      => true,

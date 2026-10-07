@@ -4,90 +4,67 @@
     <!-- [ Main Content ] start -->
     <div class="pc-container">
         <div class="pc-content">
-            <div class="mt-4">
-                <div class="bg-white rounded shadow p-4 border-0" style="box-shadow: 0 4px 24px rgba(0,0,0,.06);">
+            <div class=" mt-4">
+                <div class="bg-white rounded shadow-sm p-3">
                     <!-- Top Bar -->
-                    <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <!-- Left: Filter Icon & Date Input -->
                         <div class="d-flex align-items-center gap-2">
-                            <input type="text" id="daterange" class="form-control date-input shadow-sm border-primary"
-                                placeholder="Select Date Range" style="max-width: 250px;" autocomplete="off">
+                            <input type="text" id="daterange" class="form-control date-input"
+                                placeholder="Select Date Range">
                         </div>
                     </div>
 
-                    <!-- Beautified Table -->
-                    <div class="table-responsive rounded">
-                        <table class="table table-striped table-hover align-middle mb-0 custom-ticket-table">
-                            <thead class="bg-primary text-white">
+                    <!-- Responsive Table -->
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover text-center">
+                            <thead class="table-dark">
                                 <tr>
-                                    <th class="fw-bold">AWB Number</th>
-                                    <th class="fw-bold" style="min-width: 240px; white-space: normal; word-break: break-word;">Message</th>
-                                    <th class="fw-bold">Created At</th>
-                                    <th class="fw-bold">Updated At</th>
-                                    <th class="fw-bold">Action</th>
+                                    <th>AWB Number</th>
+                                    <th>Message</th>
+                                    {{-- <th>Status</th> --}}
+                                    <th>Created At</th>
+                                    <th>Updated At</th>
+                                    <th>Action</th>
+
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse($tickets as $ticket)
+                                @foreach($tickets as $ticket)
                                     <tr>
-                                        <td class="text-primary fw-semibold">{{ $ticket->order_id }}</td>
-                                        <td style="white-space: pre-wrap; word-break: break-word; max-width: 360px; text-align: left;">
-                                            {{ $ticket->message }}
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-light text-dark border border-1 border-secondary px-3 py-2 fs-6 shadow-sm">
-                                                {{ $ticket->created_at->format('Y-m-d') }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-light text-dark border border-1 border-secondary px-3 py-2 fs-6 shadow-sm">
-                                                {{ $ticket->updated_at->format('Y-m-d') }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <form method="POST" action="{{ route('tickets.update-status', $ticket->id) }}" class="d-flex align-items-center gap-2">
-                                                @csrf
-                                                @method('PATCH')
-                                                <select name="status" class="form-select form-select-sm rounded-pill bg-light border-primary" style="min-width: 120px; font-weight: 500;" onchange="this.form.submit()">
-                                                    <option value="Pending" {{ $ticket->status == 'Pending' ? 'selected' : '' }}>Pending</option>
-                                                    <option value="Rejected" {{ $ticket->status == 'Rejected' ? 'selected' : '' }}>Rejected</option>
-                                                    <option value="Resolved" {{ $ticket->status == 'Resolved' ? 'selected' : '' }}>Resolved</option>
-                                                </select>
-                                            </form>
-                                        </td>
+                                        <td>{{ $ticket->order_id }}</td>
+                                        <td>{{ $ticket->message }}</td>
+                                        {{-- <td>
+                                            @if($ticket->status === 'Pending')
+                                                <span class="badge bg-warning text-dark">Pending</span>
+                                            @elseif($ticket->status === 'Rejected')
+                                                <span class="badge bg-danger">Rejected</span>
+                                            @elseif($ticket->status === 'Resolved')
+                                                <span class="badge bg-success">Resolved</span>
+                                            @endif
+                                        </td> --}}
+                                        <td>{{ $ticket->created_at->format('Y-m-d') }}</td>
+                                        <td>{{ $ticket->updated_at->format('Y-m-d') }}</td>
+                                        {{-- @if(auth()->user()->role === 'admin') --}}
+                                            <td>
+                                                <form method="POST" action="{{ route('tickets.update-status', $ticket->id) }}" class="d-inline">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                                                        <option value="Pending" {{ $ticket->status == 'Pending' ? 'selected' : '' }}>Pending</option>
+                                                        <option value="Rejected" {{ $ticket->status == 'Rejected' ? 'selected' : '' }}>Rejected</option>
+                                                        <option value="Resolved" {{ $ticket->status == 'Resolved' ? 'selected' : '' }}>Resolved</option>
+                                                    </select>
+                                                </form>
+                                            </td>
+                                        {{-- @endif --}}
                                     </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="5" class="text-center text-muted py-4">
-                                            <i class="fa fa-ticket fa-2x mb-2 text-gray-400"></i>
-                                            <div>No tickets found.</div>
-                                        </td>
-                                    </tr>
-                                @endforelse
+                                @endforeach
                             </tbody>
                         </table>
                     </div>
-
-                    <style>
-                        /* Beautification styles for the ticket table */
-                        .custom-ticket-table thead th {
-                            letter-spacing: .02em;
-                        }
-                        .custom-ticket-table tbody tr {
-                            transition: box-shadow 0.1s;
-                        }
-                        .custom-ticket-table tbody tr:hover {
-                            background-color: #F5F9FF !important;
-                            box-shadow: 0 2px 8px rgba(71, 141, 255, 0.06);
-                        }
-                        .custom-ticket-table td, .custom-ticket-table th {
-                            vertical-align: middle;
-                        }
-                        .custom-ticket-table select {
-                            cursor: pointer;
-                        }
-                    </style>
                 </div>
-            </div>
+            </div>   
         </div>
     </div>
     <!-- [ Main Content ] end -->

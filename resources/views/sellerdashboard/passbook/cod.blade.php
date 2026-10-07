@@ -382,8 +382,8 @@
         /* Status Badges */
         .status-badge {
             display: inline-block;
-            padding: 0.5rem 1rem;
-            border-radius: 25px;
+            padding: 0.4rem 0.7rem;
+            border-radius: 7px;
             font-size: 0.75rem;
             font-weight: 700;
             text-transform: uppercase;
@@ -411,9 +411,9 @@
 
         /* Order Number Styling */
         .order-number {
-            font-weight: 800;
+            /* font-weight: 800; */
             color: #6366f1;
-            font-size: 1rem;
+            font-size: 0.82rem;
             background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -422,9 +422,9 @@
 
         /* Amount Styling */
         .amount-value {
-            font-weight: 800;
+            /* font-weight: 800; */
             color: #059669;
-            font-size: 1.1rem;
+            font-size: 0.82rem;
         }
 
         /* Courier Info */
@@ -576,9 +576,9 @@
                 </div>
 
                 <!-- Premium Statistics Overview (Minimized, Clean, +3px height) -->
-                <div class="stats-premium-grid-mobile d-flex flex-row justify-content-between gap-2" style="margin-left:2px;margin-bottom:4px;">
+                <div class="row stats-premium-grid" style="margin-left:2px;margin-bottom:4px;">
                     <!-- Total Pay Card -->
-                    <div class="stats-premium-card-mobile flex-fill">
+                    <div class="col-12 col-sm-6 col-lg-4">
                         <div class="card shadow-sm border-0 animate-fade-in"
                              style="animation-delay:0.05s; border-radius:11px; height:87px; overflow:hidden; background: linear-gradient(115deg, #e2eafe 85%, #f5f9ff 100%);">
                             <div class="card-body d-flex align-items-center flex-nowrap gap-1 py-2 px-2" style="min-height:47px;">
@@ -598,9 +598,9 @@
                     </div>
 
                     <!-- Total COD Remittance Card -->
-                    <div class="stats-premium-card-mobile flex-fill">
+                    <div class="col-12 col-sm-6 col-lg-4">
                         <div class="card shadow-sm border-0 animate-fade-in"
-                             style="animation-delay:0.09s; border-radius:11px; height:87px; overflow:hidden; background: linear-gradient(112deg,#f3fffc 90%,#ddfceb 100%);">
+                             style="animation-delay:0.09s; border-radius:11px;height:87px; overflow:hidden; background: linear-gradient(112deg,#f3fffc 90%,#ddfceb 100%);">
                             <div class="card-body d-flex align-items-center flex-nowrap gap-1 py-2 px-2" style="min-height:47px;">
                                 <div class="rounded-circle d-flex align-items-center justify-content-center"
                                      style="background:linear-gradient(135deg, #43d4a9 30%, #15b384 100%);width:34px;height:34px;box-shadow:0 1px 6px #43d4a912;">
@@ -618,7 +618,7 @@
                     </div>
 
                     <!-- Next Remittance Date Card -->
-                    <div class="stats-premium-card-mobile flex-fill">
+                    <div class="col-12 col-sm-12 col-lg-4">
                         <div class="card shadow-sm border-0 animate-fade-in"
                              style="animation-delay:0.13s; border-radius:11px; height:87px;  overflow:hidden; background: linear-gradient(115deg, #f8e9fa 95%, #f3f4fd 100%);">
                             <div class="card-body d-flex align-items-center flex-nowrap gap-1 py-2 px-2" style="min-height:47px;">
@@ -639,55 +639,22 @@
                 </div>
                 <style>
                 @media (max-width: 767px) {
-                    .stats-premium-grid-mobile {
-                        display: flex !important;
-                        flex-direction: row !important;
-                        justify-content: space-between !important;
-                        gap: 0.7rem !important;
-                        margin-left: 0 !important;
-                        margin-right: 0 !important;
-                    }
-                    .stats-premium-card-mobile {
-                        flex: 1 1 0;
-                        max-width: 33.33%;
-                        padding-left: 3px;
-                        padding-right: 3px;
-                        min-width: 0;
-                    }
-                    .stats-premium-card-mobile .card {
-                        height: 80px !important;
-                        min-height: 80px !important;
-                        /* Ensures uniform height */
-                    }
-                    .stats-premium-card-mobile .card-body {
+                    .stats-premium-grid .card-body {
                         flex-direction: column !important;
-                        align-items: center !important;
-                        gap: 0.2rem !important;
-                        padding: 0.45rem 0.3rem !important;
+                        align-items: flex-start !important;
+                        gap: 0.3rem !important;
+                        padding: 0.7rem 0.6rem !important;
                         min-height: auto !important;
                     }
-                    .stats-premium-card-mobile .rounded-circle {
+                    .stats-premium-grid .rounded-circle {
                         margin-bottom: 5px !important;
-                        width: 22px !important;
-                        height: 22px !important;
-                        min-width: 22px !important;
-                        font-size: 0.80rem !important;
+                        width: 28px !important;
+                        height: 28px !important;
+                        min-width: 28px !important;
+                        font-size: 0.86rem !important;
                     }
-                    .stats-premium-card-mobile .flex-grow-1 {
+                    .stats-premium-grid .flex-grow-1 {
                         padding-left: 0 !important;
-                        text-align: center;
-                    }
-                    .stats-premium-card-mobile .mb-0 {
-                        font-size: 0.76rem !important;
-                    }
-                }
-                @media (max-width: 575px) {
-                    .stats-premium-card-mobile .card {
-                        height: 72px !important;
-                        min-height: 72px !important;
-                    }
-                    .stats-premium-grid-mobile {
-                        gap: 0.4rem !important;
                     }
                 }
                 </style>

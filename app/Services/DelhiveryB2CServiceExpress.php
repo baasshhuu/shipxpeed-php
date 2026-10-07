@@ -336,7 +336,7 @@ class DelhiveryB2CServiceExpress implements CourierServiceInterface
         return [[
             'serviceabilityId' => $pincodeToCheck,
             'courierName'      => 'Delhivery B2C (Express)',
-            'courierCharge'    => $charges['courierCharge'],
+            'courierCharge'    => $charges['courierCharge'] + 5,
             'freightCharges'   => $charges['freightCharges'],
             'codCharge'        => $charges['codCharge'],
             'zone'             => $zone,
@@ -487,9 +487,10 @@ class DelhiveryB2CServiceExpress implements CourierServiceInterface
         $order_number = $orderPayload['shipments'][0]['order'] ?? null;
         $order = Order::where(['order_number' => $order_number,'seller_id' => $seller->id])->first();
         $seller_amount_walate = $order->seller_amount_walate ?? 0;
-
+        //   dd($pickup['name']/);
         $warehousePayload = [
-            "name" => $pickup['name'],
+            // "name" => $pickup['name'],
+            "name" => !empty($pickup['name']) ? (string) $pickup['name'] : 'ShipXped',
             "email" => "test@gmail.com",
             "phone" => $pickup['phone'],
             "address" => $pickup['add'],
@@ -514,7 +515,7 @@ class DelhiveryB2CServiceExpress implements CourierServiceInterface
             ])->post($warehouseUrl, $warehousePayload);
 
             $warehouseData = $warehouseResponse->json();
-
+    //   dd($warehouseData);
             // Step 2: Check if warehouse already exists error
             if (
                 isset($warehouseData['error'][0]) &&
@@ -592,6 +593,8 @@ class DelhiveryB2CServiceExpress implements CourierServiceInterface
             // }
 
                $order->courier_id = 'delhivery_b2c';
+                              $order->all_courier_name = 'Delhivery Air';
+
             $order->shipping_date = Carbon::now()->format('Y-m-d');
 
                 $order->save();

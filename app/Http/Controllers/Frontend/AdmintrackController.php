@@ -64,12 +64,138 @@ public function trackOrder(Request $request)
             return $this->trackWithXpressBees($awb);
         case 'shadowfax':
             return $this->trackWithshadowfax($awb);
+                    case 'parcelx':
+            return $this->trackWithparcelx($awb);
         case 'delhivery_b2c':
             return $this->trackWithDelhiveryB2C($awb);
         default:
             return redirect()->back()->withErrors(['error' => 'Tracking not available for this courier.']);
     }
 }
+
+
+
+private function trackWithparcelx($awb)
+{
+    $seller = Auth::guard('seller')->user();
+    $sellerId = Auth::guard('seller')->id();
+
+    $transactions = Recharge::where(['seller_id' => $sellerId, 'status' => '1'])
+        ->latest()
+        ->take(5)
+        ->get();
+
+    $totalAmount = 0;
+
+    if ($seller && $seller->status == 1) {
+
+        $sellerRechargeAmount = Recharge::where('seller_id', $seller->id)
+            ->where('status', 1)
+            ->where('type', 'Credit')
+            ->sum('amount');
+
+        $sellerUsedAmount = Recharge::where('seller_id', $seller->id)
+            ->where('type', 'Debit')
+            ->sum('amount');
+
+        $totalAmount = $sellerRechargeAmount - $sellerUsedAmount;
+    }
+
+    // 🔐 ParcelX Token
+    $token = "MzM3YTIyMDA4MzQ5ZTliNDNkNWI2NGE2ZmI1NjBjMzJjMzBhMDU0ZjVjM2I0NWE0MTEyNjIyMTk3MzpjYjMyNDFiM2NmNzZiZDJkYzNlNjZlZmMxOTM5ODQxMzJjOGI0ZWEzMmQzOWZkMzNjYWI0NmE3MmM1ZDliY2Y1ODRjNTk2YzhiMDdkMGJlZTFl";
+
+    $url = "https://app.parcelx.in/api/v3/track_order?awb={$awb}";
+
+    $response = Http::withHeaders([
+        'access-token' => $token,
+        'Accept' => 'application/json',
+    ])
+    ->timeout(30)
+    ->get($url);
+
+    \Log::info('ParcelX Track API Response', [
+        'status' => $response->status(),
+        'body' => $response->body(),
+    ]);
+
+    if ($response->successful() && $response->json()) {
+
+        $trackingData = $response->json();
+
+        return view('sellerdashboard.trackorder', [
+            'ParcelX' => $trackingData,
+            'transactions' => $transactions,
+            'totalAmount' => $totalAmount,
+            'seller' => $seller,
+        ]);
+    }
+
+    return redirect()->back()->withErrors([
+        'error' => 'ParcelX tracking failed or invalid response.'
+    ]);
+}
+
+
+
+
+// private function trackWithparcelx($clientRequestId)
+// {
+
+
+//       $seller = Auth::guard('seller')->user();
+//         $sellerId = Auth::guard('seller')->id();
+//         //dd($seller);
+//         $transactions = Recharge::where(['seller_id' => $sellerId, 'status' => '1'])
+//             ->latest()
+//             ->take(5)
+//             ->get();
+
+
+//         $totalAmount = 0;
+//         if ($seller && $seller->status == 1) {
+//             // $totalAmount = Recharge::where(['seller_id' => $seller->id,'status' => '1'])->sum('amount'); 
+//             $sellerRechargeAmount = Recharge::where('seller_id', $seller->id)
+//                 ->where('status', 1)
+//                 ->where('type', 'Credit')
+//                 ->sum('amount');
+
+//             $sellerUsedAmount = Recharge::where('seller_id', $seller->id)
+//                 ->where('type', 'Debit')
+//                 ->sum('amount');
+
+//             $totalAmount = $sellerRechargeAmount - $sellerUsedAmount;
+
+//         }
+
+//     $token = "fec1949bfc737bd52df914d18673e27b67a7f92d"; // Replace with real token or use env()
+
+//     $response = Http::withHeaders([
+//         'Authorization' => "Token $token",
+//         'Accept' => 'application/json',
+//     ])
+//     ->timeout(30)
+//     ->get("https://private-anon-9a4bb70501-sfxreversepickupsellerdelivery.apiary-mock.com/api/v4/clients/requests/$clientRequestId");
+
+//     \Log::info('Shadowfax Track API Response', [
+//         'status' => $response->status(),
+//         'body' => $response->body(),
+//     ]);
+//     // dd($response->json());
+
+//     if ($response->successful() && $response->json()) {
+//         $trackingData = $response->json();
+
+//         return view('sellerdashboard.trackorder', [
+//             'Shadowfax' => $trackingData,
+//             'transactions' => $transactions,
+//             'totalAmount' => $totalAmount,
+//             'seller' => $seller,
+//         ]);
+//     }
+
+//     return redirect()->back()->withErrors(['error' => 'Shadowfax tracking failed or invalid response.']);
+// }
+
 
 
 

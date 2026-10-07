@@ -2029,8 +2029,7 @@
         </div>
     </div>
 </div>
-
-<!-- Enhanced Bulk Shipping Confirmation Modal OPEN FROM TOP (20px) -->
+<!-- 
 <style>
     /* Custom modal positioning: from top 20px for this modal only */
     #bulkShipModal .modal-dialog {
@@ -2038,6 +2037,64 @@
         margin-bottom: auto !important;
         /* Remove vertical centering if present */
         align-items: flex-start !important;
+    }
+    /* Optional -- better responsive for mobile */
+    @media (max-width: 576.98px) {
+        #bulkShipModal .modal-dialog {
+            margin-top: 10px !important;
+        }
+    }
+</style> -->
+<!-- Enhanced Bulk Shipping Confirmation Modal -->
+<!-- <div class="modal fade" id="bulkShipModal" tabindex="-1" aria-labelledby="bulkShipModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true" style="opacity:1 !important;" >
+    <div class="modal-dialog  modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="bulkShipModalLabel">
+                    <i class="fas fa-shipping-fast me-2"></i>Confirm Bulk Shipping
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" onclick="cleanupModal()"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="mb-4">
+                    <i class="fas fa-truck" style="font-size: 4rem; color: var(--shipxpeed-success);"></i>
+                </div>
+                <h4 class="mb-3 text-dark">Ready to ship orders?</h4>
+                <p class="text-muted mb-4 lead">
+                    You're about to ship <strong class="text-success"><span id="selectedOrdersCount">0</span> orders</strong>. 
+                    Please review before confirming.
+                </p>
+                <div class="alert alert-warning d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <div class="text-start">
+                        <strong>Important:</strong> This action cannot be undone.<br>
+                        <small>Make sure all order details are correct before shipping.</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 justify-content-center">
+                <button type="button" class="btn btn-light btn-lg me-3" data-bs-dismiss="modal" onclick="cleanupModal()">
+                    <i class="fas fa-times me-2"></i>Cancel
+                </button>
+                <form id="bulkShipForm" method="POST" action="{{ route('seller.courier.bulk') }}" class="d-inline">
+                    @csrf
+                    <input type="hidden" name="order_ids" id="bulkOrderIdsInput">
+                    <button type="submit" class="btn btn-success btn-lg" onclick="handleBulkShipSubmit(event)">
+                        <i class="fas fa-check me-2"></i>Confirm Shipping
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div> -->
+<!-- Enhanced Bulk Shipping Confirmation Modal OPEN FROM TOP (20px) -->
+<style>
+    /* Custom modal positioning: from top 20px for this modal only */
+    #bulkShipModal .modal-dialog {
+        margin-top: 70px !important;
+        margin-bottom: auto !important;
+        /* Remove vertical centering if present */
+        /* align-items: flex-start !important; */
     }
     /* Optional -- better responsive for mobile */
     @media (max-width: 576.98px) {
@@ -2087,7 +2144,6 @@
         </div>
     </div>
 </div>
-
 <!-- Enhanced JavaScript Section -->
 <script>
    
@@ -2193,11 +2249,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clean up any existing modal instances
         cleanupModal();
         
-        // Show modal with proper initialization; remove fade class if present and ensure opacity:1
+        // Show modal with proper initialization
         const modalElement = document.getElementById('bulkShipModal');
-        modalElement.classList.remove('fade');
-        modalElement.style.opacity = '1';
-
         const modal = new bootstrap.Modal(modalElement, {
             backdrop: true,
             keyboard: true,
@@ -2208,7 +2261,7 @@ document.addEventListener('DOMContentLoaded', function() {
         modalElement.addEventListener('hidden.bs.modal', function() {
             cleanupModal();
         }, { once: true });
-
+        
         modal.show();
     });
 
@@ -2314,7 +2367,6 @@ function cleanupModal() {
         modalElement.setAttribute('aria-hidden', 'true');
         modalElement.removeAttribute('aria-modal');
         modalElement.removeAttribute('role');
-        modalElement.style.opacity = '1'; // Make sure opacity stays 1 for further use
     }
     
     // Re-enable scrolling
@@ -2467,11 +2519,8 @@ window.emergencyCleanup = function() {
                     document.getElementById('bulkShipForm').appendChild(hiddenInput);
                 });
 
-                // Show modal WITHOUT fade or opacity
-                const modalElement = document.getElementById('bulkShipModal');
-                modalElement.classList.remove('fade');
-                modalElement.style.opacity = '1';
-                const modal = new bootstrap.Modal(modalElement);
+                // Show modal with animation
+                const modal = new bootstrap.Modal(document.getElementById('bulkShipModal'));
                 modal.show();
             });
         }

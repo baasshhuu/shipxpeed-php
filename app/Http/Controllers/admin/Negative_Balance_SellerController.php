@@ -159,19 +159,26 @@ public function uploadExcel(Request $request)
     try {
         $data = Excel::toArray([], $request->file('excel_file'));
 
-        $awbNumbers = collect($data[0])
+        $processedOrders = collect($data[0])
             ->skip(1) // skip header row
-            ->pluck(0) // assuming AWB numbers are in the first column
-            ->map(fn($val) => trim((string)$val))
-            ->filter()
-            ->unique()
-            ->toArray();
+            ->map(function($row) {
+                return [
+                    'awb_number' => trim((string)($row[0] ?? '')),
+                    'order_number' => trim((string)($row[1] ?? '')),
+                    'payment_method' => trim((string)($row[8] ?? 'Bank')), // Payment Method column
+                ];
+            })
+            ->filter(function($row) {
+                return !empty($row['awb_number']);
+            })
+            ->unique('awb_number');
 
-        if (empty($awbNumbers)) {
-            return redirect()->back()->with('error', 'No valid AWB numbers found in the uploaded file.');
+        if ($processedOrders->isEmpty()) {
+            return redirect()->back()->with('error', 'No valid orders found in the uploaded file.');
         }
 
-        $updated = $this->markOrdersAsPaid($awbNumbers);
+        $awbNumbers = $processedOrders->pluck('awb_number')->toArray();
+        $updated = $this->markOrdersAsPaidWithPaymentMethod($awbNumbers, $processedOrders->toArray());
 
         return redirect()->back()->with('success', "$updated orders have been marked as paid successfully.");
 
@@ -193,6 +200,39 @@ private function markOrdersAsPaid(array $awbNumbers): int
             'payment_status' => 'Paid',
             'updated_at' => now()->format('Y-m-d H:i:s'),
         ]);
+}
+
+/**
+ * Mark orders as paid with payment method based on AWB numbers
+ */
+private function markOrdersAsPaidWithPaymentMethod(array $awbNumbers, array $orderData): int
+{
+    $updated = 0;
+    
+    // Create associative array for quick lookup
+    $orderPaymentData = collect($orderData)->keyBy('awb_number');
+    
+    $orders = Order::whereIn('awb_number', $awbNumbers)
+        ->where('payment_type', 'cod')
+        ->where('shipping_status', 'delivered')
+        ->where('payment_status', '!=', 'Paid')
+        ->get();
+
+    foreach ($orders as $order) {
+        $paymentData = $orderPaymentData->get($order->awb_number);
+        
+        $paymentMethod = $paymentData['payment_method'] ?? 'Bank';
+        
+        $order->update([
+            'payment_status' => 'Paid',
+            'payment_method' => $paymentMethod, // Update payment_method column
+            'updated_at' => now()->format('Y-m-d H:i:s'),
+        ]);
+        
+        $updated++;
+    }
+    
+    return $updated;
 }
 
 /**

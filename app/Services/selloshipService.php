@@ -297,7 +297,7 @@ public function getServiceability(array $params): array
     return [[
         'serviceabilityId' => $pincodeToCheck,
         'courierName'      => 'selloshipEkart2KG',
-        'courierCharge'    => $charges['courierCharge'],
+        'courierCharge'    => $charges['courierCharge'] + 5,
         'freightCharges'   => $charges['freightCharges'],
         'codCharge'        => $charges['codCharge'],
         'zone'             => $zone,

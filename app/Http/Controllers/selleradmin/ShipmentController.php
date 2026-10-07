@@ -1299,7 +1299,6 @@ protected function prepareRequestData(Request $request)
 
     $requestData = [
         'order_number' => 'SPX#' . ($lastOrder ? ($lastOrder->id + 1) : 1),
-  
         'unique_order_number' => $request->input('unique_order_number'),
         'shipping_charges' => (float)$request->input('shipping_charges') ?: 0.0,
         'discount' => (float)$request->input('discount') ?: 0.0,
@@ -1527,15 +1526,15 @@ protected function prepareRequestData(Request $request)
 
 
             // $order = Order::where('id', $orderId)->first();
-            // $params = json_decode($order->DelhiveryServiceb2b);
+            // $params = json_decode($order->DelhiveryServiceb2b);  
 
         }
 
-//   dd($key);
-// dd($params);
+        //   dd($key);
+        // dd($params);
         $response = app($key)->assignOrder($params);
-        dd($response);
-        //   return $response;
+        // dd($response); 
+        // //   return $response;
 
 
 
@@ -1546,7 +1545,7 @@ if (
     $response['couriername'] === 'shiprocket' &&
     !empty($response['awb_number'])
 ) {
-
+// 
     return redirect()
         ->route('seller.order')
         ->with('success', 'Order successfully assigned! AWB: ' . $response['awb_number']);
