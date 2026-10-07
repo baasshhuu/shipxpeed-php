@@ -1,0 +1,34 @@
+name: Replace main with uploaded source
+on:
+  push:
+    branches: [upload2]
+permissions:
+  contents: write
+jobs:
+  replace:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: upload2
+          path: up
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+      - name: Reassemble and replace code on main
+        run: |
+          N=$(ls up/code2.zip.part* | wc -l); echo "parts: $N"
+          [ "$N" -ge 16 ] || { echo "Waiting for all parts"; exit 0; }
+          cat $(ls up/code2.zip.part* | sort) > code.zip
+          unzip -tq code.zip
+          cd main
+          git rm -rq --ignore-unmatch -- . ':!.github'
+          unzip -o -q ../code.zip
+          printf '%s\n' '/vendor' '/node_modules' '.env' '.env.*' '!.env.example' '/storage/*.key' '/storage/logs/*' '/storage/debugbar/*' '/storage/app/*' '/public/storage' '/public/hot' '/public/uploads' '/public/labels' '/public/seller-logos' '*.log' '.DS_Store' '.phpunit.result.cache' > .gitignore
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Replace with complete Shipxpeed source (15 July version)"
+          git push origin main
+          git push origin --delete upload2
