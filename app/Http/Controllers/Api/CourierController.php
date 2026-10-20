@@ -270,9 +270,29 @@ public function cancelAwb(Request $request)
 {
     // dd($request);
     $data = $request->validate([
-        'courier' => 'required|string',
-        'awb'     => 'required|string',
+        'courier'  => 'nullable|string',
+        'awb'      => 'required|string',
+        'order_id' => 'nullable|integer',
     ]);
+
+    // Load the order and make sure it belongs to the logged-in seller
+    $cancelOrder = \App\Models\Order::where('awb_number', $data['awb'])
+        ->when(!empty($data['order_id']), fn ($q) => $q->where('id', $data['order_id']))
+        ->first();
+
+    $authSeller = \Illuminate\Support\Facades\Auth::guard('seller')->user();
+    if (! $cancelOrder || ($authSeller && (int) $cancelOrder->seller_id !== (int) $authSeller->id)) {
+        return redirect()->route('seller.courier.Assigned')->with('error', 'Order not found for AWB ' . $data['awb']);
+    }
+
+    // Already cancelled -> never call the courier or refund twice
+    if (strtolower((string) $cancelOrder->order_status) === 'cancelled') {
+        return redirect()->route('seller.courier.Cancelled')->with('success', 'AWB ' . $data['awb'] . ' is already cancelled.');
+    }
+
+    // Resolve the courier service key (form may send a numeric ID like "1")
+    $data['courier'] = $this->resolveCourierKey($data['courier'] ?? null, $cancelOrder);
+    $request->merge(['courier' => $data['courier']]);
 
     // Handle Delhivery courier variations
     if (in_array($data['courier'], ['delhivery', 'delhivery_air', 'delhivery_b2c'])) {
@@ -292,10 +312,17 @@ public function cancelAwb(Request $request)
     $serviceKey = "courier.{$data['courier']}";
 
     if (! app()->bound($serviceKey)) {
-        return redirect()->back()->with('error', 'Unknown courier');
+        \Log::warning('cancelAwb: unknown courier', ['awb' => $data['awb'], 'courier' => $data['courier'], 'order_courier_id' => $cancelOrder->courier_id]);
+        return redirect()->route('seller.courier.Assigned')->with('error', 'Cannot cancel: unknown courier "' . $data['courier'] . '" for AWB ' . $data['awb']);
     }
- 
-    $result = app($serviceKey)->cancelShipment($data['awb']);
+
+    try {
+        $result = app($serviceKey)->cancelShipment($data['awb']);
+    } catch (\Throwable $e) {
+        \Log::error('cancelAwb exception', ['awb' => $data['awb'], 'error' => $e->getMessage()]);
+        return redirect()->route('seller.courier.Assigned')->with('error', 'Cancellation failed: ' . $e->getMessage());
+    }
+    \Log::info('cancelAwb result', ['awb' => $data['awb'], 'courier' => $data['courier'], 'result' => $result]);
     //   return $result; // For debugging, you can remove this later
 
 
@@ -374,10 +401,61 @@ if ($request->courier === 'tekipost') {
             $order->order_status = 'cancelled';
             $order->save();
         }
-        return redirect()->route('seller.courier.Assigned')->with('success', 'Courier cancelled successfully! AWB: ' . $data['awb']);
+        return redirect()->route('seller.courier.Cancelled')->with('success', 'Courier cancelled & amount refunded to wallet. AWB: ' . $data['awb']);
     }
 
     return redirect()->route('seller.courier.Assigned')->with('error', 'Courier cancellation failed: ' . ($result['message'] ?? 'Unknown error'));
+}
+
+/**
+ * Turn whatever the form/order holds (numeric provider id, display name, code)
+ * into a key that exists in config/couriers.php.
+ */
+private function resolveCourierKey(?string $courier, \App\Models\Order $order): string
+{
+    $normalize = fn ($v) => strtolower(trim(preg_replace('/[\s\-]+/', '_', (string) $v)));
+
+    $candidates = [$courier, $order->courier_id, $order->all_courier_name, $order->courier_name];
+
+    // Numeric ids -> look up logistic_providers (directly or via courier_accounts)
+    foreach ([$courier, $order->courier_id] as $value) {
+        if ($value !== null && ctype_digit((string) $value)) {
+            $provider = \App\Models\LogisticProvider::withTrashed()->find((int) $value);
+            if ($provider) {
+                $candidates[] = $provider->code;
+                $candidates[] = $provider->name;
+            }
+            if (\Schema::hasTable('courier_accounts')) {
+                $lpId = \DB::table('courier_accounts')->where('id', (int) $value)->value('logistic_provider_id');
+                if ($lpId && ($p = \App\Models\LogisticProvider::withTrashed()->find($lpId))) {
+                    $candidates[] = $p->code;
+                    $candidates[] = $p->name;
+                }
+            }
+        }
+    }
+
+    foreach ($candidates as $c) {
+        if ($c === null || $c === '' || ctype_digit((string) $c)) {
+            continue;
+        }
+        $key = $normalize($c);
+        $aliases = ['delhivery', 'delhivery_air', 'tekipost', 'amazon_2kg', 'delhivery_5kg', 'amazon_0_5kg', 'delhivery_10kg',
+                    'dtdc_air', 'dtdc_surface_500gm', 'dtdc_surface_1kg', 'delhivery_250gms', 'bluedart_surface_500gms', 'bluedart_air_500gms'];
+        if (app()->bound("courier.{$key}") || in_array($key, $aliases, true)) {
+            return $key;
+        }
+        // Family matching, e.g. "Delhivery Surface" -> delhivery_b2c
+        if (str_contains($key, 'delhivery')) return 'delhivery';
+        if (str_contains($key, 'xpressbees')) return 'xpressbees';
+        if (str_contains($key, 'shadowfax')) return 'shadowfax';
+        if (str_contains($key, 'dtdc')) return 'dtdc';
+        if (str_contains($key, 'ekart')) return 'ekart';
+        if (str_contains($key, 'shiprocket')) return 'shiprocket';
+        if (str_contains($key, 'smartship')) return 'smartship';
+    }
+
+    return (string) $courier;
 }
 
 
