@@ -95,20 +95,28 @@ Route::get('/install', 'App\Http\Controllers\Shopifyconnect\ShopifyController@in
 Route::get('/callback', 'App\Http\Controllers\Shopifyconnect\ShopifyController@callback');
 Route::get('/products', 'App\Http\Controllers\Shopifyconnect\ShopifyController@getProducts');
 
-// Channel Management Routes
-Route::get('/seller/channels', [ShopifyController::class, 'channelList'])->name('seller.channel.list');
-Route::get('/seller/channels/add', [ShopifyController::class, 'channelAdd'])->name('seller.channel.add');
-Route::get('/seller/channels/seller.shopify.integration', [ShopifyController::class, 'shopifyIntegration'])->name('seller.shopify.integration');
-Route::post('/seller/channels/shopify/connect', [ShopifyController::class, 'shopifyConnect'])->name('shopify.connect');
-Route::post('/seller/channels/shopify/sync-orders', [ShopifyController::class, 'syncOrders'])->name('shopify.sync.orders');
+// Channel Management Routes (Shopify order + status sync)
+Route::middleware(['auth:seller'])->group(function () {
+    Route::get('/seller/channels', [ShopifyController::class, 'channelList'])->name('seller.channel.list');
+    Route::get('/seller/channels/add', [ShopifyController::class, 'channelAdd'])->name('seller.channel.add');
+    Route::get('/seller/channels/seller.shopify.integration', [ShopifyController::class, 'shopifyIntegration'])->name('seller.shopify.integration');
+    Route::post('/seller/channels/shopify/connect', [ShopifyController::class, 'shopifyConnect'])->name('shopify.connect');
+    Route::post('/seller/channels/shopify/sync-orders', [ShopifyController::class, 'syncOrders'])->name('shopify.sync.orders');
+    Route::post('/seller/channels/shopify/{id}/settings', [ShopifyController::class, 'updateSettings'])->name('shopify.settings');
+    Route::get('/seller/shopify/stores', [ShopifyController::class, 'getConnectedStores'])->name('shopify.stores.list');
+    Route::post('/seller/shopify/stores/{id}/disconnect', [ShopifyController::class, 'disconnectStore'])->name('shopify.stores.disconnect');
+});
 
-// Shopify webhook routes (no authentication needed for webhooks)
+// Shopify sends the seller back here after "Approve". Every seller enters this exact URL
+// under "Allowed redirection URL(s)" in their Dev Dashboard app.
+Route::get('/auth/shopify/callback', [ShopifyController::class, 'oauthCallback'])->name('shopify.oauth.callback');
+
+// Shopify webhooks (public, HMAC-verified, CSRF-exempt)
 Route::post('/webhooks/shopify/orders/create', [ShopifyController::class, 'handleOrderWebhook'])->name('shopify.webhook.order.create');
 Route::post('/webhooks/shopify/orders/update', [ShopifyController::class, 'handleOrderWebhook'])->name('shopify.webhook.order.update');
-
-// Shopify store management
-Route::get('/seller/shopify/stores', [ShopifyController::class, 'getConnectedStores'])->name('shopify.stores.list');
-Route::post('/seller/shopify/stores/{id}/disconnect', [ShopifyController::class, 'disconnectStore'])->name('shopify.stores.disconnect');
+Route::post('/webhooks/shopify/{topic}', [ShopifyController::class, 'webhook'])
+    ->where('topic', 'orders-create|orders-updated|orders-cancelled|app-uninstalled|customers-data-request|customers-redact|shop-redact')
+    ->name('shopify.webhook');
 
 // Alternative simpler routes for integration pages
 Route::get('/shopify-integration', function () {

@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Crypt;
 
 class ShopifyConnection extends Model
 {
     use HasFactory;
+
     protected $table = 'ShopifyConnections';
 
     protected $fillable = [
@@ -23,111 +25,105 @@ class ShopifyConnection extends Model
         'webhook_verified_at',
         'last_sync_at',
         'orders_synced_count',
-        'products_synced_count'
+        'products_synced_count',
+        // channel sync
+        'auth_type',
+        'client_id',
+        'client_secret',
+        'token_expires_at',
+        'scopes',
+        'shop_name',
+        'auto_fulfill',
+        'notify_customer',
+        'last_order_pull_at',
+        'last_status_push_at',
+        'last_error',
+        'oauth_state',
+        'webhooks_registered',
     ];
+
+    protected $hidden = ['access_token', 'admin_api_token', 'client_secret', 'oauth_state'];
 
     protected $casts = [
-        'sync_start_date' => 'date',
+        'sync_start_date'     => 'date',
         'webhook_verified_at' => 'datetime',
-        'last_sync_at' => 'datetime',
+        'last_sync_at'        => 'datetime',
+        'token_expires_at'    => 'datetime',
+        'last_order_pull_at'  => 'datetime',
+        'last_status_push_at' => 'datetime',
+        'auto_fulfill'        => 'boolean',
+        'notify_customer'     => 'boolean',
+        'webhooks_registered' => 'boolean',
     ];
 
-    // Relationship with seller
     public function seller()
     {
         return $this->belongsTo(SellerList::class, 'seller_id');
     }
 
-    // Check if connection is active
-    public function isActive()
+    public function scopeActive($q)
+    {
+        return $q->where('status', 'connected');
+    }
+
+    public function isActive(): bool
     {
         return $this->status === 'connected';
     }
 
-    // Get formatted store URL
     public function getFormattedStoreUrlAttribute()
     {
-        return str_replace(['http://', 'https://'], '', $this->store_url);
+        return $this->shopify_shop_domain ?: str_replace(['http://', 'https://'], '', (string) $this->store_url);
     }
 
-    // Shopify API methods
-    public function syncOrders()
+    /* ---- secrets are stored encrypted with APP_KEY ---- */
+
+    public function setToken(?string $token): void
     {
-        // Implementation for syncing orders from Shopify
-        try {
-            $storeUrl = rtrim($this->store_url, '/');
-            $accessToken = $this->admin_api_token;
-            
-            // Prepare API URL with parameters
-            $apiUrl = $storeUrl . '/admin/api/2023-10/orders.json';
-            $params = [
-                'limit' => 250, // Maximum allowed by Shopify
-                'status' => 'any',
-                'created_at_min' => $this->sync_start_date->format('Y-m-d\TH:i:s\Z'),
-            ];
+        $this->access_token = $token ? Crypt::encryptString($token) : null;
+    }
 
-            $response = \Illuminate\Support\Facades\Http::withHeaders([
-                'X-Shopify-Access-Token' => $accessToken,
-                'Content-Type' => 'application/json',
-            ])->get($apiUrl, $params);
-
-            if ($response->successful()) {
-                $ordersData = $response->json();
-                return $ordersData['orders'] ?? [];
+    public function getToken(): ?string
+    {
+        if ($this->access_token) {
+            try {
+                return Crypt::decryptString($this->access_token);
+            } catch (\Throwable $e) {
+                return $this->access_token; // value saved in plain text by an older build
             }
+        }
+        return $this->admin_api_token ?: null; // old rows
+    }
 
-            return [];
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Shopify API Error: ' . $e->getMessage());
-            return [];
+    public function setClientSecret(?string $secret): void
+    {
+        $this->client_secret = $secret ? Crypt::encryptString($secret) : null;
+    }
+
+    public function getClientSecret(): ?string
+    {
+        if (!$this->client_secret) {
+            return null;
+        }
+        try {
+            return Crypt::decryptString($this->client_secret);
+        } catch (\Throwable $e) {
+            return $this->client_secret;
         }
     }
 
-    public function syncProducts()
+    /** True when Shopify can sign webhooks we can verify (we hold the app's secret). */
+    public function canVerifyWebhooks(): bool
     {
-        // Implementation for syncing products from Shopify
-        try {
-            $storeUrl = rtrim($this->store_url, '/');
-            $accessToken = $this->admin_api_token;
-            
-            $apiUrl = $storeUrl . '/admin/api/2023-10/products.json';
-            $params = ['limit' => 250];
-
-            $response = \Illuminate\Support\Facades\Http::withHeaders([
-                'X-Shopify-Access-Token' => $accessToken,
-                'Content-Type' => 'application/json',
-            ])->get($apiUrl, $params);
-
-            if ($response->successful()) {
-                $productsData = $response->json();
-                return $productsData['products'] ?? [];
-            }
-
-            return [];
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Shopify Products API Error: ' . $e->getMessage());
-            return [];
-        }
+        return in_array($this->auth_type, ['oauth', 'client_credentials'], true) && $this->getClientSecret();
     }
 
-    /**
-     * Test Shopify connection
-     */
-    public function testConnection()
+    public function testConnection(): bool
     {
         try {
-            $storeUrl = rtrim($this->store_url, '/');
-            $accessToken = $this->admin_api_token;
-            
-            $apiUrl = $storeUrl . '/admin/api/2023-10/shop.json';
-
-            $response = \Illuminate\Support\Facades\Http::withHeaders([
-                'X-Shopify-Access-Token' => $accessToken,
-                'Content-Type' => 'application/json',
-            ])->get($apiUrl);
-
-            return $response->successful();
-        } catch (\Exception $e) {
+            \App\Services\Shopify\ShopifyClient::for($this)->shopInfo();
+            return true;
+        } catch (\Throwable $e) {
             return false;
         }
     }

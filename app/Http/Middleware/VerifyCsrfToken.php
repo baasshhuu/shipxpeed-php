@@ -16,7 +16,8 @@ class VerifyCsrfToken extends Middleware
         '/seller-register/verify-otp',
         '/pesa-payment-success-new/*',
         '/pesa-payment-failure-new/*',
-        '/api/webhook/xpressbees/'
+        '/api/webhook/xpressbees/',
+        'webhooks/shopify/*',
     ];
 
 

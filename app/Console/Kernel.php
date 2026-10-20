@@ -29,6 +29,14 @@ class Kernel extends ConsoleKernel
         ->command('track:delhivery')
         ->everyMinute()
         ->appendOutputTo(storage_path('logs/scheduler.log'));
+
+        // Shopify: pull new orders + push AWB / shipment status back
+        $schedule
+        ->command('shopify:sync')
+        ->everyFiveMinutes()
+        ->withoutOverlapping(20)
+        ->runInBackground()
+        ->appendOutputTo(storage_path('logs/shopify-sync.log'));
     }
 
     /**

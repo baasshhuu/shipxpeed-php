@@ -1,413 +1,167 @@
 @extends('layouts.sellerdash')
-
 @section('content')
 <style>
-    .shopify-integration-page {
-        --si-primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        --si-shopify-green: #95bf47;
-        --si-card-shadow: 0 8px 25px rgba(0,0,0,0.1);
-    }
-    
-    .shopify-integration-page .si-header {
-        background: var(--si-primary-gradient);
-        color: white;
-        padding: 0.8rem 0;
-        margin-bottom: 1.5rem;
-        border-radius: 0 0 15px 15px;
-        box-shadow: 0 3px 15px rgba(102, 126, 234, 0.3);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .shopify-integration-page .si-header::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
-        animation: shimmer 3s infinite;
-    }
-    
-    @keyframes shimmer {
-        0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-        100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
-    }
-    
-    .shopify-integration-page .si-title {
-        font-size: 1.8rem;
-        font-weight: 700;
-        text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
-        margin: 0;
-        position: relative;
-        z-index: 2;
-    }
-    
-    .shopify-integration-page .si-container {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 2rem;
-        margin-top: 1rem;
-    }
-    
-    .shopify-integration-page .si-card {
-        background: white;
-        border-radius: 15px;
-        padding: 2rem;
-        box-shadow: var(--si-card-shadow);
-        border: 1px solid rgba(0,0,0,0.05);
-    }
-    
-    .shopify-integration-page .si-instructions .si-header-section {
-        display: flex;
-        align-items: center;
-        margin-bottom: 1.5rem;
-        padding-bottom: 1rem;
-        border-bottom: 2px solid #f1f3f4;
-    }
-    
-    .shopify-integration-page .si-logo {
-        width: 40px;
-        height: 40px;
-        background: var(--si-shopify-green);
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 1rem;
-        color: white;
-        font-weight: bold;
-        font-size: 1.2rem;
-    }
-    
-    .shopify-integration-page .si-card-title {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #2c3e50;
-        margin: 0;
-    }
-    
-    .shopify-integration-page .si-subtitle {
-        color: var(--si-shopify-green);
-        font-weight: 600;
-        font-size: 1rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    .shopify-integration-page .si-step {
-        margin-bottom: 1.5rem;
-        padding: 1rem;
-        background: #f8f9fa;
-        border-radius: 10px;
-        border-left: 4px solid var(--si-shopify-green);
-    }
-    
-    .shopify-integration-page .si-step-title {
-        font-weight: 600;
-        color: #495057;
-        margin-bottom: 0.5rem;
-    }
-    
-    .shopify-integration-page .si-step-text {
-        color: #6c757d;
-        font-size: 0.9rem;
-        line-height: 1.5;
-        margin: 0;
-    }
-    
-    .shopify-integration-page .si-note {
-        background: #e3f2fd;
-        padding: 1rem;
-        border-radius: 10px;
-        border-left: 4px solid #2196f3;
-        margin-top: 1.5rem;
-    }
-    
-    .shopify-integration-page .si-note p {
-        margin: 0;
-        color: #1976d2;
-        font-size: 0.9rem;
-    }
-    
-    .shopify-integration-page .si-form {
-        height: fit-content;
-    }
-    
-    .shopify-integration-page .si-form-header {
-        text-align: center;
-        margin-bottom: 1.5rem;
-        padding-bottom: 1rem;
-        border-bottom: 2px solid #f1f3f4;
-    }
-    
-    .shopify-integration-page .si-form-title {
-        font-size: 1.3rem;
-        font-weight: 700;
-        color: #2c3e50;
-        margin-bottom: 0.5rem;
-    }
-    
-    .shopify-integration-page .si-required-text {
-        color: #e74c3c;
-        font-size: 0.9rem;
-        margin: 0;
-    }
-    
-    .shopify-integration-page .si-form-group {
-        margin-bottom: 1.5rem;
-    }
-    
-    .shopify-integration-page .si-label {
-        display: block;
-        font-weight: 600;
-        color: #495057;
-        margin-bottom: 0.5rem;
-        font-size: 0.9rem;
-    }
-    
-    .shopify-integration-page .si-required {
-        color: #e74c3c;
-        margin-left: 2px;
-    }
-    
-    .shopify-integration-page .si-input {
-        width: 100%;
-        padding: 0.8rem 1rem;
-        border: 2px solid #e9ecef;
-        border-radius: 8px;
-        font-size: 0.9rem;
-        transition: all 0.3s ease;
-        background: white;
-        box-sizing: border-box;
-    }
-    
-    .shopify-integration-page .si-input:focus {
-        border-color: var(--si-shopify-green);
-        box-shadow: 0 0 0 0.2rem rgba(149, 191, 71, 0.25);
-        outline: none;
-    }
-    
-    .shopify-integration-page .si-input::placeholder {
-        color: #adb5bd;
-        font-style: italic;
-    }
-    
-    .shopify-integration-page .si-buttons {
-        display: flex;
-        gap: 1rem;
-        margin-top: 2rem;
-    }
-    
-    .shopify-integration-page .si-btn {
-        flex: 1;
-        padding: 0.8rem 1.5rem;
-        border: none;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 0.9rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-    
-    .shopify-integration-page .si-btn-reset {
-        background: #6c757d;
-        color: white;
-    }
-    
-    .shopify-integration-page .si-btn-reset:hover {
-        background: #5a6268;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
-    }
-    
-    .shopify-integration-page .si-btn-connect {
-        background: #1e3a8a;
-        color: white;
-    }
-    
-    .shopify-integration-page .si-btn-connect:hover {
-        background: #1e40af;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(30, 58, 138, 0.4);
-    }
-    
-    /* Responsive Design */
-    @media (max-width: 768px) {
-        .shopify-integration-page .si-container {
-            grid-template-columns: 1fr;
-            gap: 1.5rem;
-        }
-        
-        .shopify-integration-page .si-card {
-            padding: 1.5rem;
-        }
-        
-        .shopify-integration-page .si-title {
-            font-size: 1.4rem;
-        }
-        
-        .shopify-integration-page .si-buttons {
-            flex-direction: column;
-        }
-    }
-    
-    @media (max-width: 576px) {
-        .shopify-integration-page .si-card {
-            padding: 1rem;
-            margin: 0 0.5rem;
-        }
-        
-        .shopify-integration-page .si-header {
-            padding: 0.6rem 0;
-        }
-        
-        .shopify-integration-page .si-title {
-            font-size: 1.2rem;
-        }
-    }
-    
-    /* Animations */
-    .fade-in {
-        animation: fadeIn 0.8s ease-in-out;
-    }
-    
-    .slide-up {
-        animation: slideUp 0.6s ease-out;
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-    
-    @keyframes slideUp {
-        from { transform: translateY(30px); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
-    }
+    .shx { --bg:#121826; --card:#1a2233; --field:#232c40; --line:#2d3850; --text:#e8ecf4; --muted:#9aa5bb; --accent:#5b6cff; --accent2:#4a59e6; --ok:#2fbf71; --warn:#f2b84b; --err:#ff6b6b; }
+    .shx .wrap { background:var(--bg); border-radius:16px; padding:28px; color:var(--text); }
+    .shx h2 { color:var(--text); font-size:1.35rem; font-weight:700; margin:0 0 4px; }
+    .shx .sub { color:var(--muted); font-size:.9rem; margin-bottom:22px; max-width:720px; }
+    .shx .wrap > .d-flex { margin-bottom:6px; }
+    .shx a.btng { text-decoration:none; display:inline-block; }
+    .shx .grid { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); gap:22px; }
+    @media (max-width: 992px){ .shx .grid { grid-template-columns:1fr; } }
+    .shx .card2 { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px; }
+    .shx label { display:block; font-size:.82rem; color:var(--muted); margin:0 0 6px; }
+    .shx .in { width:100%; box-sizing:border-box; background:var(--field); color:var(--text); border:1px solid var(--line); border-radius:9px; padding:10px 12px; font-size:.92rem; }
+    .shx .in:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(91,108,255,.25); }
+    .shx .in::placeholder { color:#6f7a92; }
+    .shx .hint { font-size:.75rem; color:#7d88a0; margin-top:5px; }
+    .shx .fg { margin-bottom:16px; }
+    .shx .btnp { background:var(--accent); color:#fff; border:0; border-radius:9px; padding:11px 18px; font-weight:600; font-size:.92rem; }
+    .shx .btnp:hover { background:var(--accent2); }
+    .shx .btng { background:transparent; color:var(--muted); border:1px solid var(--line); border-radius:9px; padding:7px 12px; font-size:.8rem; }
+    .shx .btng:hover { color:var(--text); border-color:var(--muted); }
+    .shx .code { display:flex; align-items:center; gap:8px; background:#0e1320; border:1px solid var(--line); border-radius:9px; padding:9px 10px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.8rem; color:#c9d3ff; word-break:break-all; }
+    .shx .code span { flex:1; }
+    .shx ol { padding-left:18px; margin:0; color:var(--text); font-size:.88rem; }
+    .shx ol li { margin-bottom:10px; line-height:1.5; }
+    .shx ol li b { color:#fff; }
+    .shx .muted { color:var(--muted); }
+    .shx .tabs { display:flex; gap:6px; margin-bottom:18px; flex-wrap:wrap; }
+    .shx .tab { background:var(--field); border:1px solid var(--line); color:var(--muted); border-radius:20px; padding:6px 13px; font-size:.78rem; cursor:pointer; }
+    .shx .tab.on { background:rgba(91,108,255,.18); border-color:var(--accent); color:#fff; }
+    .shx .alert-x { border-radius:10px; padding:11px 14px; font-size:.88rem; margin-bottom:16px; }
+    .shx .alert-ok { background:rgba(47,191,113,.12); border:1px solid rgba(47,191,113,.4); color:#9be8bf; }
+    .shx .alert-er { background:rgba(255,107,107,.1); border:1px solid rgba(255,107,107,.4); color:#ffb3b3; }
+    .shx .chk { display:flex; gap:8px; align-items:center; font-size:.85rem; color:var(--text); }
+    .shx .sec-title { font-size:.95rem; font-weight:700; color:#fff; margin:0 0 12px; }
+    .shx .note { font-size:.8rem; color:var(--warn); background:rgba(242,184,75,.08); border:1px solid rgba(242,184,75,.3); border-radius:9px; padding:9px 11px; margin-top:12px; }
 </style>
 
-<div class="pc-container shopify-integration-page">
-    <div class="pc-content">
-        <!-- Header -->
-        <div class="si-header fade-in">
-            <div class="container">
-                <div class="text-center">
-                    <h1 class="si-title">Shopify</h1>
-                </div>
+<div class="pc-container shx">
+  <div class="pc-content">
+    <div class="wrap">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+          <h2>Connect a Shopify store</h2>
+          <div class="sub">Enter your store's own app credentials (Client ID + Secret). You'll be sent to Shopify to approve, then brought back — no app review needed.</div>
+        </div>
+        <a href="{{ route('seller.channel.list') }}" class="btng">← Back to channels</a>
+      </div>
+
+      @if(session('success'))<div class="alert-x alert-ok">{{ session('success') }}</div>@endif
+      @if(session('error'))<div class="alert-x alert-er">{{ session('error') }}</div>@endif
+      @if($errors->any())<div class="alert-x alert-er">{{ $errors->first() }}</div>@endif
+
+      <div class="grid">
+        {{-- ---------------- Form ---------------- --}}
+        <div class="card2">
+          <div class="tabs" role="tablist">
+            <span class="tab on" data-m="oauth">Connect &amp; authorize (recommended)</span>
+            <span class="tab" data-m="client_credentials">Client ID + Secret only</span>
+            <span class="tab" data-m="legacy_token">Old access token (shpat_)</span>
+          </div>
+
+          <form method="POST" action="{{ route('shopify.connect') }}" id="shxForm">
+            @csrf
+            <input type="hidden" name="auth_method" id="auth_method" value="{{ old('auth_method', 'oauth') }}">
+
+            <div class="fg">
+              <label for="store_domain">Store domain</label>
+              <input class="in" id="store_domain" name="store_domain" placeholder="your-store.myshopify.com"
+                     value="{{ old('store_domain', $reconnect->shopify_shop_domain ?? '') }}" required>
+              <div class="hint">Example: pusti-feni-2.myshopify.com — Shopify admin › Settings › Domains. Your own website domain will not work.</div>
             </div>
+
+            <div class="fg m-cred">
+              <label for="client_id">Client ID (API key)</label>
+              <input class="in" id="client_id" name="client_id" placeholder="e.g. 7211243..." value="{{ old('client_id', $reconnect->client_id ?? '') }}" autocomplete="off">
+            </div>
+
+            <div class="fg m-cred">
+              <label for="client_secret">Client secret (API secret key)</label>
+              <input class="in" id="client_secret" name="client_secret" type="password" placeholder="e.g. shpss_... or 32-char secret" autocomplete="new-password">
+            </div>
+
+            <div class="fg m-legacy" style="display:none">
+              <label for="access_token">Admin API access token</label>
+              <input class="in" id="access_token" name="access_token" type="password" placeholder="shpat_..." autocomplete="new-password">
+              <div class="hint">Only for stores that already had a custom app from Settings › Apps › Develop apps (created before 1 Jan 2026). Status sync works; instant order webhooks don't — orders sync every 5 minutes.</div>
+            </div>
+
+            <div class="fg">
+              <label for="sync_start_date">Import orders created from</label>
+              <input class="in" id="sync_start_date" name="sync_start_date" type="date" max="{{ now()->toDateString() }}"
+                     value="{{ old('sync_start_date', now()->subDays(7)->toDateString()) }}">
+              <div class="hint">Only unfulfilled, not-cancelled orders are imported.</div>
+            </div>
+
+            <div class="fg">
+              <label class="chk"><input type="checkbox" name="notify_customer" value="1" checked> Send Shopify's shipping-confirmation email/SMS to the buyer with the AWB</label>
+            </div>
+
+            <button type="submit" class="btnp" id="shxSubmit">Connect &amp; authorize on Shopify →</button>
+          </form>
         </div>
 
-        <!-- Main Content -->
-        <div class="container">
-            <div class="si-container slide-up">
-                <!-- Instructions Card -->
-                <div class="si-card si-instructions">
-                    <div class="si-header-section">
-                        <div class="si-logo">S</div>
-                        <h2 class="si-card-title">Shopify</h2>
-                    </div>
-                    
-                    <h3 class="si-subtitle">Use the Following Instructions to Integrate Shopify</h3>
-                    
-                    <div class="si-step">
-                        <div class="si-step-title">Step 1: Go to your Shopify account and navigate to "Settings".</div>
-                        <p class="si-step-text">Click on "Domains", then copy the store URL and paste it in the Store URL section.</p>
-                    </div>
-                    
-                    <div class="si-step">
-                        <div class="si-step-title">Step 2: In your Shopify account, navigate to "Apps and Sales channels" in the settings screen.</div>
-                        <p class="si-step-text">Click on "Develop apps", then copy the Admin API Access token and API key and paste it here.</p>
-                    </div>
-                    
-                    <div class="si-step">
-                        <div class="si-step-title">Step 3: Enter the Host Name required to connect your Shopify account with ShipXpeed.</div>
-                    </div>
-                    
-                    <div class="si-step">
-                        <div class="si-step-title">Step 4: Navigate to the Orders section in your ShipXpeed account.</div>
-                        <p class="si-step-text">Click on "Sync Orders" and all your orders will be fetched.</p>
-                    </div>
-                    
-                    <div class="si-note">
-                        <p><strong>If you're having trouble with Shopify integration, troubleshoot it by following the steps mentioned</strong></p>
-                    </div>
-                </div>
-                <!-- Form Card -->
-                <div class="si-card si-form">
-                    <div class="si-form-header">
-                        <img src="https://logos-world.net/wp-content/uploads/2020/11/Shopify-Logo.png" alt="Shopify" style="width: 120px; height: auto; margin-bottom: 1rem;">
-                        <h3 class="si-form-title">One Click Integration</h3>
-                        <p class="si-required-text">*All Fields are Required</p>
-                    </div>
-                    
-                    <form id="shopifyForm" method="POST" action="{{ route('shopify.connect') ?? '#' }}">
-                        @csrf
-                        
-                        <div class="si-form-group">
-                            <label for="store_url" class="si-label">Store Url <span class="si-required">*</span></label>
-                            <input type="url" id="store_url" name="store_url" class="si-input" placeholder="Enter your store url" required>
-                        </div>
-                        
-                        <div class="si-form-group">
-                            <label for="api_key" class="si-label">Api Key <span class="si-required">*</span></label>
-                            <input type="text" id="api_key" name="api_key" class="si-input" placeholder="Enter your api key" required>
-                        </div>
-                        
-                        <div class="si-form-group">
-                            <label for="admin_api_token" class="si-label">Admin Api Access Token <span class="si-required">*</span></label>
-                            <input type="text" id="admin_api_token" name="admin_api_token" class="si-input" placeholder="Enter your admin api access token" required>
-                        </div>
-                        
-                        <div class="si-form-group">
-                            <label for="host_name" class="si-label">Host Name <span class="si-required">*</span></label>
-                            <input type="text" id="host_name" name="host_name" class="si-input" placeholder="Enter your host name" required>
-                        </div>
-                        
-                        <div class="si-form-group">
-                            <label for="sync_start_date" class="si-label">Order Sync Start Date<span class="si-required">*</span></label>
-                            <input type="date" id="sync_start_date" name="sync_start_date" class="si-input" required>
-                        </div>
-                        
-                        <div class="si-buttons">
-                            <button type="button" class="si-btn si-btn-reset" onclick="resetForm()">RESET</button>
-                            <button type="submit" class="si-btn si-btn-connect">CONNECT TO SHOPIFY</button>
-                        </div>
-                    </form>
+        {{-- ---------------- Steps ---------------- --}}
+        <div class="card2">
+          <p class="sec-title">Redirect URL — paste this in your Shopify app</p>
+          <div class="code"><span id="ru">{{ $redirectUri }}</span><button type="button" class="btng" data-copy="ru">Copy</button></div>
+          <div class="hint" style="margin-bottom:12px">Same URL for every seller. It must match character-for-character under <b>Allowed redirection URL(s)</b>.</div>
 
-                    <!-- Sync Orders Section -->
-                    <div style="margin-top: 2rem; padding-top: 2rem; border-top: 2px solid #f1f3f4;">
-                        <h3 class="si-form-title">Sync Orders</h3>
-                        <p style="color: #6c757d; margin-bottom: 1rem; font-size: 0.9rem;">
-                            After connecting your store, use this button to sync orders from Shopify to your dashboard.
-                        </p>
-                        <form action="{{ route('shopify.sync.orders') }}" method="POST">
-                            @csrf
-                            <button type="submit" class="si-btn si-btn-connect" style="width: 100%;">
-                                SYNC ORDERS FROM SHOPIFY
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
+          <label>App URL</label>
+          <div class="code" style="margin-bottom:16px"><span id="au">{{ $appUrl }}</span><button type="button" class="btng" data-copy="au">Copy</button></div>
+
+          <p class="sec-title">Steps in Shopify</p>
+          <ol>
+            <li>Log in to Shopify and open <b>Dev Dashboard</b> (dev.shopify.com/dashboard).</li>
+            <li><b>Create an app</b> — name it e.g. <i>Shipxpeed</i>.</li>
+            <li>Set <b>App URL</b> and <b>Allowed redirection URL(s)</b> to the URLs above.</li>
+            <li>Enable these <b>Admin API scopes</b>:
+              <div class="code" style="margin-top:6px"><span id="sc">{{ str_replace(',', ', ', $scopes) }}</span><button type="button" class="btng" data-copy="sc">Copy</button></div>
+            </li>
+            <li>Under <b>Protected customer data</b>, allow <b>Name, Email, Phone and Address</b> — otherwise orders arrive without the buyer's address.</li>
+            <li>Release the version, then under <b>Distribution</b> choose <b>Custom distribution</b> and select your own store (no review needed).</li>
+            <li>Open the app's <b>Settings</b>, copy the <b>Client ID</b> and <b>Client secret</b> into the form here.</li>
+            <li>Stay logged in to Shopify in this browser and click <b>Connect &amp; authorize</b> → <b>Install / Approve</b> on Shopify. Orders start syncing straight away.</li>
+          </ol>
+          <div class="note">After connecting: new orders arrive instantly (and every 5 minutes as a backup). When you generate an AWB here, the Shopify order is marked Fulfilled with the courier and tracking link; pickup, in-transit, out-for-delivery, delivered and RTO updates follow automatically.</div>
         </div>
+      </div>
     </div>
+  </div>
 </div>
 
 <script>
-    function resetForm() {
-        document.getElementById('shopifyForm').reset();
-    }
-    
-    // Animation setup
-    document.addEventListener('DOMContentLoaded', function() {
-        const cards = document.querySelectorAll('.si-card');
-        cards.forEach((card, index) => {
-            card.style.animationDelay = `${index * 0.2}s`;
-            card.classList.add('slide-up');
-        });
+(function () {
+  var tabs = document.querySelectorAll('.shx .tab');
+  var m = document.getElementById('auth_method');
+  var btn = document.getElementById('shxSubmit');
+  function show(mode) {
+    m.value = mode;
+    tabs.forEach(function (t) { t.classList.toggle('on', t.dataset.m === mode); });
+    document.querySelectorAll('.shx .m-cred').forEach(function (e) { e.style.display = mode === 'legacy_token' ? 'none' : ''; });
+    document.querySelectorAll('.shx .m-legacy').forEach(function (e) { e.style.display = mode === 'legacy_token' ? '' : 'none'; });
+    document.getElementById('client_id').required = mode !== 'legacy_token';
+    document.getElementById('client_secret').required = mode !== 'legacy_token';
+    document.getElementById('access_token').required = mode === 'legacy_token';
+    btn.innerHTML = mode === 'oauth' ? 'Connect &amp; authorize on Shopify →' : 'Connect store';
+  }
+  tabs.forEach(function (t) { t.addEventListener('click', function () { show(t.dataset.m); }); });
+  show(m.value || 'oauth');
+
+  document.querySelectorAll('.shx [data-copy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var txt = document.getElementById(b.dataset.copy).innerText.replace(/, /g, ',');
+      if (b.dataset.copy !== 'sc') txt = txt.trim();
+      navigator.clipboard && navigator.clipboard.writeText(txt);
+      var o = b.innerText; b.innerText = 'Copied'; setTimeout(function () { b.innerText = o; }, 1200);
     });
+  });
+
+  document.getElementById('shxForm').addEventListener('submit', function () {
+    btn.disabled = true; btn.innerText = 'Connecting…';
+  });
+})();
 </script>
 @endsection

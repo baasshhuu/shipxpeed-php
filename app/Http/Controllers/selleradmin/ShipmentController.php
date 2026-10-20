@@ -394,14 +394,12 @@ public function createShipmentweb(Request $request)
         ]);
 
     } catch (\Illuminate\Validation\ValidationException $e) {
-        dd($e->errors());
         return response()->json([
             'success' => false,
             'message' => 'Validation failed',
             'errors' => $e->errors()
         ], 422);
     } catch (\Exception $e) {
-        dd($e->getMessage());
          
         Log::error('Shopify Order Creation Error: ' . $e->getMessage(), [
             'request' => $request->all(),

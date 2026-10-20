@@ -2,945 +2,471 @@
 
 namespace App\Http\Controllers\Shopifyconnect;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Session;
-use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Controllers\Controller;
-use App\Models\AppSetting;
-use App\Models\RateCard;
 use App\Models\Recharge;
-use App\Models\SellerAgreement;
-use App\Models\SellerBankDetail;
+use App\Models\SellerList;
+use App\Models\ShopifyConnection;
+use App\Models\Warehouse;
+use App\Services\Shopify\ShopifyClient;
+use App\Services\Shopify\ShopifyOrderSync;
+use App\Services\Shopify\ShopifyStatusSync;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\{Order, Buyer, OrderItem, Warehouse, OrderPackageDetail, SellerList, ShopifyConnection};
-use App\Models\SellerAddress;
-use App\Models\State;
-use App\Models\City;
-use Illuminate\Support\Facades\Hash;
-use App\Helper\Helper;
-use App\Models\LogisticProvider;
-use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
-use Maatwebsite\Excel\Facades\Excel;
-use Illuminate\Support\Facades\Response;
-use Illuminate\Support\Collection;
-use Maatwebsite\Excel\Excel as ExcelFormat;
-use App\Imports\OrdersImport;
-use App\Http\Controllers\selleradmin\ShipmentController;
-
-
+/**
+ * Shopify channel for sellers.
+ *
+ * Connect flow (default, as in the "new shopify" reference doc):
+ *   1. Seller creates an app in Shopify Dev Dashboard (custom distribution, own store),
+ *      sets Allowed redirection URL = config('shopify.redirect_uri'), enables the scopes.
+ *   2. Seller enters store domain + Client ID + Client Secret here and clicks
+ *      "Connect & authorize on Shopify".
+ *   3. We redirect to Shopify's approve screen; Shopify sends the seller back to
+ *      /auth/shopify/callback; we exchange the code for a permanent token.
+ *   4. Webhooks are registered and the first order pull runs; afterwards the
+ *      scheduler (shopify:sync, every 5 min) pulls orders and pushes AWB/status.
+ */
 class ShopifyController extends Controller
 {
+    private function sellerContext(): array
+    {
+        $seller = Auth::guard('seller')->user();
+        $total = 0;
+        if ($seller && $seller->status == 1) {
+            $credit = Recharge::where('seller_id', $seller->id)->where('status', 1)->where('type', 'Credit')->sum('amount');
+            $debit = Recharge::where('seller_id', $seller->id)->where('type', 'Debit')->sum('amount');
+            $total = $credit - $debit;
+        }
+        return [
+            'seller'      => $seller,
+            'totalAmount' => $total,
+            'warehouses'  => $seller ? Warehouse::where('seller_id', $seller->id)->get() : collect(),
+            'allSellers'  => SellerList::active()->get(),
+            'couriers'    => 'vicky',
+        ];
+    }
+
+    /* ================================================================= */
+    /*  Pages                                                            */
+    /* ================================================================= */
 
     public function channelList()
     {
-        $seller = Auth::guard('seller')->user();
+        $ctx = $this->sellerContext();
+        $seller = $ctx['seller'];
 
-        $totalAmount = 0;
-        if ($seller && $seller->status == 1) {
-            // $totalAmount = Recharge::where(['seller_id' => $seller->id,'status'=>'1'])->sum('amount');
-            $sellerRechargeAmount = Recharge::where('seller_id', $seller->id)
-                ->where('status', 1)
-                ->where('type', 'Credit')
-                ->sum('amount');
+        $channels = ShopifyConnection::where('seller_id', $seller->id)->orderByDesc('id')->get();
+        $ids = $channels->pluck('id');
 
-            $sellerUsedAmount = Recharge::where('seller_id', $seller->id)
-                ->where('type', 'Debit')
-                ->sum('amount');
+        $logs = DB::table('shopify_sync_logs')->whereIn('connection_id', $ids)->orderByDesc('id')->limit(30)->get();
 
-            $totalAmount = $sellerRechargeAmount - $sellerUsedAmount;
-        }
+        $orderErrors = \App\Models\Order::where('seller_id', $seller->id)
+            ->whereNotNull('shopify_order_id')->whereNotNull('shopify_sync_error')
+            ->orderByDesc('updated_at')->limit(20)
+            ->get(['id', 'order_number', 'shopify_order_number', 'awb_number', 'shipping_status', 'shopify_sync_error', 'updated_at']);
 
-        $warehouses = [];
-        if ($seller) {
-            $warehouses = Warehouse::where('seller_id', $seller->id)->get();
-        }
-        // dd($warehouses);
-
-        $allSellers = SellerList::active()->get();
-         $channels = ShopifyConnection::where('seller_id', $seller->id)->get();
-
-
-        return view('shopify.index', [
-            'seller' => $seller,
-            'totalAmount' => $totalAmount,
-            'warehouses' => $warehouses,
-            'allSellers' => $allSellers,
-            'couriers' => 'vicky', // Pass to view
-            'channels' => $channels,
-        ]);
+        return view('shopify.index', $ctx + compact('channels', 'logs', 'orderErrors'));
     }
 
-
-
-
-    
     public function channelAdd()
     {
-        $seller = Auth::guard('seller')->user();
-
-        $totalAmount = 0;
-        if ($seller && $seller->status == 1) {
-            // $totalAmount = Recharge::where(['seller_id' => $seller->id,'status'=>'1'])->sum('amount');
-            $sellerRechargeAmount = Recharge::where('seller_id', $seller->id)
-                ->where('status', 1)
-                ->where('type', 'Credit')
-                ->sum('amount');
-
-            $sellerUsedAmount = Recharge::where('seller_id', $seller->id)
-                ->where('type', 'Debit')
-                ->sum('amount');
-
-            $totalAmount = $sellerRechargeAmount - $sellerUsedAmount;
-        }
-
-        $warehouses = [];
-        if ($seller) {
-            $warehouses = Warehouse::where('seller_id', $seller->id)->get();
-        }
-        // dd($warehouses);
-
-        $allSellers = SellerList::active()->get();
-
-
-
-        return view('shopify.add-channel', [
-            'seller' => $seller,
-            'totalAmount' => $totalAmount,
-            'warehouses' => $warehouses,
-            'allSellers' => $allSellers,
-            'couriers' => 'vicky', // Pass to view
-        ]);
+        return view('shopify.add-channel', $this->sellerContext());
     }
 
-
-    
-    public function shopifyIntegration()
+    public function shopifyIntegration(Request $request)
     {
-        $seller = Auth::guard('seller')->user();
+        $ctx = $this->sellerContext();
+        $reconnect = $request->filled('reconnect')
+            ? ShopifyConnection::where('seller_id', $ctx['seller']->id)->find($request->reconnect)
+            : null;
 
-        $totalAmount = 0;
-        if ($seller && $seller->status == 1) {
-            // $totalAmount = Recharge::where(['seller_id' => $seller->id,'status'=>'1'])->sum('amount');
-            $sellerRechargeAmount = Recharge::where('seller_id', $seller->id)
-                ->where('status', 1)
-                ->where('type', 'Credit')
-                ->sum('amount');
-
-            $sellerUsedAmount = Recharge::where('seller_id', $seller->id)
-                ->where('type', 'Debit')
-                ->sum('amount');
-
-            $totalAmount = $sellerRechargeAmount - $sellerUsedAmount;
-        }
-
-        $warehouses = [];
-        if ($seller) {
-            $warehouses = Warehouse::where('seller_id', $seller->id)->get();
-        }
-
-        $allSellers = SellerList::active()->get();
-
-        return view('shopify.shopify-integration', [
-            'seller' => $seller,
-            'totalAmount' => $totalAmount,
-            'warehouses' => $warehouses,
-            'allSellers' => $allSellers,
-            'couriers' => 'vicky', // Pass to view
+        return view('shopify.shopify-integration', $ctx + [
+            'redirectUri' => config('shopify.redirect_uri'),
+            'appUrl'      => config('shopify.app_url'),
+            'scopes'      => config('shopify.scopes'),
+            'reconnect'   => $reconnect,
         ]);
     }
 
-    
+    /* ================================================================= */
+    /*  Connect                                                          */
+    /* ================================================================= */
+
     public function shopifyConnect(Request $request)
     {
-        try {
-            // dd($request);
-            $validatedData = $request->validate([
-                'store_url' => 'nullable|url',
-                'api_key' => 'nullable|string',
-                'admin_api_token' => 'nullable|string',
-                'host_name' => 'nullable|string',
-                'sync_start_date' => 'nullable|date',
-            ]);
+        $seller = Auth::guard('seller')->user();
 
-            $seller = Auth::guard('seller')->user();
-            // dd($seller);
-            ShopifyConnection::create([
-                'seller_id' => $seller->id,
-                'store_url' => $validatedData['store_url'],
-                // 'api_key' => $validatedData['api_key'],
-                // 'admin_api_token' => $validatedData['admin_api_token'],
-                // 'host_name' => $validatedData['host_name'],
-                'sync_start_date' => $validatedData['sync_start_date'],
-                'status' => 'connected'
-            ]);
-
-            return redirect()->back()->with('success', 'Shopify integration successful! Your store has been connected.');
-            
-        } catch (\Exception $e) {
-            dd($e->getMessage());
-            Log::error('Shopify Integration Error: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to connect Shopify store. Please try again.');
-        }
-    }
-
-    /**
-     * Sync orders from Shopify to local database
-     */
-    public function syncOrders(Request $request)
-    {
-        // echo 'sdsdx';die;
-        try {
-            $seller = Auth::guard('seller')->user();
-            
-            // Get seller's Shopify connection
-            $shopifyConnection = ShopifyConnection::where('seller_id', $seller->id)
-                ->where('status', 'connected')
-                ->first();
-
-            if (!$shopifyConnection) {
-                return redirect()->back()->with('error', 'No active Shopify connection found. Please connect your store first.');
-            }
-
-            // Sync orders from Shopify
-            $result = $this->fetchAndSaveShopifyOrders($shopifyConnection);
-            // dd($result);
-            if ($result['success']) {
-                return redirect()->back()->with('success', 
-                    "Orders synced successfully! {$result['new_orders']} new orders imported, {$result['updated_orders']} existing orders updated."
-                );
-            } else {
-                return redirect()->back()->with('error', $result['message']);
-            }
-
-        } catch (\Exception $e) {
-            Log::error('Shopify Order Sync Error: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to sync orders. Please try again.');
-        }
-    }
-
-    /**
-     * Fetch orders from Shopify API and save to database
-     */
-    // private function fetchAndSaveShopifyOrders($shopifyConnection)
-    // {
-    //     try {
-    //         $storeUrl = rtrim($shopifyConnection->store_url, '/');
-    //         $accessToken = $shopifyConnection->admin_api_token;
-            
-    //         // Prepare API URL with parameters
-    //         $apiUrl = $storeUrl . '/admin/api/2023-10/orders.json';
-    //         $params = [
-    //             'limit' => 250, // Maximum allowed by Shopify
-    //             'status' => 'any',
-    //             'created_at_min' => $shopifyConnection->sync_start_date->format('Y-m-d\TH:i:s\Z'),
-    //         ];
-
-    //         $response = Http::withHeaders([
-    //             'X-Shopify-Access-Token' => $accessToken,
-    //             'Content-Type' => 'application/json',
-    //         ])->get($apiUrl, $params);
-    //         dd(json_decode($response->body()));
-    //         if (!$response->successful()) {
-    //             return [
-    //                 'success' => false,
-    //                 'message' => 'Failed to fetch orders from Shopify API. Status: ' . $response->status()
-    //             ];
-    //         }
-
-    //         $ordersData = $response->json();
-    //         // dd($ordersData['orders'][1]['customer']);
-    //         $orders = $ordersData['orders'] ?? [];
-    //         // dd($orders);
-    //         $newOrders = 0;
-    //         $updatedOrders = 0;
-
-    //         foreach ($orders as $shopifyOrder) {
-    //             // dd($shopifyOrder);
-    //             $result = $this->createOrderFromShopifyData($shopifyOrder, $shopifyConnection);
-    //             if ($result['action'] === 'created') {
-    //                 $newOrders++;
-    //             } elseif ($result['action'] === 'updated') {
-    //                 $updatedOrders++;
-    //             }
-    //         }
-
-    //         // Update sync information
-    //         $shopifyConnection->update([
-    //             'last_sync_at' => Carbon::now(),
-    //             'orders_synced_count' => ($shopifyConnection->orders_synced_count ?? 0) + $newOrders,
-    //         ]);
-
-    //         return [
-    //             'success' => true,
-    //             'new_orders' => $newOrders,
-    //             'updated_orders' => $updatedOrders,
-    //         ];
-
-    //     } catch (\Exception $e) {
-    //         Log::error('Shopify API Error: ' . $e->getMessage());
-    //         return [
-    //             'success' => false,
-    //             'message' => 'Error fetching orders: ' . $e->getMessage()
-    //         ];
-    //     }
-    // }
-
-private function fetchAndSaveShopifyOrders($shopifyConnection, $endDate = null)
-{
-    try {
-        $storeUrl = rtrim($shopifyConnection->store_url, '/');
-        $accessToken = $shopifyConnection->admin_api_token;
-
-        $apiUrl = $storeUrl . '/admin/api/2023-10/orders.json';
-
-        // ✅ Start Date (from DB, UTC)
-        $startDateUTC = Carbon::parse($shopifyConnection->sync_start_date)
-            ->setTimezone('UTC')
-            ->format('Y-m-d\TH:i:s\Z');
-
-        // ✅ End Date (user-defined or current UTC)
-        $endDateUTC = $endDate
-            ? Carbon::parse($endDate)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z')
-            : Carbon::now('UTC')->format('Y-m-d\TH:i:s\Z');
-
-        // 🕒 For debug/log: Local IST display
-        $startDateIST = Carbon::parse($shopifyConnection->sync_start_date)
-            ->setTimezone('Asia/Kolkata')
-            ->format('Y-m-d h:i:s A');
-        $endDateIST = $endDate
-            ? Carbon::parse($endDate)->setTimezone('Asia/Kolkata')->format('Y-m-d h:i:s A')
-            : Carbon::now('Asia/Kolkata')->format('Y-m-d h:i:s A');
-
-        // 🧾 Debug Info (you can remove dd() later)
-        // dd([
-        //     'API Start Date (UTC)' => $startDateUTC,
-        //     'API End Date (UTC)' => $endDateUTC,
-        //     'Local Start Date (IST)' => $startDateIST,
-        //     'Local End Date (IST)' => $endDateIST,
-        // ]);
-
-        $orders = [];
-        $nextPage = null;
-
-        do {
-            // $params = [
-            //     'limit' => 250,
-            //     'status' => 'any',
-            //     'financial_status' => 'pending', // ✅ only pending orders
-            //     'created_at_min' => $startDateUTC, // ✅ start date in UTC
-            //     'created_at_max' => $endDateUTC,   // ✅ end date in UTC
-            // ];
-            $params = [
-            'limit' => 250,
-            'status' => 'any',
-            'financial_status' => 'any', 
-            'fulfillment_status' => 'unfulfilled',
-            'created_at_min' => $startDateUTC,
-            'created_at_max' => $endDateUTC,
-        ];
-
-            if ($nextPage) {
-                $params['page_info'] = $nextPage;
-            }
-
-            $response = Http::withHeaders([
-                'X-Shopify-Access-Token' => $accessToken,
-                'Content-Type' => 'application/json',
-            ])->get($apiUrl, $params);
-//  dd(json_decode($response->body()));
-             if (!$response->successful()) {
-                return [
-                    'success' => false,
-                    'message' => 'Failed to fetch orders from Shopify API. Status: ' . $response->status(),
-                ];
-            }
-
-            $data = $response->json();
-            $fetchedOrders = $data['orders'] ?? [];
-            $orders = array_merge($orders, $fetchedOrders);
-
-            // ✅ Handle pagination
-            $linkHeader = $response->header('Link');
-            if ($linkHeader && preg_match('/<([^>]+)>; rel="next"/', $linkHeader, $matches)) {
-                $nextUrl = $matches[1];
-                parse_str(parse_url($nextUrl, PHP_URL_QUERY), $query);
-                $nextPage = $query['page_info'] ?? null;
-            } else {
-                $nextPage = null;
-            }
-
-        } while ($nextPage);
-
-        // ✅ Save or update orders
-        $newOrders = 0;
-        $updatedOrders = 0;
-
-        foreach ($orders as $shopifyOrder) {
-            $result = $this->createOrderFromShopifyData($shopifyOrder, $shopifyConnection);
-            if ($result['action'] === 'created') {
-                $newOrders++;
-            } elseif ($result['action'] === 'updated') {
-                $updatedOrders++;
-            }
-        }
-
-        // ✅ Update sync info
-        $shopifyConnection->update([
-            'last_sync_at' => Carbon::now(),
-            'orders_synced_count' => ($shopifyConnection->orders_synced_count ?? 0) + $newOrders,
+        $data = $request->validate([
+            'auth_method'     => 'required|in:oauth,client_credentials,legacy_token',
+            'store_domain'    => 'required|string|max:255',
+            'client_id'       => 'required_unless:auth_method,legacy_token|nullable|string|max:255',
+            'client_secret'   => 'required_unless:auth_method,legacy_token|nullable|string|max:255',
+            'access_token'    => 'required_if:auth_method,legacy_token|nullable|string|max:255',
+            'sync_start_date' => 'nullable|date|before_or_equal:today',
+            'notify_customer' => 'nullable|boolean',
+        ], [
+            'client_id.required_unless'     => 'Client ID is required.',
+            'client_secret.required_unless' => 'Client Secret is required.',
+            'access_token.required_if'      => 'Admin API access token is required.',
         ]);
 
-        return [
-            'success' => true,
-            'new_orders' => $newOrders,
-            'updated_orders' => $updatedOrders,
-            'total_fetched' => count($orders),
-            'from_date_utc' => $startDateUTC,
-            'to_date_utc' => $endDateUTC,
-            'from_date_ist' => $startDateIST,
-            'to_date_ist' => $endDateIST,
-        ];
+        $shop = ShopifyClient::normalizeShop($data['store_domain']);
+        if (!$shop) {
+            return back()->withInput()->with('error', 'Enter your myshopify.com domain (e.g. my-store.myshopify.com) — not your custom website domain. Find it in Shopify admin › Settings › Domains.');
+        }
 
-    } catch (\Exception $e) {
-        Log::error('Shopify API Error: ' . $e->getMessage());
-        return [
-            'success' => false,
-            'message' => 'Error fetching orders: ' . $e->getMessage(),
-        ];
-    }
-}
+        // Same shop already connected by another seller?
+        $taken = ShopifyConnection::where('shopify_shop_domain', $shop)->where('seller_id', '!=', $seller->id)->active()->exists();
+        if ($taken) {
+            return back()->withInput()->with('error', 'This Shopify store is already connected to another Shipxpeed account.');
+        }
 
+        $conn = ShopifyConnection::firstOrNew(['seller_id' => $seller->id, 'shopify_shop_domain' => $shop]);
+        $conn->fill([
+            'store_url'       => 'https://' . $shop,
+            'host_name'       => $shop,
+            'auth_type'       => $data['auth_method'],
+            'client_id'       => $data['client_id'] ?? null,
+            'sync_start_date' => $data['sync_start_date'] ?? ($conn->sync_start_date ?: now()->subDays(config('shopify.default_lookback_days'))->toDateString()),
+            'notify_customer' => $request->boolean('notify_customer', true),
+            'auto_fulfill'    => true,
+            'last_error'      => null,
+        ]);
+        if (!empty($data['client_secret'])) {
+            $conn->setClientSecret(trim($data['client_secret']));
+        }
 
-// private function fetchAndSaveShopifyOrders($shopifyConnection, $endDate = null)
-// {
-//     try {
-//         $storeUrl = rtrim($shopifyConnection->store_url, '/');
-//         $accessToken = $shopifyConnection->admin_api_token;
-//         $apiUrl = $storeUrl . '/admin/api/2023-10/orders.json';
-
-//         // ✅ Start Date (from DB, UTC)
-//         $startDateUTC = Carbon::parse($shopifyConnection->sync_start_date)
-//             ->setTimezone('UTC')
-//             ->format('Y-m-d\TH:i:s\Z');
-
-//         // ✅ End Date (user-defined or current UTC)
-//         $endDateUTC = $endDate
-//             ? Carbon::parse($endDate)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z')
-//             : Carbon::now('UTC')->format('Y-m-d\TH:i:s\Z');
-
-//         // 🕒 For debug/log (IST display)
-//         $startDateIST = Carbon::parse($shopifyConnection->sync_start_date)
-//             ->setTimezone('Asia/Kolkata')
-//             ->format('Y-m-d h:i:s A');
-//         $endDateIST = $endDate
-//             ? Carbon::parse($endDate)->setTimezone('Asia/Kolkata')->format('Y-m-d h:i:s A')
-//             : Carbon::now('Asia/Kolkata')->format('Y-m-d h:i:s A');
-
-//         Log::info("🔄 Shopify Fetch Started: From {$startDateIST} to {$endDateIST}");
-
-//         $orders = [];
-//         $nextPage = null;
-
-//         do {
-//             $params = [
-//                 'limit' => 250,
-//                 'status' => 'any',
-//                 'financial_status' => 'pending', // ✅ Only pending orders
-//                 'created_at_min' => $startDateUTC,
-//                 'created_at_max' => $endDateUTC,
-//             ];
-
-//             if ($nextPage) {
-//                 $params['page_info'] = $nextPage;
-//             }
-
-//             $response = Http::withHeaders([
-//                 'X-Shopify-Access-Token' => $accessToken,
-//                 'Content-Type' => 'application/json',
-//             ])->get($apiUrl, $params);
-
-//             if (!$response->successful()) {
-//                 return [
-//                     'success' => false,
-//                     'message' => 'Failed to fetch orders from Shopify API. Status: ' . $response->status(),
-//                 ];
-//             }
-
-//             $data = $response->json();
-//             $fetchedOrders = $data['orders'] ?? [];
-//             $orders = array_merge($orders, $fetchedOrders);
-
-//             // ✅ Handle pagination
-//             $linkHeader = $response->header('Link');
-//             if ($linkHeader && preg_match('/<([^>]+)>; rel="next"/', $linkHeader, $matches)) {
-//                 $nextUrl = $matches[1];
-//                 parse_str(parse_url($nextUrl, PHP_URL_QUERY), $query);
-//                 $nextPage = $query['page_info'] ?? null;
-//             } else {
-//                 $nextPage = null;
-//             }
-
-//         } while ($nextPage);
-
-//         $newOrders = 0;
-//         $updatedOrders = 0;
-
-//         foreach ($orders as $shopifyOrder) {
-//             // ✅ Step 1: Save or update locally
-//             $result = $this->createOrderFromShopifyData($shopifyOrder, $shopifyConnection);
-
-//             // ✅ Step 2: If pending, mark as paid in Shopify
-//             if ($shopifyOrder['financial_status'] === 'pending') {
-//                 $this->markShopifyOrderAsPaid($shopifyOrder['id'], $shopifyConnection, $shopifyOrder['total_price']);
-//             }
-
-//             if ($result['action'] === 'created') {
-//                 $newOrders++;
-//             } elseif ($result['action'] === 'updated') {
-//                 $updatedOrders++;
-//             }
-//         }
-
-//         // ✅ Update sync info
-//         $shopifyConnection->update([
-//             'last_sync_at' => Carbon::now(),
-//             'orders_synced_count' => ($shopifyConnection->orders_synced_count ?? 0) + $newOrders,
-//         ]);
-
-//         Log::info("✅ Shopify Sync Complete: {$newOrders} new, {$updatedOrders} updated, total " . count($orders));
-
-//         return [
-//             'success' => true,
-//             'new_orders' => $newOrders,
-//             'updated_orders' => $updatedOrders,
-//             'total_fetched' => count($orders),
-//             'from_date_utc' => $startDateUTC,
-//             'to_date_utc' => $endDateUTC,
-//             'from_date_ist' => $startDateIST,
-//             'to_date_ist' => $endDateIST,
-//         ];
-
-//     } catch (\Exception $e) {
-//         Log::error('❌ Shopify API Error: ' . $e->getMessage());
-//         return [
-//             'success' => false,
-//             'message' => 'Error fetching orders: ' . $e->getMessage(),
-//         ];
-//     }
-// }
-
-
-
-
-// private function markShopifyOrderAsPaid($orderId, $shopifyConnection, $amount = '0.00')
-// {
-//     try {
-//         $storeUrl = rtrim($shopifyConnection->store_url, '/');
-//         $accessToken = $shopifyConnection->admin_api_token;
-
-//         // ✅ Shopify API endpoint for creating a transaction
-//         $apiUrl = $storeUrl . "/admin/api/2023-10/orders/{$orderId}/transactions.json";
-
-//         // ✅ Shopify transaction payload (marks order as paid)
-//         $payload = [
-//             'transaction' => [
-//                 'kind' => 'sale',        // creates a sale-type transaction
-//                 'status' => 'success',   // marks as successful
-//                 'amount' => $amount,     // actual order total amount
-//             ]
-//         ];
-
-//         $response = Http::withHeaders([
-//             'X-Shopify-Access-Token' => $accessToken,
-//             'Content-Type' => 'application/json',
-//         ])->post($apiUrl, $payload);
-
-//         if ($response->successful()) {
-//             Log::info("💰 Order ID {$orderId} marked as PAID on Shopify (₹{$amount}).");
-//         } else {
-//             Log::warning("⚠️ Failed to mark order {$orderId} as paid. Response: " . $response->status());
-//         }
-
-//     } catch (\Exception $e) {
-//         Log::error("❌ Error marking Shopify order {$orderId} as paid: " . $e->getMessage());
-//     }
-// }
-
-    /**
-     * Create or update order from Shopify order data
-     */
-    private function createOrderFromShopifyData($shopifyOrder, $shopifyConnection)
-    {
-        // dd($shopifyOrder, $shopifyConnection);
         try {
-            // Check if order already exists
-            $existingOrder = Order::where('shopify_order_number', $shopifyOrder['order_number'])
-                ->where('seller_id', $shopifyConnection->seller_id)
-                ->first();
+            if ($data['auth_method'] === 'oauth') {
+                $conn->status = $conn->exists && $conn->status === 'connected' ? 'connected' : 'pending_auth';
+                $conn->oauth_state = Str::random(40);
+                $conn->save();
 
-            if ($existingOrder) {
-                // Update existing order if needed
-                // $orderData = $this->mapShopifyOrderToLocal($shopifyOrder, $shopifyConnection);
-                // NOTE: Updating existing orders is disabled for now per request.
-                // If you want to enable updates later, uncomment the line below.
-                // $existingOrder->update($orderData);
-                return ['action' => 'exists', 'order' => $existingOrder];
+                $url = "https://{$shop}/admin/oauth/authorize?" . http_build_query([
+                    'client_id'    => trim($data['client_id']),
+                    'scope'        => config('shopify.scopes'),
+                    'redirect_uri' => config('shopify.redirect_uri'),
+                    'state'        => $conn->oauth_state,
+                ]);
+                ShopifyClient::log($conn->id, null, 'auth', 'redirect_to_shopify', true, $shop);
+                return redirect()->away($url);
+            }
+
+            if ($data['auth_method'] === 'client_credentials') {
+                [$token, $ttl, $scope] = ShopifyClient::exchangeClientCredentials($shop, trim($data['client_id']), trim($data['client_secret']));
+                $conn->setToken($token);
+                $conn->token_expires_at = now()->addSeconds($ttl);
+                $conn->scopes = $scope;
             } else {
-                // Prepare request data for ShipmentController
-                // echo 'cscscs';die;
-                $requestData = $this->prepareShopifyDataForShipment($shopifyOrder, $shopifyConnection);
-                // dd($requestData);
-                // Create a mock request object
-                $mockRequest = new \Illuminate\Http\Request();
-                $mockRequest->merge($requestData);
-                
-                // Set the authenticated seller
-                Auth::guard('seller')->setUser(\App\Models\SellerList::find($shopifyConnection->seller_id));
-                
-                // Create shipment controller instance and call createShipmentshopify
-                $shipmentController = new ShipmentController();
-                $response = $shipmentController->createShipmentshopify($mockRequest);
-                
-                // Parse the response
-                $responseData = json_decode($response->getContent(), true);
-                // dd($responseData);
-                if ($responseData['success']) {
-                    // Get the created order
-                    $newOrder = Order::find($responseData['order_id']);
-                    return ['action' => 'created', 'order' => $newOrder];
-                } else {
-                    Log::error('Shipment creation failed', ['response' => $responseData]);
-                    return ['action' => 'failed', 'error' => $responseData['message']];
+                $conn->setToken(trim($data['access_token']));
+                $conn->token_expires_at = null;
+            }
+
+            $conn->status = 'connected';
+            $conn->save();
+
+            return $this->afterAuthorised($conn);
+        } catch (\Throwable $e) {
+            Log::error('Shopify connect failed', ['shop' => $shop, 'error' => $e->getMessage()]);
+            $conn->exists && $conn->forceFill(['last_error' => $e->getMessage()])->save();
+            return back()->withInput()->with('error', 'Could not connect: ' . $e->getMessage());
+        }
+    }
+
+    /** GET /auth/shopify/callback — Shopify sends the seller here after "Install / Approve". */
+    public function oauthCallback(Request $request)
+    {
+        $state = (string) $request->query('state');
+        $shop = ShopifyClient::normalizeShop($request->query('shop'));
+
+        $conn = $state ? ShopifyConnection::where('oauth_state', $state)->first() : null;
+        if (!$conn || !$shop || $conn->shopify_shop_domain !== $shop) {
+            return redirect()->route('seller.channel.list')->with('error', 'Shopify authorisation link expired or did not match. Please click Connect again.');
+        }
+
+        $secret = $conn->getClientSecret();
+        // Use the raw query string: app middleware merges extra keys into $request->query()
+        $raw = [];
+        foreach (explode('&', (string) $request->server('QUERY_STRING')) as $pair) {
+            if ($pair === '') {
+                continue;
+            }
+            [$k, $v] = array_pad(explode('=', $pair, 2), 2, '');
+            $raw[urldecode($k)] = urldecode($v);
+        }
+        if (!ShopifyClient::validQueryHmac($raw, (string) $secret)) {
+            ShopifyClient::log($conn->id, null, 'auth', 'callback_hmac', false, 'HMAC mismatch — Client Secret wrong?');
+            $conn->forceFill(['last_error' => 'Shopify signature check failed. Re-check the Client Secret.', 'oauth_state' => null])->save();
+            return redirect()->route('seller.channel.list')->with('error', 'Shopify signature check failed. Please re-enter the Client Secret exactly as shown in Dev Dashboard › Settings.');
+        }
+
+        if ($request->filled('error')) {
+            $conn->forceFill(['last_error' => 'Seller declined on Shopify', 'oauth_state' => null])->save();
+            return redirect()->route('seller.channel.list')->with('error', 'Authorisation was cancelled on Shopify.');
+        }
+
+        try {
+            [$token, $scope] = ShopifyClient::exchangeOAuthCode($shop, (string) $request->query('code'), $conn->client_id, $secret);
+            $conn->setToken($token);
+            $conn->scopes = $scope;
+            $conn->status = 'connected';
+            $conn->oauth_state = null;
+            $conn->token_expires_at = null;
+            $conn->save();
+
+            // Make sure the seller session is the right one (callback is a new top-level visit)
+            if (!Auth::guard('seller')->check() && ($seller = SellerList::find($conn->seller_id))) {
+                Auth::guard('seller')->login($seller);
+            }
+
+            return $this->afterAuthorised($conn);
+        } catch (\Throwable $e) {
+            Log::error('Shopify OAuth callback failed', ['shop' => $shop, 'error' => $e->getMessage()]);
+            $conn->forceFill(['last_error' => $e->getMessage(), 'oauth_state' => null])->save();
+            return redirect()->route('seller.channel.list')->with('error', 'Could not finish connecting: ' . $e->getMessage());
+        }
+    }
+
+    /** Test, register webhooks, first pull. */
+    private function afterAuthorised(ShopifyConnection $conn)
+    {
+        $info = ShopifyClient::for($conn)->shopInfo();
+        $conn->shop_name = $info['name'] ?? $conn->shop_name;
+        $conn->webhook_verified_at = now();
+        $conn->save();
+        ShopifyClient::log($conn->id, null, 'auth', 'connected', true, ($info['name'] ?? '') . ' / ' . $conn->auth_type);
+
+        $this->registerWebhooks($conn);
+
+        $msg = "Shopify store \"{$conn->shop_name}\" connected.";
+        try {
+            $s = ShopifyOrderSync::for($conn)->pull();
+            $msg .= " {$s['created']} order(s) imported" . ($s['failed'] ? ", {$s['failed']} need attention (see Sync log)." : '.');
+        } catch (\Throwable $e) {
+            $msg .= ' First order sync failed: ' . $e->getMessage();
+        }
+
+        return redirect()->route('seller.channel.list')->with('success', $msg . ' New orders now sync automatically, and AWB/status is sent back to Shopify.');
+    }
+
+    private function registerWebhooks(ShopifyConnection $conn): void
+    {
+        if (!$conn->canVerifyWebhooks()) {
+            return; // legacy tokens: polling only
+        }
+        $base = rtrim(config('shopify.webhook_base'), '/');
+        if (!str_starts_with($base, 'https://')) {
+            return;
+        }
+
+        $client = ShopifyClient::for($conn);
+        $topics = [
+            'ORDERS_CREATE'    => 'orders-create',
+            'ORDERS_UPDATED'   => 'orders-updated',
+            'ORDERS_CANCELLED' => 'orders-cancelled',
+            'APP_UNINSTALLED'  => 'app-uninstalled',
+        ];
+        $ok = true;
+
+        try {
+            $existing = $client->graphql('{ webhookSubscriptions(first: 50) { nodes { id topic uri } } }');
+            $have = collect($existing['webhookSubscriptions']['nodes'] ?? [])->map(fn ($w) => $w['topic'] . '|' . $w['uri'])->all();
+
+            foreach ($topics as $topic => $slug) {
+                $uri = "{$base}/webhooks/shopify/{$slug}";
+                if (in_array("{$topic}|{$uri}", $have, true)) {
+                    continue;
+                }
+                $d = $client->graphql('mutation($t: WebhookSubscriptionTopic!, $s: WebhookSubscriptionInput!) {
+                        webhookSubscriptionCreate(topic: $t, webhookSubscription: $s) { webhookSubscription { id } userErrors { field message } } }',
+                    ['t' => $topic, 's' => ['uri' => $uri, 'format' => 'JSON']]);
+                if (!empty($d['webhookSubscriptionCreate']['userErrors'])) {
+                    $ok = false;
+                    ShopifyClient::log($conn->id, null, 'auth', 'webhook_' . $slug, false, json_encode($d['webhookSubscriptionCreate']['userErrors']));
                 }
             }
-
-        } catch (\Exception $e) {
-            Log::error('Order Creation Error: ' . $e->getMessage(), ['shopify_order' => $shopifyOrder]);
-            return ['action' => 'failed', 'error' => $e->getMessage()];
+        } catch (\Throwable $e) {
+            $ok = false;
+            ShopifyClient::log($conn->id, null, 'auth', 'webhooks', false, $e->getMessage());
         }
+
+        $conn->forceFill(['webhooks_registered' => $ok])->save();
     }
 
-    /**
-     * Prepare Shopify data for ShipmentController format
-     */
-    private function prepareShopifyDataForShipment($shopifyOrder, $shopifyConnection)
-    {
-    // Get shipping address
-    $shippingAddress = $shopifyOrder['shipping_address'] ?? [];
-    $billingAddress = $shopifyOrder['billing_address'] ?? $shippingAddress;
-    $customer = $shopifyOrder['customer'] ?? [];
-    $customerDefault = $customer['default_address'] ?? [];
-            // dd($customerDefault);
-        // Extract address details from note_attributes
-        $noteAttributes = $shopifyOrder['note_attributes'] ?? [];
-        $addressData = [];
-        foreach ($noteAttributes as $attribute) {
-            $addressData[$attribute['name']] = $attribute['value'];
-        }
+    /* ================================================================= */
+    /*  Manual actions                                                   */
+    /* ================================================================= */
 
-        // Prepare consignee data
-        // Prefer note attributes, then customer.default_address, then shipping_address
-        $consignee = [
-            'name' => $addressData['Full name'] ?? (($customer['first_name'] ?? '') . ' ' . ($customer['last_name'] ?? '')),
-            'email' => $shopifyOrder['email'] ?? ($customer['email'] ?? ''),
-            'phone' => $addressData['Phone number'] ?? ($shippingAddress['phone'] ?? ($customer['phone'] ?? '')),
-            // Shopify address fields are address1/address2 in API payload
-            'address' => $addressData['Address'] ?? ($customerDefault['address1'] ?? $shippingAddress['address1'] ?? ''),
-            'address_2' => $addressData['Landmark'] ?? ($customerDefault['address2'] ?? $shippingAddress['address2'] ?? ''),
-            'city' => $addressData['City'] ?? ($customerDefault['city'] ?? $shippingAddress['city'] ?? ''),
-            'state' => $addressData['State'] ?? ($customerDefault['province'] ?? $shippingAddress['province'] ?? ''),
-            'country' => $customerDefault['country'] ?? $shippingAddress['country'] ?? '',
-            'pincode' => $addressData['zip_code'] ?? ($customerDefault['zip'] ?? $shippingAddress['zip'] ?? ''),
-        ];
-        // Get seller details for pickup and RTO addresses
-        $seller = \App\Models\SellerList::find($shopifyConnection->seller_id);
-        $sellerAddress = \App\Models\SellerAddress::where('seller_id', $seller->id)->first();
-
-        // Prepare pickup data (seller's address)
-        $pickup = [
-            'name' => $seller->company_name ?? $seller->name ?? '',
-            'email' => $seller->email ?? '',
-            'phone' => $seller->mobile ?? '',
-            'address' => $sellerAddress->address ?? '',
-            'address2' => $sellerAddress->address2 ?? '',
-            'city' => $sellerAddress->city ?? '',
-            'state' => $sellerAddress->state ?? '',
-            'country' => 'India',
-            'pincode' => $sellerAddress->pincode ?? '',
-        ];
-
-        // RTO address (same as pickup for most cases)
-        $rto = $pickup;
-
-        // Prepare order items
-        $orderItems = [];
-        foreach ($shopifyOrder['line_items'] as $item) {
-            // dd($item);
-            $orderItems[] = [
-                'product_id' => $item['product_id'],
-                'variant_id' => $item['variant_id'],
-                'name' => $item['name'],
-                'sku' => $item['sku'] ?? '',
-                'qty' => $item['quantity'],
-                'price' => $item['price'],
-                'total' => $item['quantity'] * $item['price'],
-                'weight' => $item['grams'] ?? 0,
-            ];
-        }
-
-        // Calculate amounts
-        $orderAmount = floatval($shopifyOrder['total_price']);
-        $shippingCharges = floatval($shopifyOrder['shipping_lines'][0]['price'] ?? 0);
-        $discount = floatval($shopifyOrder['total_discounts']);
-
-        // Determine payment type based on payment gateway
-        $paymentGateways = $shopifyOrder['payment_gateway_names'] ?? [];
-        $isCOD = false;
-        foreach ($paymentGateways as $gateway) {
-            if (stripos($gateway, 'cod') !== false || stripos($gateway, 'cash on delivery') !== false) {
-                $isCOD = true;
-                break;
-            }
-        }
-
-        $paymentType = $isCOD ? 'cod' : 'prepaid';
-        $collectableAmount = $isCOD ? $orderAmount : 0;
-
-        return [
-            'order_number' => $shopifyOrder['order_number'],
-            'courier_id' => '', // Will be set later when assigning courier
-            'payment_type' => $paymentType,
-            'order_amount' => $orderAmount,
-            'shipping_charges' => $shippingCharges,
-            'cod_charges' => $isCOD ? 10 : 0, // Default COD charges
-            'discount' => $discount,
-            'collectable_amount' => $collectableAmount,
-            'package_type' => 'box',
-            'package_weight' => $this->calculateTotalWeight($orderItems),
-            'package_length' => 20, // Default dimensions
-            'package_breadth' => 15,
-            'package_height' => 10,
-            'consignee' => $consignee, // Pass as array, not JSON
-            'pickup' => $pickup,       // Pass as array, not JSON
-            'rto' => $rto,             // Pass as array, not JSON
-            'order_items' => $orderItems, // Pass as array, not JSON
-            
-            // Shopify specific fields
-            'shopify_order_id' => $shopifyOrder['id'],
-            'shopify_order_name' => $shopifyOrder['name'],
-            'financial_status' => $shopifyOrder['financial_status'],
-            'fulfillment_status' => $shopifyOrder['fulfillment_status'],
-            'shopify_created_at' => $shopifyOrder['created_at'],
-        ];
-    }
-
-    /**
-     * Map Shopify order data to local order format
-     */
-
-
-    private function mapShopifyOrderToLocal($shopifyOrder, $shopifyConnection)
-    {
-        // Get shipping address
-        $shippingAddress = $shopifyOrder['shipping_address'] ?? [];
-        $billingAddress = $shopifyOrder['billing_address'] ?? $shippingAddress;
-
-        // Extract address details from note_attributes
-        $noteAttributes = $shopifyOrder['note_attributes'] ?? [];
-        $addressData = [];
-        foreach ($noteAttributes as $attribute) {
-            $addressData[$attribute['name']] = $attribute['value'];
-        }
-
-        // Prefer customer.default_address, then shipping_address
-        $customer = $shopifyOrder['customer'] ?? [];
-        $customerDefault = $customer['default_address'] ?? [];
-
-        // Prepare consignee data (use same keys & fallbacks as prepareShopifyDataForShipment)
-        $consignee = [
-            'name' => $addressData['Full name'] ?? (($customer['first_name'] ?? '') . ' ' . ($customer['last_name'] ?? '')),
-            'email' => $shopifyOrder['email'] ?? ($customer['email'] ?? ''),
-            'phone' => $addressData['Phone number'] ?? ($shippingAddress['phone'] ?? ($customer['phone'] ?? '')),
-            'address' => $addressData['Address'] ?? ($customerDefault['address1'] ?? $shippingAddress['address1'] ?? ''),
-            'address_2' => $addressData['Landmark'] ?? ($customerDefault['address2'] ?? $shippingAddress['address2'] ?? ''),
-            'city' => $addressData['City'] ?? ($customerDefault['city'] ?? $shippingAddress['city'] ?? ''),
-            'state' => $addressData['State'] ?? ($customerDefault['province'] ?? $shippingAddress['province'] ?? ''),
-            'country' => $customerDefault['country'] ?? $shippingAddress['country'] ?? '',
-            'pincode' => $addressData['zip_code'] ?? ($customerDefault['zip'] ?? $shippingAddress['zip'] ?? ''),
-        ];
-
-        // Prepare order items
-        $orderItems = [];
-        foreach ($shopifyOrder['line_items'] as $item) {
-            $orderItems[] = [
-                'product_id' => $item['product_id'],
-                'variant_id' => $item['variant_id'],
-                'name' => $item['name'],
-                'sku' => $item['sku'] ?? '',
-                'qty' => $item['quantity'],
-                'price' => $item['price'],
-                'total' => $item['quantity'] * $item['price'],
-                'weight' => $item['grams'] ?? 0,
-            ];
-        }
-
-        // Calculate amounts
-        $orderAmount = floatval($shopifyOrder['total_price']);
-        $shippingCharges = floatval($shopifyOrder['shipping_lines'][0]['price'] ?? 0);
-        $discount = floatval($shopifyOrder['total_discounts']);
-
-        // Determine payment type based on payment gateway
-        $paymentGateways = $shopifyOrder['payment_gateway_names'] ?? [];
-        $isCOD = false;
-        foreach ($paymentGateways as $gateway) {
-            if (stripos($gateway, 'cod') !== false || stripos($gateway, 'cash on delivery') !== false) {
-                $isCOD = true;
-                break;
-            }
-        }
-
-        return [
-            'order_number' => $shopifyOrder['order_number'],
-            'seller_id' => $shopifyConnection->seller_id,
-            'payment_type' => $isCOD ? 'COD' : 'Prepaid',
-            'order_amount' => $orderAmount,
-            'shipping_charges' => $shippingCharges,
-            'discount' => $discount,
-            'collectable_amount' => $isCOD ? $orderAmount : 0,
-            'package_weight' => $this->calculateTotalWeight($orderItems),
-            'package_length' => 20, // Default dimensions - you can adjust these
-            'package_breadth' => 15,
-            'package_height' => 10,
-            'consignee' => json_encode($consignee),
-            'order_items' => json_encode($orderItems),
-            'status' => 'pending',
-            'additional_info' => json_encode([
-                'shopify_order_id' => $shopifyOrder['id'],
-                'shopify_order_name' => $shopifyOrder['name'],
-                'shopify_created_at' => $shopifyOrder['created_at'],
-                'shopify_updated_at' => $shopifyOrder['updated_at'],
-                'financial_status' => $shopifyOrder['financial_status'],
-                'fulfillment_status' => $shopifyOrder['fulfillment_status'],
-                'confirmation_number' => $shopifyOrder['confirmation_number'] ?? '',
-                'currency' => $shopifyOrder['currency'] ?? 'INR',
-                'note_attributes' => $shopifyOrder['note_attributes'] ?? [],
-                'payment_gateway_names' => $shopifyOrder['payment_gateway_names'] ?? [],
-            ]),
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
-        ];
-    }
-
-    /**
-     * Calculate total weight of order items
-     */
-    private function calculateTotalWeight($orderItems)
-    {
-        $totalWeight = 0;
-        foreach ($orderItems as $item) {
-            $totalWeight += ($item['weight'] * $item['qty']);
-        }
-        return $totalWeight > 0 ? $totalWeight : 500; // Default 500g if no weight
-    }
-
-    /**
-     * Handle Shopify webhook for new orders
-     */
-    public function handleOrderWebhook(Request $request)
-    {
-        try {
-            // Verify webhook (you should implement proper webhook verification)
-            $shopifyOrder = $request->all();
-            
-            if (!isset($shopifyOrder['id'])) {
-                return response()->json(['error' => 'Invalid order data'], 400);
-            }
-
-            // Find the seller's Shopify connection based on shop domain
-            $shopDomain = $request->header('X-Shopify-Shop-Domain');
-            $shopifyConnection = ShopifyConnection::where('host_name', $shopDomain)
-                ->where('status', 'connected')
-                ->first();
-
-            if (!$shopifyConnection) {
-                Log::warning('Webhook received for unknown shop: ' . $shopDomain);
-                return response()->json(['error' => 'Shop not found'], 404);
-            }
-
-            // Create order from webhook data
-            $result = $this->createOrderFromShopifyData($shopifyOrder, $shopifyConnection);
-            
-            Log::info('Webhook order processed', [
-                'action' => $result['action'],
-                'order_number' => $shopifyOrder['order_number'] ?? 'N/A'
-            ]);
-
-            return response()->json(['status' => 'success', 'action' => $result['action']]);
-
-        } catch (\Exception $e) {
-            Log::error('Webhook Error: ' . $e->getMessage(), ['request' => $request->all()]);
-            return response()->json(['error' => 'Webhook processing failed'], 500);
-        }
-    }
-
-    /**
-     * Get list of connected Shopify stores for a seller
-     */
-    public function getConnectedStores()
+    public function syncOrders(Request $request)
     {
         $seller = Auth::guard('seller')->user();
-        
-        $connections = ShopifyConnection::where('seller_id', $seller->id)
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $q = ShopifyConnection::where('seller_id', $seller->id)->active();
+        if ($request->filled('channel_id')) {
+            $q->where('id', $request->channel_id);
+        }
+        $conns = $q->get();
 
+        if ($conns->isEmpty()) {
+            return $this->reply($request, false, 'No connected Shopify store. Connect your store first.');
+        }
+
+        $created = $failed = $pushed = 0;
+        $errors = [];
+        foreach ($conns as $conn) {
+            try {
+                $s = ShopifyOrderSync::for($conn)->pull();
+                $created += $s['created'];
+                $failed += $s['failed'];
+                $errors = array_merge($errors, array_slice($s['errors'], 0, 3));
+                $p = ShopifyStatusSync::pushForConnection($conn);
+                $pushed += $p['pushed'];
+            } catch (\Throwable $e) {
+                $conn->forceFill(['last_error' => $e->getMessage()])->save();
+                $errors[] = $conn->shopify_shop_domain . ': ' . $e->getMessage();
+            }
+        }
+
+        $msg = "Sync done: {$created} new order(s) imported, {$pushed} status update(s) sent to Shopify.";
+        if ($failed || $errors) {
+            $msg .= ' Issues: ' . implode(' | ', array_slice($errors, 0, 3));
+        }
+        return $this->reply($request, empty($errors), $msg);
+    }
+
+    public function updateSettings(Request $request, $id)
+    {
+        $conn = ShopifyConnection::where('seller_id', Auth::guard('seller')->id())->findOrFail($id);
+        $conn->update([
+            'notify_customer' => $request->boolean('notify_customer'),
+            'auto_fulfill'    => $request->boolean('auto_fulfill'),
+        ]);
+        return back()->with('success', 'Shopify settings saved.');
+    }
+
+    public function disconnectStore(Request $request, $connectionId)
+    {
+        $conn = ShopifyConnection::where('seller_id', Auth::guard('seller')->id())->find($connectionId);
+        if (!$conn) {
+            return back()->with('error', 'Connection not found.');
+        }
+
+        // Best effort: remove our webhooks from the store
+        try {
+            if ($conn->isActive()) {
+                $client = ShopifyClient::for($conn);
+                $subs = $client->graphql('{ webhookSubscriptions(first: 50) { nodes { id uri } } }');
+                $base = rtrim(config('shopify.webhook_base'), '/');
+                foreach ($subs['webhookSubscriptions']['nodes'] ?? [] as $w) {
+                    if (str_starts_with($w['uri'], $base . '/webhooks/shopify/')) {
+                        $client->graphql('mutation($id: ID!) { webhookSubscriptionDelete(id: $id) { deletedWebhookSubscriptionId userErrors { message } } }', ['id' => $w['id']]);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        $conn->status = 'disconnected';
+        $conn->setToken(null);
+        $conn->admin_api_token = null;
+        $conn->webhooks_registered = false;
+        $conn->save();
+        ShopifyClient::log($conn->id, null, 'auth', 'disconnected', true);
+
+        return back()->with('success', 'Shopify store disconnected. Orders already imported stay in your panel.');
+    }
+
+    public function getConnectedStores()
+    {
+        $conns = ShopifyConnection::where('seller_id', Auth::guard('seller')->id())->orderByDesc('id')->get();
         return response()->json([
-            'success' => true,
-            'connections' => $connections->map(function($connection) {
-                return [
-                    'id' => $connection->id,
-                    'store_url' => $connection->store_url,
-                    'host_name' => $connection->host_name,
-                    'status' => $connection->status,
-                    'last_sync_at' => $connection->last_sync_at?->format('Y-m-d H:i:s'),
-                    'orders_synced_count' => $connection->orders_synced_count ?? 0,
-                    'created_at' => $connection->created_at->format('Y-m-d H:i:s'),
-                ];
-            })
+            'success'     => true,
+            'connections' => $conns->map(fn ($c) => [
+                'id'                  => $c->id,
+                'shop'                => $c->shopify_shop_domain,
+                'shop_name'           => $c->shop_name,
+                'status'              => $c->status,
+                'auth_type'           => $c->auth_type,
+                'last_order_pull_at'  => $c->last_order_pull_at?->toDateTimeString(),
+                'last_status_push_at' => $c->last_status_push_at?->toDateTimeString(),
+                'orders_synced_count' => (int) $c->orders_synced_count,
+                'last_error'          => $c->last_error,
+            ]),
         ]);
     }
 
-    /**
-     * Disconnect a Shopify store
-     */
-    public function disconnectStore(Request $request, $connectionId)
+    private function reply(Request $request, bool $ok, string $msg)
     {
-        try {
-            $seller = Auth::guard('seller')->user();
-            
-            $connection = ShopifyConnection::where('id', $connectionId)
-                ->where('seller_id', $seller->id)
-                ->first();
-
-            if (!$connection) {
-                return redirect()->back()->with('error', 'Connection not found.');
-            }
-
-            $connection->update(['status' => 'disconnected']);
-
-            return redirect()->back()->with('success', 'Shopify store disconnected successfully.');
-
-        } catch (\Exception $e) {
-            Log::error('Disconnect Error: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to disconnect store.');
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json(['success' => $ok, 'message' => $msg]);
         }
+        return back()->with($ok ? 'success' : 'error', $msg);
     }
 
+    /* ================================================================= */
+    /*  Webhooks (public, HMAC-verified)                                 */
+    /* ================================================================= */
 
+    public function webhook(Request $request, string $topic = 'orders-create')
+    {
+        $raw = $request->getContent();
+        $shop = ShopifyClient::normalizeShop($request->header('X-Shopify-Shop-Domain'));
+        $hmac = $request->header('X-Shopify-Hmac-Sha256');
 
+        // GDPR compliance topics: nothing personal is stored beyond orders the seller ships
+        if (in_array($topic, ['customers-data-request', 'customers-redact', 'shop-redact'], true)) {
+            return response()->json(['ok' => true]);
+        }
 
+        $conn = ShopifyConnection::where('shopify_shop_domain', $shop)
+            ->whereIn('status', ['connected', 'auth_error'])
+            ->get()
+            ->first(fn ($c) => $c->canVerifyWebhooks() && ShopifyClient::validWebhookHmac($raw, $hmac, $c->getClientSecret()));
+
+        if (!$conn) {
+            Log::warning('Shopify webhook rejected (unknown shop or bad HMAC)', ['shop' => $shop, 'topic' => $topic]);
+            return response()->json(['error' => 'unauthorised'], 401);
+        }
+
+        $payload = json_decode($raw, true) ?: [];
+
+        if ($topic === 'app-uninstalled') {
+            $conn->forceFill(['status' => 'disconnected', 'webhooks_registered' => false, 'last_error' => 'App was uninstalled from Shopify'])->save();
+            $conn->setToken(null);
+            $conn->save();
+            ShopifyClient::log($conn->id, null, 'webhook', 'app_uninstalled', true);
+            return response()->json(['ok' => true]);
+        }
+
+        $orderId = (string) ($payload['id'] ?? '');
+        if ($orderId === '') {
+            return response()->json(['ok' => true]);
+        }
+
+        // Answer Shopify within its 5s limit; import right after the response is sent.
+        $connId = $conn->id;
+        dispatch(function () use ($connId, $orderId, $topic) {
+            $c = ShopifyConnection::find($connId);
+            if (!$c) {
+                return;
+            }
+            try {
+                $r = ShopifyOrderSync::for($c)->pullOne($orderId);
+                ShopifyClient::log($c->id, $r['order_id'] ?? null, 'webhook', $topic, $r['result'] !== 'failed', $orderId . ' ' . $r['result'] . ' ' . ($r['message'] ?? ''));
+            } catch (\Throwable $e) {
+                ShopifyClient::log($c->id, null, 'webhook', $topic, false, $orderId . ': ' . $e->getMessage());
+            }
+        })->afterResponse();
+
+        return response()->json(['ok' => true]);
+    }
+
+    /** Old route names kept for compatibility. */
+    public function handleOrderWebhook(Request $request)
+    {
+        return $this->webhook($request, 'orders-create');
+    }
 }

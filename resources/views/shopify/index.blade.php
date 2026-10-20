@@ -351,164 +351,186 @@
         from { transform: translateY(30px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
     }
+    .channel-page .sx-pill { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.75rem; font-weight:600; }
+    .channel-page .sx-ok { background:#e6f7ee; color:#1c8a52; }
+    .channel-page .sx-warn { background:#fff4e0; color:#a86a00; }
+    .channel-page .sx-err { background:#fde8e8; color:#b42323; }
+    .channel-page .sx-mut { background:#eef0f4; color:#5b6475; }
+    .channel-page .sx-small { font-size:.78rem; color:#6b7385; }
+    .channel-page .sx-errtext { font-size:.76rem; color:#b42323; max-width:320px; white-space:normal; }
+    .channel-page .sx-section { padding:1.2rem 1.5rem; border-top:1px solid #eef0f4; }
+    .channel-page .sx-section h6 { font-weight:700; margin-bottom:.8rem; }
+    .channel-page .sx-log td { font-size:.8rem; padding:.45rem .6rem; }
 </style>
 
 <div class="pc-container channel-page">
     <div class="pc-content" style="margin-left:12px;background:#646dff26;">
-        <!-- Dashboard Header -->
         <div class="ch-dashboard-header text-center fade-in">
             <div class="container">
                 <h1 class="ch-dashboard-title">Channel Management</h1>
             </div>
         </div>
 
-        <!-- Main Content Card -->
+        @if(session('success'))<div class="alert alert-success mx-3">{{ session('success') }}</div>@endif
+        @if(session('error'))<div class="alert alert-danger mx-3">{{ session('error') }}</div>@endif
+
         <div class="ch-main-card slide-up">
-            <!-- Search and Add Channel Section -->
             <div class="ch-search-section">
                 <div class="ch-search-container">
-                    <input type="text" class="form-control ch-search-input" placeholder="Search by Channel Name...">
-                    <button class="ch-search-btn">
-                        <i class="fas fa-search"></i>
-                    </button>
+                    <input type="text" class="form-control ch-search-input" id="chSearch" placeholder="Search by store...">
+                    <button class="ch-search-btn" type="button"><i class="fas fa-search"></i></button>
                 </div>
-
-                <button type="button" 
-        class="btn ch-add-btn" 
-        onclick="window.location.href='{{ route('seller.channel.add') }}'">
-    <i class="fas fa-plus me-2"></i>Add Channel
-</button>
-
-                {{-- <button class="btn ch-add-btn">
-                    <i class="fas fa-plus me-2"></i>Add Channel
-                </button> --}}
+                <div class="d-flex gap-2">
+                    @if($channels->where('status','connected')->count())
+                    <form method="POST" action="{{ route('shopify.sync.orders') }}" class="m-0" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').innerHTML='<i class=\'fas fa-spinner fa-spin me-2\'></i>Syncing…'">
+                        @csrf
+                        <button type="submit" class="btn btn-outline-primary"><i class="fas fa-sync me-2"></i>Sync all now</button>
+                    </form>
+                    @endif
+                    <a href="{{ route('seller.channel.add') }}" class="btn ch-add-btn"><i class="fas fa-plus me-2"></i>Add Channel</a>
+                </div>
             </div>
 
-            <!-- Table Section -->
             <div class="table-responsive ch-table-container">
-                <table class="table ch-table">
+                <table class="table ch-table" id="chTable">
                     <thead>
                         <tr>
-                            <th>S.No</th>
-                            <th>Channel Id & Name</th>
-                            <th>Last Order Sync</th>
-                            {{-- <th>Last Inventory Sync</th> --}}
-                            <th>Connection Status</th>
-                            <th>Last Connection Sync</th>
-                            <th>Connection Response</th>
-                            <th>Status</th>
+                            <th>#</th>
+                            <th>Store</th>
+                            <th>Connection</th>
+                            <th>Orders pulled</th>
+                            <th>Status sent to Shopify</th>
+                            <th>Settings</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @if($channels->isEmpty())
-                        <!-- No Records Message -->
+                    @forelse($channels as $i => $ch)
+                        @php
+                            $pill = match($ch->status) {
+                                'connected' => ['sx-ok', 'Connected'],
+                                'pending_auth' => ['sx-warn', 'Waiting for Shopify approval'],
+                                'auth_error' => ['sx-err', 'Token rejected — reconnect'],
+                                'reconnect_required' => ['sx-warn', 'Reconnect required'],
+                                default => ['sx-mut', ucfirst(str_replace('_',' ',$ch->status))],
+                            };
+                            $how = ['oauth' => 'App + approve', 'client_credentials' => 'Client ID + Secret', 'legacy_token' => 'Access token'][$ch->auth_type] ?? '—';
+                        @endphp
                         <tr>
-                            <td colspan="9">
+                            <td><strong>{{ $i + 1 }}</strong></td>
+                            <td>
+                                <strong class="text-primary">{{ $ch->shop_name ?: 'Shopify store' }}</strong><br>
+                                <span class="sx-small">{{ $ch->shopify_shop_domain ?: $ch->formatted_store_url }}</span>
+                            </td>
+                            <td>
+                                <span class="sx-pill {{ $pill[0] }}">{{ $pill[1] }}</span><br>
+                                <span class="sx-small">{{ $how }}{{ $ch->status === 'connected' ? ($ch->webhooks_registered ? ' · instant webhooks' : ' · every 5 min') : '' }}</span>
+                                @if($ch->last_error)<div class="sx-errtext mt-1">{{ \Illuminate\Support\Str::limit($ch->last_error, 220) }}</div>@endif
+                            </td>
+                            <td>
+                                <strong>{{ (int) $ch->orders_synced_count }}</strong> imported<br>
+                                <span class="sx-small">Last: {{ $ch->last_order_pull_at ? $ch->last_order_pull_at->timezone('Asia/Kolkata')->format('d M, h:i A') : 'Never' }}</span><br>
+                                <span class="sx-small">From: {{ $ch->sync_start_date ? $ch->sync_start_date->format('d M Y') : '—' }}</span>
+                            </td>
+                            <td>
+                                <span class="sx-small">Last: {{ $ch->last_status_push_at ? $ch->last_status_push_at->timezone('Asia/Kolkata')->format('d M, h:i A') : 'Never' }}</span>
+                            </td>
+                            <td>
+                                <form method="POST" action="{{ route('shopify.settings', $ch->id) }}" class="m-0">
+                                    @csrf
+                                    <label class="sx-small d-block"><input type="checkbox" name="auto_fulfill" value="1" {{ $ch->auto_fulfill ? 'checked' : '' }} onchange="this.form.submit()"> Mark fulfilled + send status</label>
+                                    <label class="sx-small d-block"><input type="checkbox" name="notify_customer" value="1" {{ $ch->notify_customer ? 'checked' : '' }} onchange="this.form.submit()"> Notify buyer</label>
+                                </form>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1 flex-wrap">
+                                    @if($ch->status === 'connected')
+                                    <form method="POST" action="{{ route('shopify.sync.orders') }}" class="m-0">
+                                        @csrf <input type="hidden" name="channel_id" value="{{ $ch->id }}">
+                                        <button class="btn btn-sm btn-outline-primary" title="Sync now"><i class="fas fa-sync"></i></button>
+                                    </form>
+                                    @endif
+                                    @if($ch->status !== 'connected')
+                                    <a href="{{ route('seller.shopify.integration', ['reconnect' => $ch->id]) }}" class="btn btn-sm btn-outline-warning" title="Reconnect"><i class="fas fa-plug"></i></a>
+                                    @endif
+                                    @if($ch->status !== 'disconnected')
+                                    <form method="POST" action="{{ route('shopify.stores.disconnect', $ch->id) }}" class="m-0" onsubmit="return confirm('Disconnect this Shopify store? Imported orders stay in the panel.')">
+                                        @csrf
+                                        <button class="btn btn-sm btn-outline-danger" title="Disconnect"><i class="fas fa-unlink"></i></button>
+                                    </form>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7">
                                 <div class="ch-empty-state">
                                     <i class="fas fa-satellite-dish"></i>
                                     <h5>No Channels Found</h5>
-                                    <p>Start by adding your first channel to manage your sales platforms</p>
+                                    <p>Connect your Shopify store to pull orders automatically and send AWB + tracking back to Shopify.</p>
+                                    <a href="{{ route('seller.shopify.integration') }}" class="btn ch-add-btn mt-2">Connect Shopify</a>
                                 </div>
                             </td>
                         </tr>
-                        @else
-                        <!-- Display Channels Data -->
-                        @foreach($channels as $index => $channel)
-                        <tr class="fade-in">
-                            <td><strong>{{ $index + 1 }}</strong></td>
-                            <td>
-                                <div>
-                                    <strong class="text-primary">{{ $channel->store_url ?? $channel->name }}</strong>
-                                    <br>
-                                    <small class="text-muted">{{ $channel->store_name ?? 'Shopify Store' }}</small>
-                                </div>
-                            </td>
-                            <td>
-                                <small class="text-muted">{{ $channel->last_order_sync ?? 'Never' }}</small>
-                            </td>
-                            {{-- <td>
-                                <small class="text-muted">{{ $channel->last_inventory_sync ?? 'Never' }}</small>
-                            </td> --}}
-                            <td>
-                                <span class="badge ch-badge {{ $channel->status == 'connected' ? 'bg-success' : 'bg-danger' }}">
-                                    {{ ucfirst($channel->status) }}
-                                </span>
-                            </td>
-                            <td>
-                                <small class="text-muted">{{ $channel->updated_at ? $channel->updated_at->format('M d, Y H:i') : 'Never' }}</small>
-                            </td>
-                            <td>
-                                <small class="text-muted">{{ $channel->connection_response ?? 'Connected Successfully' }}</small>
-                            </td>
-                            <td>
-                                <span class="badge ch-badge {{ $channel->status == 'connected' ? 'bg-success' : 'bg-secondary' }}">
-                                    {{ $channel->status == 'connected' ? 'Active' : 'Inactive' }}
-                                </span>
-                            </td>
-                            <td>
-                                <div class="btn-group" role="group">
-                                    {{-- <button type="button" class="btn btn-sm btn-outline-primary ch-action-btn" title="Edit">
-                                        <i class="fas fa-edit"></i>
-                                    </button> --}}
-                                    <button type="button" class="btn btn-sm btn-outline-danger ch-action-btn" title="Delete">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                    {{-- <button type="button" class="btn btn-sm btn-outline-info ch-action-btn" title="Sync" onclick="syncChannel({{ $channel->id }})">
-                                        <i class="fas fa-sync"></i>
-                                    </button> --}}
-                                </div>
-                            </td>
-                        </tr>
-                        @endforeach
-                        @endif 
-                       
+                    @endforelse
                     </tbody>
                 </table>
             </div>
+
+            @if($orderErrors->count())
+            <div class="sx-section">
+                <h6>Orders that need attention</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm sx-log">
+                        <thead><tr><th>Order</th><th>Shopify #</th><th>AWB</th><th>Status</th><th>Problem</th></tr></thead>
+                        <tbody>
+                        @foreach($orderErrors as $o)
+                            <tr>
+                                <td>{{ $o->order_number }}</td>
+                                <td>#{{ $o->shopify_order_number }}</td>
+                                <td>{{ $o->awb_number ?: '—' }}</td>
+                                <td>{{ $o->shipping_status ?: '—' }}</td>
+                                <td class="sx-errtext">{{ $o->shopify_sync_error }}</td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @endif
+
+            @if($logs->count())
+            <div class="sx-section">
+                <h6>Sync log <span class="sx-small">(latest 30)</span></h6>
+                <div class="table-responsive">
+                    <table class="table table-sm sx-log">
+                        <thead><tr><th>Time</th><th>Type</th><th>Action</th><th>Result</th><th>Details</th></tr></thead>
+                        <tbody>
+                        @foreach($logs as $l)
+                            <tr>
+                                <td class="text-nowrap">{{ \Carbon\Carbon::parse($l->created_at)->timezone('Asia/Kolkata')->format('d M, h:i:s A') }}</td>
+                                <td>{{ ucfirst($l->direction) }}</td>
+                                <td>{{ str_replace('_', ' ', $l->action) }}</td>
+                                <td><span class="sx-pill {{ $l->success ? 'sx-ok' : 'sx-err' }}">{{ $l->success ? 'OK' : 'Failed' }}</span></td>
+                                <td class="sx-small" style="white-space:normal;max-width:420px">{{ $l->message }}</td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @endif
         </div>
     </div>
 </div>
 
 <script>
-function syncChannel(channelId) {
-    if (confirm('Are you sure you want to sync this channel?')) {
-        // Show loading state
-        const syncBtn = event.target.closest('button');
-        const originalHTML = syncBtn.innerHTML;
-        syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        syncBtn.disabled = true;
-        
-        // Make AJAX request to sync orders
-        fetch('{{ route("shopify.sync.orders") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({
-                channel_id: channelId
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Channel synced successfully!');
-                location.reload();
-            } else {
-                alert('Failed to sync channel: ' + (data.message || 'Unknown error'));
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Failed to sync channel. Please try again.');
-        })
-        .finally(() => {
-            // Reset button state
-            syncBtn.innerHTML = originalHTML;
-            syncBtn.disabled = false;
-        });
-    }
-}
+document.getElementById('chSearch')?.addEventListener('input', function () {
+    var q = this.value.toLowerCase();
+    document.querySelectorAll('#chTable tbody tr').forEach(function (tr) {
+        tr.style.display = tr.innerText.toLowerCase().indexOf(q) > -1 ? '' : 'none';
+    });
+});
 </script>
 @endsection
