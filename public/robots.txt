@@ -1,2 +1,5 @@
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /site/api/
+
+Sitemap: https://shipxpeed.tech/sitemap.xml
