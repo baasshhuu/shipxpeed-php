@@ -734,43 +734,71 @@ public function reversegetServiceability(array $params): array
 
     public function cancelShipment($awb)
     {
-        $token = 'a6cd5bb955fddcb41757ec23ee92cf62b6650607'; // <-- Replace with actual token
+        $token = env('DELHIVERY_B2C_TOKEN', 'a6cd5bb955fddcb41757ec23ee92cf62b6650607');
 
-        $seller = Auth::guard('seller')->user();
         $order = Order::where('awb_number', $awb)->first();
+        if (! $order) {
+            return ['status' => false, 'message' => 'Order not found for AWB ' . $awb];
+        }
 
         $response = Http::withHeaders([
             'Authorization' => 'Token ' . $token,
             'Content-Type'  => 'application/json',
+            'Accept'        => 'application/json',
         ])->post('https://track.delhivery.com/api/p/edit', [
             'waybill'      => $awb,
             'cancellation' => 'true',
         ]);
 
-        if ($response->successful()) {
+        $body   = $response->json() ?? [];
+        $remark = (string) ($body['remark'] ?? $body['error'] ?? $body['message'] ?? $response->body());
+        \Log::info('Delhivery cancel response', ['awb' => $awb, 'http' => $response->status(), 'body' => $body ?: $response->body()]);
+
+        // Delhivery returns HTTP 200 even on failure - check the body.
+        $cancelled = $response->successful() && (
+            ($body['status'] ?? null) === true
+            || strcasecmp((string) ($body['status'] ?? ''), 'true') === 0
+            || stripos($remark, 'cancelled') !== false   // "Shipment has been cancelled" / "already cancelled"
+        );
+
+        if (! $cancelled) {
+            return [
+                'status'       => false,
+                'message'      => 'Delhivery: ' . ($remark ?: 'Unknown error'),
+                'responseCode' => $response->status(),
+            ];
+        }
+
+        \DB::transaction(function () use ($order, $awb) {
+            $order = Order::lockForUpdate()->find($order->id);
+            if (strtolower((string) $order->order_status) === 'cancelled') {
+                return; // already processed - no double refund
+            }
 
             $order->order_status = 'cancelled';
             $order->save();
 
-            Recharge::create([
-                'seller_id'   => $seller->id,
-                'type'        => 'Credit',
-                'amount'      => $order->seller_amount_walate,
-                'status'      => 1,
-                'description' => 'Order cancelled',
-            ]);
+            $refundDesc = 'Order cancelled - refund AWB ' . $awb;
+            $alreadyRefunded = Recharge::where('seller_id', $order->seller_id)
+                ->where('type', 'Credit')
+                ->where('description', $refundDesc)
+                ->exists();
 
-            return [
-                'status' => true,
-                'message' => 'Order cancelled successfully',
-                'data' => $response->json(),
-                'responseCode' => $response->status()
-            ];
-        }
+            if (! $alreadyRefunded && (float) $order->seller_amount_walate > 0) {
+                Recharge::create([
+                    'seller_id'   => $order->seller_id,
+                    'type'        => 'Credit',
+                    'amount'      => $order->seller_amount_walate,
+                    'status'      => 1,
+                    'description' => $refundDesc,
+                ]);
+            }
+        });
 
         return [
-            'status' => false,
-            'message' => $response->json()['error'] ?? 'Unknown error',
+            'status'       => true,
+            'message'      => 'Order cancelled successfully',
+            'data'         => $body,
             'responseCode' => $response->status(),
         ];
     }
