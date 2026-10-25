@@ -54,6 +54,7 @@ public function serviceabilitybulk(Request $request)
                     'serviceabilityId'     => $slot['serviceabilityId'] ?? null,
                     'courierName'          => $slot['courierName'] ?? 'N/A',
                     'courierImage'         => $prov->logo,
+                    'logoHint' => $slot['logoHint'] ?? null,
                     'courierType'          => 1,
                     'courier_cat_id'       => 1,
                     'courier_partner_id'   => $prov->id,
@@ -138,6 +139,7 @@ public function serviceabilitybulk(Request $request)
                     'serviceabilityId'     => $slot['serviceabilityId'],
                     'courierName'          => $slot['courierName'],
                     'courierImage'         => $prov->logo,
+                    'logoHint' => $slot['logoHint'] ?? null,
                     'courierType'          => 1,                  // or derive if you have a column
                     'courier_cat_id'       => 1,                  // your business logic
                     'courier_partner_id'   => $prov->id,
@@ -239,6 +241,7 @@ public function serviceabilitybulk(Request $request)
                     'serviceabilityId'     => $slot['serviceabilityId'],
                     'courierName'          => $slot['courierName'],
                     'courierImage'         => $prov->logo,
+                    'logoHint' => $slot['logoHint'] ?? null,
                     'courierType'          => 1,                  // or derive if you have a column
                     'courier_cat_id'       => 1,                  // your business logic
                     'courier_partner_id'   => $prov->id,
