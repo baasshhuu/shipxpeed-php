@@ -97,7 +97,10 @@ class ServiceabilityController extends Controller
                         case 'boxd':
                             $providerResults = $this->callBoxdAPI($params);
                             break;
-                            case 'shiprocket':
+                            case 'shipclues':
+                            $providerResults = app('courier.shipclues')->getRatesForParams($params);
+                            break;
+                        case 'shiprocket':
                             $providerResults = $this->callshiprocketAPI($params);
                             break;
                         case 'tekipost':
@@ -1872,7 +1875,12 @@ public function callDtdcAPI(array $params): array
                 'package_length' => 'required|numeric|min:1',
                 'package_breadth' => 'required|numeric|min:1',
                 'package_height' => 'required|numeric|min:1',
-                'courier_id' => 'nullable|string|in:delhivery_250gms,amazon_2kg,dtdc_air,dtdc_surface_500gm,delhivery_5kg,delhivery,bluedart_air_500gms,bluedart_surface_500gms,dtdc_surface_1kg,amazon_0_5kg,delhivery_air,delhivery_10kg,Delhivery_500gm,Amazon_500gm,xpressbee_250gms,Delhivery_ 250gms,bluedart_2kg_surface,Amazon_2kg,Amazon_1kg,sell_Ekart_2KG,shadowfax',
+                'courier_id' => ['nullable', 'string', function ($attribute, $value, $fail) {
+                    $allowed = explode(',', 'delhivery_250gms,amazon_2kg,dtdc_air,dtdc_surface_500gm,delhivery_5kg,delhivery,bluedart_air_500gms,bluedart_surface_500gms,dtdc_surface_1kg,amazon_0_5kg,delhivery_air,delhivery_10kg,Delhivery_500gm,Amazon_500gm,xpressbee_250gms,Delhivery_ 250gms,bluedart_2kg_surface,Amazon_2kg,Amazon_1kg,sell_Ekart_2KG,shadowfax');
+                    if (!in_array($value, $allowed, true) && !str_starts_with((string) $value, 'shipclues_')) {
+                        $fail('The selected courier id is invalid.');
+                    }
+                }],
                 'rto.warehouse_name' => 'nullable|string|max:255',
                 'rto.name' => 'nullable|string|max:255',
                 'rto.address' => 'nullable|string|max:500',
@@ -1966,7 +1974,10 @@ public function callDtdcAPI(array $params): array
                                                     //    dd($providerResults);
 
                                 break;
-                            case 'shiprocket':
+                            case 'shipclues':
+                            $providerResults = app('courier.shipclues')->getRatesForParams($serviceabilityParams);
+                            break;
+                        case 'shiprocket':
                                 $providerResults = $this->callshiprocketAPI($serviceabilityParams);
                                 break;
                             default:
@@ -2068,7 +2079,19 @@ public function callDtdcAPI(array $params): array
 
                 ];
 
-                if (isset($courierMapping[$request->courier_id])) {
+                if (str_starts_with((string) $request->courier_id, 'shipclues_')) {
+                // Shipclues couriers: courier_id = "shipclues_<Shipclues courier id>" (from the serviceability response)
+                $assignmentResult = app('courier.shipclues')->assignOrder([
+                    'order_id' => $order->id,
+                    'serviceability_id' => (int) substr((string) $request->courier_id, strlen('shipclues_')),
+                    'seller_id' => $sellerid,
+                ]);
+                $courierAssigned = !empty($assignmentResult['status']);
+                if ($courierAssigned) {
+                    $order->refresh();
+                    $courierMapping[$request->courier_id] = $assignmentResult['courier_name'] ?? 'Shipclues';
+                }
+            } elseif (isset($courierMapping[$request->courier_id])) {
                     $providerName = $courierMapping[$request->courier_id];
                     
                     // Find courier charge from serviceability results based on courier_id mapping
