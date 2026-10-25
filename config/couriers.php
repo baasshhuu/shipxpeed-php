@@ -18,5 +18,6 @@ return [
      'selloship' => \App\Services\selloshipService::class,
 
     'delhivery_zapdeal' => \App\Services\DelhiveryZapdealService::class,
+    'fship' => \App\Services\FshipService::class,
     // …add as you onboard more
 ];

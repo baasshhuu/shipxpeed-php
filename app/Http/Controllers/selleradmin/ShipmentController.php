@@ -1521,21 +1521,30 @@ protected function prepareRequestData(Request $request)
  
         }
         else {
-
-
-            // $order = Order::where('id', $orderId)->first();
-            // $params = json_decode($order->DelhiveryServiceb2b);  
-
-        }
-
-        //   dd($key);
-        // dd($params);
-        if ($logisticProvider && $logisticProvider->code === 'shipclues') {
+            // Generic adapters (e.g. Fship): order id + chosen courier name/id
+            $order = Order::where('id', $orderId)->first();
             $params = [
                 'order_id' => $orderId,
                 'provider_name' => $provider_name,
                 'serviceability_id' => $serviceability_id,
             ];
+            $order->seller_amount_walate = $courierCharge;
+            $order->save();
+        }
+
+        //   dd($key);
+        // dd($params);
+        if ($logisticProvider && in_array($logisticProvider->code, ['shipclues', 'fship'], true)) {
+            $params = [
+                'order_id' => $orderId,
+                'provider_name' => $provider_name,
+                'serviceability_id' => $serviceability_id,
+            ];
+            $order = $order ?? Order::where('id', $orderId)->first();
+            if ($order && $logisticProvider->code === 'fship') {
+                $order->seller_amount_walate = $courierCharge;
+                $order->save();
+            }
         }
 
         $response = app($key)->assignOrder($params);
@@ -1562,6 +1571,21 @@ if (
     return redirect()
         ->route('seller.order')
         ->with('success', 'Order successfully assigned! AWB: ' . $response['awb_number']);
+}
+
+
+if (
+    !empty($response['couriername']) &&
+    $response['couriername'] === 'fship'
+) {
+    if (!empty($response['status']) && !empty($response['awb_number'])) {
+        return redirect()
+            ->route('seller.order')
+            ->with('success', 'Order successfully assigned! AWB: ' . $response['awb_number'] . (!empty($response['pickup_message']) ? ' (' . $response['pickup_message'] . ')' : ''));
+    }
+}
+if (empty($response['status']) && !empty($response['message']) && $logisticProvider->code === 'fship') {
+    return redirect()->route('seller.order')->with('error', $response['message']);
 }
 
 
@@ -1773,7 +1797,7 @@ if (
 
                 // Prepare parameters based on courier type
                 $params = $this->prepareBulkCourierParams($courierId, $orderId, $provider_name, $codCharges, $serviceability_id);
-                if ($logisticProvider->code === 'shipclues') {
+                if (in_array($logisticProvider->code, ['shipclues', 'fship'], true)) {
                     $params = [
                         'order_id' => $orderId,
                         'provider_name' => $provider_name,
@@ -1848,7 +1872,8 @@ if (
         } else {
             return [
                 'order_id' => $orderId,
-                'provider_name' => $provider_name
+                'provider_name' => $provider_name,
+                'serviceability_id' => $serviceability_id,
             ];
         }
     }
@@ -1860,6 +1885,13 @@ if (
             return !empty($response['status'])
                 ? ['success' => true, 'awb' => $response['awb_number']]
                 : ['success' => false, 'message' => $response['message'] ?? 'Shipclues assignment failed'];
+        }
+
+        // Fship response
+        if (!empty($response['couriername']) && $response['couriername'] === 'fship') {
+            return !empty($response['status']) && !empty($response['awb_number'])
+                ? ['success' => true, 'awb' => $response['awb_number']]
+                : ['success' => false, 'message' => $response['message'] ?? 'Fship booking failed'];
         }
 
         // Shiprocket response

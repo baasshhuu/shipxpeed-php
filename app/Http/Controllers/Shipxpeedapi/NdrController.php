@@ -65,6 +65,16 @@ class NdrController extends Controller
             return $this->boxdNdrReattempt($request, $sellerid);
         } elseif (in_array($courierId, ['parcelx', 'Delhivery 500gm'])) {
             return $this->parcelXNdrReattempt($request, $awb, $sellerid);
+        } elseif ($courierId === 'fship') {
+            $action = in_array($request->action, ['re-attempt', 'change-address', 'change-phone', 'rto'], true) ? $request->action : 're-attempt';
+            return app(\App\Services\FshipService::class)->ndrAction($order, $action, [
+                'reattempt_date' => $request->reattempt_date,
+                'address'        => $request->address,
+                'phone'          => $request->phone,
+                'name'           => $request->name,
+                'landmark'       => $request->landmark,
+                'remark'         => $request->remark,
+            ]);
         } else {
             return [
                 'status' => false,

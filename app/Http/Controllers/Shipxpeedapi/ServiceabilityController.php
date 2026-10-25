@@ -100,6 +100,9 @@ class ServiceabilityController extends Controller
                             case 'shipclues':
                             $providerResults = app('courier.shipclues')->getRatesForParams($params);
                             break;
+                        case 'fship':
+                            $providerResults = app('courier.fship')->getRatesForParams($params);
+                            break;
                         case 'shiprocket':
                             $providerResults = $this->callshiprocketAPI($params);
                             break;
@@ -1877,7 +1880,7 @@ public function callDtdcAPI(array $params): array
                 'package_height' => 'required|numeric|min:1',
                 'courier_id' => ['nullable', 'string', function ($attribute, $value, $fail) {
                     $allowed = explode(',', 'delhivery_250gms,amazon_2kg,dtdc_air,dtdc_surface_500gm,delhivery_5kg,delhivery,bluedart_air_500gms,bluedart_surface_500gms,dtdc_surface_1kg,amazon_0_5kg,delhivery_air,delhivery_10kg,Delhivery_500gm,Amazon_500gm,xpressbee_250gms,Delhivery_ 250gms,bluedart_2kg_surface,Amazon_2kg,Amazon_1kg,sell_Ekart_2KG,shadowfax');
-                    if (!in_array($value, $allowed, true) && !str_starts_with((string) $value, 'shipclues_')) {
+                    if (!in_array($value, $allowed, true) && !str_starts_with((string) $value, 'shipclues_') && !str_starts_with((string) $value, 'fship_')) {
                         $fail('The selected courier id is invalid.');
                     }
                 }],
@@ -1976,6 +1979,9 @@ public function callDtdcAPI(array $params): array
                                 break;
                             case 'shipclues':
                             $providerResults = app('courier.shipclues')->getRatesForParams($serviceabilityParams);
+                            break;
+                            case 'fship':
+                            $providerResults = app('courier.fship')->getRatesForParams($serviceabilityParams);
                             break;
                         case 'shiprocket':
                                 $providerResults = $this->callshiprocketAPI($serviceabilityParams);
@@ -2090,6 +2096,18 @@ public function callDtdcAPI(array $params): array
                 if ($courierAssigned) {
                     $order->refresh();
                     $courierMapping[$request->courier_id] = $assignmentResult['courier_name'] ?? 'Shipclues';
+                }
+            } elseif (str_starts_with((string) $request->courier_id, 'fship_')) {
+                // Fship couriers: courier_id = "fship_<Fship courierId>" (from the serviceability response)
+                $assignmentResult = app('courier.fship')->assignOrder([
+                    'order_id' => $order->id,
+                    'serviceability_id' => (int) substr((string) $request->courier_id, strlen('fship_')),
+                    'seller_id' => $sellerid,
+                ]);
+                $courierAssigned = !empty($assignmentResult['status']);
+                if ($courierAssigned) {
+                    $order->refresh();
+                    $courierMapping[$request->courier_id] = $order->courier_name ?: 'Fship';
                 }
             } elseif (isset($courierMapping[$request->courier_id])) {
                     $providerName = $courierMapping[$request->courier_id];

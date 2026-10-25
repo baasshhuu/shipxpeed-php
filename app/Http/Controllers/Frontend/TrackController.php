@@ -36,9 +36,29 @@ public function trackOrder(Request $request)
             return $this->trackWithshadowfax($awb);
         case 'delhivery_b2c':
             return $this->trackWithDelhiveryB2C($awb);
+        case 'fship':
+            return $this->trackWithFship($awb);
         default:
             return redirect()->back()->withErrors(['error' => 'Tracking not available for this courier.']);
     }
+}
+
+private function trackWithFship($awb)
+{
+    $t = app(\App\Services\FshipService::class)->track($awb);
+    if (empty($t['status'])) {
+        return redirect()->back()->withErrors(['error' => $t['message'] ?? 'Tracking not available yet.']);
+    }
+    // Same shape the tracking page already renders for Delhivery
+    $trackWithDelhiveryB2C = [
+        'awb_number'   => $t['awb_number'],
+        'order_number' => $t['order_number'],
+        'order_id'     => $t['order_id'],
+        'status'       => $t['raw_status'] ?? 'N/A',
+        'created'      => $t['created'],
+        'history'      => $t['history'],
+    ];
+    return view('frontend.website.pages.trackorder', compact('trackWithDelhiveryB2C'));
 }
 
 
