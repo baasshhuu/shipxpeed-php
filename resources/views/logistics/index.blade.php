@@ -9,6 +9,11 @@
                 </div>
                 <div class="col-auto ms-auto">
                     <div class="nav nav-pills nav-pills-falcon">
+                        @if (Helper::userCan(104, 'can_edit'))
+                            <a href="{{ route('shipclues.settings') }}" class="btn btn-outline-primary me-2">
+                                Shipclues Settings
+                            </a>
+                        @endif
                         @if (Helper::userCan(104, 'can_add'))
                             <a href="{{ route('logistics.add') }}" class="btn btn-outline-secondary">
                                 <i class="fa fa-plus me-1"></i>

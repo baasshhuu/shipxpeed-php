@@ -30,6 +30,14 @@ class Kernel extends ConsoleKernel
         ->everyMinute()
         ->appendOutputTo(storage_path('logs/scheduler.log'));
 
+        // Shipclues: refresh tracking status of open shipments
+        $schedule
+            ->command('shipclues:track')
+            ->everyThirtyMinutes()
+            ->withoutOverlapping(30)
+            ->runInBackground()
+            ->appendOutputTo(storage_path('logs/shipclues-track.log'));
+
         // Shopify: pull new orders + push AWB / shipment status back
         $schedule
         ->command('shopify:sync')
