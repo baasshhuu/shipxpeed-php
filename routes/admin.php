@@ -277,6 +277,9 @@ Route::post('/SendWhatsApp-send-message', [\App\Http\Controllers\admin\SendWhats
     });
      Route::match(['get', 'post'], 'logistics/status/{id}/{status}', [logisticsController::class, 'status'])->name('logistics.status');
     Route::match(['get', 'post'], 'logistics/delete/{id}', [logisticsController::class, 'destroy'])->name('logistics.delete');
+    // ----------------------- Shipclues settings ----------------------------------------------------
+    Route::get('logistics-shipclues', [\App\Http\Controllers\admin\ShipcluesSettingController::class, 'index'])->name('shipclues.settings')->middleware('isAllow:104,can_edit');
+    Route::post('logistics-shipclues', [\App\Http\Controllers\admin\ShipcluesSettingController::class, 'save'])->name('shipclues.settings.save')->middleware('isAllow:104,can_edit');
 
 
 
