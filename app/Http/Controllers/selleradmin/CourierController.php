@@ -72,6 +72,7 @@ class CourierController extends Controller
                             $logisticProviders[] = array_merge($courier, [
 
                 'provider_logo' => match (true) {
+                    !empty($courier['logoHint']) => $courier['logoHint'],
                     str_starts_with($courier['courierName'], 'Amazon_') => 'brands/1703c4f8-55a6-4923-8c94-9bcb98f39c2d.jpeg',
                     $courier['courierName'] === 'DTDC-SMART' => 'brands/1750337596_images-removebg-preview.png',
                     $courier['courierName'] === 'Bluedart- Surface' => 'brands/1750337705_WhatsApp_Image_2025-06-19_at_5.17.34_PM__1_-removebg-preview.png',
@@ -113,7 +114,7 @@ class CourierController extends Controller
                     default => $localProvider->logo ?? null,
                 },
 
-                                'provider_name' => ($localProvider && in_array($localProvider->name, ['Smartship','Tekipost','Boxd','DTDC','Parcelx','Shiprocket','selloship']))
+                                'provider_name' => ($localProvider && in_array($localProvider->name, ['Smartship','Tekipost','Boxd','DTDC','Parcelx','Shiprocket','selloship','Shipclues']))
                                 ? match ($courier['courierName']) {
                                     'Bluedart 500 grams new' => 'Bluedart Surface 500gms',
                                     'Bluedart Air' => 'Bluedart Air 500gms',
@@ -244,6 +245,7 @@ class CourierController extends Controller
 
 
             'provider_logo' => match (true) {
+                !empty($courier['logoHint']) => $courier['logoHint'],
                 str_starts_with($courier['courierName'], 'Amazon_') => 'brands/1703c4f8-55a6-4923-8c94-9bcb98f39c2d.jpeg',
                 $courier['courierName'] === 'DTDC-SMART' => 'brands/1750337596_images-removebg-preview.png',
                 $courier['courierName'] === 'Bluedart- Surface' => 'brands/1750337705_WhatsApp_Image_2025-06-19_at_5.17.34_PM__1_-removebg-preview.png',
@@ -287,7 +289,7 @@ class CourierController extends Controller
             },
 
 
-                            'provider_name' => ($localProvider && in_array($localProvider->name, ['Smartship','Tekipost','Boxd','DTDC','Parcelx','Shiprocket','selloship','Ekart']))
+                            'provider_name' => ($localProvider && in_array($localProvider->name, ['Smartship','Tekipost','Boxd','DTDC','Parcelx','Shiprocket','selloship','Shipclues','Ekart']))
                             ? match ($courier['courierName']) {
                                 'Bluedart 500 grams new' => 'Bluedart Surface 500gms',
                                 'Bluedart Air' => 'Bluedart Air 500gms',
@@ -577,6 +579,7 @@ class CourierController extends Controller
 
 
             'provider_logo' => match (true) {
+                !empty($courier['logoHint']) => $courier['logoHint'],
                 str_starts_with($courier['courierName'], 'Amazon_') => 'brands/1703c4f8-55a6-4923-8c94-9bcb98f39c2d.jpeg',
                 $courier['courierName'] === 'DTDC-SMART' => 'brands/1750337596_images-removebg-preview.png',
                 $courier['courierName'] === 'Bluedart- Surface' => 'brands/1750337705_WhatsApp_Image_2025-06-19_at_5.17.34_PM__1_-removebg-preview.png',

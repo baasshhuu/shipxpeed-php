@@ -1530,7 +1530,22 @@ protected function prepareRequestData(Request $request)
 
         //   dd($key);
         // dd($params);
+        if ($logisticProvider && $logisticProvider->code === 'shipclues') {
+            $params = [
+                'order_id' => $orderId,
+                'provider_name' => $provider_name,
+                'serviceability_id' => $serviceability_id,
+            ];
+        }
+
         $response = app($key)->assignOrder($params);
+
+        if (($response['couriername'] ?? null) === 'shipclues') {
+            if (!empty($response['status'])) {
+                return redirect()->route('seller.order')->with('success', 'Courier assigned successfully! AWB: ' . $response['awb_number']);
+            }
+            return redirect()->route('seller.order')->with('error', $response['message'] ?? 'Failed to assign courier. Please try again later.');
+        }
         // dd($response); 
         // //   return $response;
 
@@ -1758,6 +1773,13 @@ if (
 
                 // Prepare parameters based on courier type
                 $params = $this->prepareBulkCourierParams($courierId, $orderId, $provider_name, $codCharges, $serviceability_id);
+                if ($logisticProvider->code === 'shipclues') {
+                    $params = [
+                        'order_id' => $orderId,
+                        'provider_name' => $provider_name,
+                        'serviceability_id' => $serviceability_id,
+                    ];
+                }
                 
                 // Update seller wallet amount
                 $order->seller_amount_walate = $courierCharge;
@@ -1833,6 +1855,13 @@ if (
 
     private function processBulkCourierResponse($response, $order, $orderId)
     {
+        // Shipclues response
+        if (($response['couriername'] ?? null) === 'shipclues') {
+            return !empty($response['status'])
+                ? ['success' => true, 'awb' => $response['awb_number']]
+                : ['success' => false, 'message' => $response['message'] ?? 'Shipclues assignment failed'];
+        }
+
         // Shiprocket response
         if (!empty($response['status']) && $response['status'] === true && 
             !empty($response['couriername']) && $response['couriername'] === 'shiprocket' && 
