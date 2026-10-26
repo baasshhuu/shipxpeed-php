@@ -73,8 +73,8 @@ class SellerApiDocs
                     'total_providers' => 3,
                     'data' => [
                         ['courier_id' => 'delhivery', 'bookable' => true, 'courierName' => 'Delhivery', 'courierCharge' => 96.76, 'freightCharges' => 62.0, 'codCharge' => 20.0, 'zone' => 'D', 'chargeable_weight' => 500, 'provider_name' => 'ShipXpeed'],
-                        ['courier_id' => 'sx1_14', 'bookable' => true, 'courierName' => 'Xpressbees Surface', 'courierCharge' => 89.5, 'freightCharges' => 58.0, 'codCharge' => 18.0, 'zone' => 'D', 'estimated_delivery_date' => '2026-10-31', 'chargeable_weight' => 500, 'provider_name' => 'ShipXpeed'],
-                        ['courier_id' => 'sx2_7', 'bookable' => true, 'courierName' => 'Ekart Surface', 'courierCharge' => 84.0, 'freightCharges' => 54.0, 'codCharge' => 17.0, 'zone' => 'D', 'estimated_delivery_date' => '2026-11-01', 'chargeable_weight' => 500, 'provider_name' => 'ShipXpeed'],
+                        ['courier_id' => 'sxc_14', 'bookable' => true, 'courierName' => 'Xpressbees Surface', 'courierCharge' => 89.5, 'freightCharges' => 58.0, 'codCharge' => 18.0, 'zone' => 'D', 'estimated_delivery_date' => '2026-10-31', 'chargeable_weight' => 500, 'provider_name' => 'ShipXpeed'],
+                        ['courier_id' => 'sxf_7', 'bookable' => true, 'courierName' => 'Ekart Surface', 'courierCharge' => 84.0, 'freightCharges' => 54.0, 'codCharge' => 17.0, 'zone' => 'D', 'estimated_delivery_date' => '2026-11-01', 'chargeable_weight' => 500, 'provider_name' => 'ShipXpeed'],
                     ],
                 ],
                 'response_fields' => [
@@ -141,7 +141,7 @@ class SellerApiDocs
                     'order_number' => '#5588',
                     'payment_type' => 'cod',
                     'collectable_amount' => 1299,
-                    'courier_id' => 'sx1_14',
+                    'courier_id' => 'sxc_14',
                     'consignee' => [
                         'name' => 'Priya Sharma', 'phone' => '9876543210', 'email' => 'priya@example.com',
                         'address' => 'Flat 12, Sea View Apartments', 'address_2' => 'Colaba Causeway',
@@ -167,7 +167,7 @@ class SellerApiDocs
                         'customer_order_id' => '#5588',
                         'awb_number' => '14344940012345',
                         'courier_assigned' => true,
-                        'courier_id' => 'sx1_14',
+                        'courier_id' => 'sxc_14',
                         'courier_name' => 'Xpressbees Surface',
                         'payment_type' => 'cod',
                         'order_amount' => 1299,

@@ -13,13 +13,17 @@ use Illuminate\Http\Request;
  * - Accepts "Authorization: <token>" or "Authorization: Bearer <token>".
  * - Rejects missing / unknown tokens with a JSON 401, normalises the header to the raw token
  *   (the API controllers look the seller up by it) and exposes the seller as "api_seller".
- * - Partner-network courier IDs are shown to clients as sx1_<id> / sx2_<id>; both forms are
- *   accepted on the way in. Partner names are removed from JSON responses (links untouched).
+ * - Partner-network courier IDs are shown to clients as sxc_<id> / sxf_<id> (same convention as
+ *   ShipcluesService). sxf_ is turned back into fship_ on the way in; sxc_ is handled natively.
+ *   Partner names are removed from JSON responses (links untouched).
  */
 class SellerApiToken
 {
-    /** internal prefix => public prefix */
-    private const ID_PREFIXES = ['shipclues_' => 'sx1_', 'fship_' => 'sx2_'];
+    /** internal prefix => public prefix (outgoing) */
+    private const ID_PREFIXES = ['shipclues_' => 'sxc_', 'fship_' => 'sxf_'];
+
+    /** public prefix => internal prefix (incoming); sxc_ is accepted by the API controllers as is */
+    private const INCOMING_PREFIXES = ['sxf_' => 'fship_'];
 
     private const PARTNER_WORDS = '(shipclues|fship)';
 
@@ -65,7 +69,7 @@ class SellerApiToken
 
     public static function toInternalId(string $id): string
     {
-        foreach (self::ID_PREFIXES as $internal => $public) {
+        foreach (self::INCOMING_PREFIXES as $public => $internal) {
             if (str_starts_with($id, $public)) {
                 return $internal . substr($id, strlen($public));
             }

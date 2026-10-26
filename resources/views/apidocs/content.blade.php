@@ -373,8 +373,8 @@ Authorization: YOUR_API_TOKEN</code></pre>
                 <table class="sxapi-table">
                     <thead><tr><th>courier_id</th><th>Books</th></tr></thead>
                     <tbody>
-                        <tr><td class="mono">sx1_&lt;number&gt;</td><td>Network couriers (Xpressbees, Blue Dart, Ekart, Delhivery and more). The number identifies courier and service.</td></tr>
-                        <tr><td class="mono">sx2_&lt;number&gt;</td><td>Network couriers, second partner network. Same usage as sx1_.</td></tr>
+                        <tr><td class="mono">sxc_&lt;number&gt;</td><td>Network couriers (Xpressbees, Blue Dart, Ekart, Delhivery and more). The number identifies the courier and service.</td></tr>
+                        <tr><td class="mono">sxf_&lt;number&gt;</td><td>More network couriers. Same usage as sxc_.</td></tr>
                         @foreach ($docs->courierIds() as [$cid, $label])
                             <tr><td class="mono">{{ $cid }}</td><td>{{ $label }}</td></tr>
                         @endforeach
