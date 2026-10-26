@@ -71,8 +71,12 @@ Route::post('/process-rto-excel', [StatusController::class, 'processRTOFromExcel
 Route::post('/update-status-from-excel', [StatusController::class, 'updateStatusFromExcel']);
 Route::get('/processrto', [StatusController::class, 'processrto']);
 Route::get('/cancelShipment', [StatusController::class, 'cancelShipment']);
-Route::delete('/destroy', [StatusController::class, 'destroy']);
-Route::get('/orders', [StatusController::class, 'index']);
+// SECURITY: disabled - both had no authentication. /destroy deleted the newest 100 orders of ALL
+// sellers on every call; /orders listed every seller's orders. Not used anywhere in the app.
+// Route::delete('/destroy', [StatusController::class, 'destroy']);
+// Route::get('/orders', [StatusController::class, 'index']);
+Route::match(['get', 'delete'], '/destroy', fn () => response()->json(['success' => false, 'message' => 'Not available'], 404));
+Route::get('/orders', fn () => response()->json(['success' => false, 'message' => 'Not available'], 404));
 Route::post('/bulk-cancel-shipment', [StatusController::class, 'bulkCancelShipment']);
 
 // Route::get('/Shipment', [StatusController::class, 'Shipment']);
