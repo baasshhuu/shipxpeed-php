@@ -14,7 +14,8 @@ use Illuminate\Http\Request;
  * - Rejects missing / unknown tokens with a JSON 401, normalises the header to the raw token
  *   (the API controllers look the seller up by it) and exposes the seller as "api_seller".
  * - Partner-network courier IDs are shown to clients as sxc_<id> / sxf_<id> (same convention as
- *   ShipcluesService). sxf_ is turned back into fship_ on the way in; sxc_ is handled natively.
+ *   ShipcluesService) and turned back into shipclues_<id> / fship_<id> on the way in - the form
+ *   every version of the API controllers accepts.
  *   Partner names are removed from JSON responses (links untouched).
  */
 class SellerApiToken
@@ -22,8 +23,8 @@ class SellerApiToken
     /** internal prefix => public prefix (outgoing) */
     private const ID_PREFIXES = ['shipclues_' => 'sxc_', 'fship_' => 'sxf_'];
 
-    /** public prefix => internal prefix (incoming); sxc_ is accepted by the API controllers as is */
-    private const INCOMING_PREFIXES = ['sxf_' => 'fship_'];
+    /** public prefix => internal prefix (incoming) */
+    private const INCOMING_PREFIXES = ['sxc_' => 'shipclues_', 'sxf_' => 'fship_'];
 
     private const PARTNER_WORDS = '(shipclues|fship)';
 
