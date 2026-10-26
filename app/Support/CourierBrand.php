@@ -80,6 +80,43 @@ class CourierBrand
         return $clean !== '' ? $clean : $fallback;
     }
 
+    /** True when a display name is an aggregator account name (e.g. "Shipclues"). */
+    public static function isAggregatorName(?string $name): bool
+    {
+        $n = strtolower(trim((string) $name));
+        if ($n === '') {
+            return false;
+        }
+        foreach (self::AGGREGATORS as $agg) {
+            if (str_contains($n, $agg)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Name and logo to show a seller for one courier option (array from the serviceability list).
+     * Aggregator rows show the actual courier underneath; missing images get a real brand logo or the neutral one.
+     *
+     * @return array{0: string, 1: string} [name, logo path]
+     */
+    public static function forSeller(array $p): array
+    {
+        $providerName = trim((string) ($p['provider_name'] ?? ''));
+        $courierName = trim((string) ($p['courierName'] ?? ''));
+        $aggregator = self::isAggregatorName($providerName);
+
+        $name = self::cleanName(($providerName === '' || $aggregator) ? $courierName : $providerName);
+
+        $logo = (string) ($p['provider_logo'] ?? '');
+        if ($aggregator || !self::isSafeLogo($logo)) {
+            $logo = self::sellerLogo($name, $p['logoHint'] ?? null);
+        }
+
+        return [$name, $logo];
+    }
+
     /** A hint is safe when it is a local file that does not name an aggregator. */
     private static function isSafeLogo(?string $path): bool
     {
