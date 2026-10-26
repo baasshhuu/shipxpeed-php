@@ -317,6 +317,10 @@ Route::post('/SendWhatsApp-send-message', [\App\Http\Controllers\admin\SendWhats
             Route::get('zone-price-download-template', 'downloadTemplate')->name('zone.pricesetting.download.template')->middleware('isAllow:104,can_add');
              Route::get('zone-pricesetting-edit/{id}', 'edit')->name('zone.pricesetting.edit')->middleware('isAllow:104,can_edit');
          Route::post('zone-pricesetting-update/{id}', 'update')->name('zone.pricesetting.update')->middleware('isAllow:104,can_edit');
+            Route::post('zone-price/courier-toggle', 'toggleCourier')->name('zone.price.courier.toggle')->middleware('isAllow:104,can_add');
+            Route::post('zone-price/save-grid', 'saveGrid')->name('zone.price.save.grid')->middleware('isAllow:104,can_add');
+            Route::get('zone-price/rate-template', 'downloadRateTemplate')->name('zone.price.rate.template')->middleware('isAllow:104,can_add');
+            Route::post('zone-price/rate-upload', 'uploadRates')->name('zone.price.rate.upload')->middleware('isAllow:104,can_add');
 
         // Route::get('zone-pricesetting-add', 'add')->name('zone.pricesetting.add')->middleware('isAllow:104,can_add');
         // Route::post('zone-pricesetting-data-add', 'save')->name('zone.pricesetting.data.add')->middleware('isAllow:104,can_add');

@@ -154,7 +154,15 @@ class ShipcluesService implements CourierServiceInterface
                 $isCod
             );
 
-            return array_map(fn ($r) => $this->toServiceabilityEntry($r), $rates);
+            $ctx = [
+                'seller_id' => (int) $order->seller_id,
+                'zone' => \App\Support\RateCard::zoneForStates($pickup['state'] ?? null, $consignee['state'] ?? null),
+                'cod' => $isCod,
+                'amount' => (float) $order->collectable_amount,
+            ];
+            $rates = array_values(array_filter($rates, fn ($r) => !$this->hiddenForSeller($ctx['seller_id'], $r)));
+
+            return array_map(fn ($r) => $this->toServiceabilityEntry($r, $ctx), $rates);
         } catch (\Throwable $e) {
             Log::error('Shipclues getServiceability failed: ' . $e->getMessage(), ['order_id' => $params['order_id'] ?? null]);
             return [];
@@ -199,8 +207,19 @@ class ShipcluesService implements CourierServiceInterface
                 strtolower((string) ($params['payment_type'] ?? 'prepaid')) === 'cod'
             );
 
-            return array_map(function ($r) {
-                $e = $this->toServiceabilityEntry($r);
+            $isCod = strtolower((string) ($params['payment_type'] ?? 'prepaid')) === 'cod';
+            $ctx = [
+                'seller_id' => (int) ($params['seller_id'] ?? 0),
+                'zone' => \App\Support\RateCard::zoneForStates($params['origin_state'] ?? $params['pickup_state'] ?? null, $params['destination_state'] ?? $params['delivery_state'] ?? null),
+                'cod' => $isCod,
+                'amount' => (float) ($params['collectable_amount'] ?? $params['order_amount'] ?? 0),
+            ];
+            if ($ctx['seller_id']) {
+                $rates = array_values(array_filter($rates, fn ($r) => !$this->hiddenForSeller($ctx['seller_id'], $r)));
+            }
+
+            return array_map(function ($r) use ($ctx) {
+                $e = $this->toServiceabilityEntry($r, $ctx);
                 return [
                     'courier_id' => 'sxc_' . $e['serviceabilityId'],
                     'courierName' => $e['courierName'],
@@ -243,7 +262,52 @@ class ShipcluesService implements CourierServiceInterface
         });
     }
 
-    private function toServiceabilityEntry(array $r): array
+    /** Rate-card key used on Admin > Zone Price Setting, e.g. "Shipclues_Delhivery_Surface". */
+    public static function rateKey(?string $courierName): string
+    {
+        $name = \App\Support\CourierBrand::cleanName($courierName);
+        return 'Shipclues_' . trim(preg_replace('/[^A-Za-z0-9]+/', '_', $name), '_');
+    }
+
+    /** key => label of the couriers this Shipclues account offers (sample Delhi -> Hyderabad route). */
+    public static function rateCardCouriers(): array
+    {
+        $svc = new self();
+        if (!$svc->enabled()) {
+            return [];
+        }
+        $out = [];
+        foreach ([false, true] as $cod) {
+            foreach ($svc->rateCalculator('110053', '500001', 500, 10, 10, 10, $cod) as $r) {
+                $label = \App\Support\CourierBrand::cleanName($r['courier_name'] ?? null);
+                $out[self::rateKey($r['courier_name'] ?? null)] = $label;
+            }
+        }
+        return $out;
+    }
+
+    private function hiddenForSeller(int $sellerId, array $r): bool
+    {
+        return $sellerId > 0 && \App\Support\RateCard::hiddenFor($sellerId, self::rateKey($r['courier_name'] ?? null), 'Shipclues');
+    }
+
+    /** Seller price from the zone rate card when one is set for this courier, else null (markup applies). */
+    private function rateCardPrice(array $r, array $ctx): ?array
+    {
+        if (empty($ctx['seller_id'])) {
+            return null;
+        }
+        $zone = ($ctx['zone'] ?? null) ?: \App\Support\RateCard::normalizeZone($r['zone'] ?? null);
+        $card = \App\Support\RateCard::find((int) $ctx['seller_id'], $zone, self::rateKey($r['courier_name'] ?? null));
+        if (!$card) {
+            return null;
+        }
+        $weight = (float) ($r['charged_weight_in_gm'] ?? $r['weight_in_gm'] ?? 0) ?: 500;
+        $p = \App\Support\RateCard::price($card, $weight, (bool) ($ctx['cod'] ?? false), (float) ($ctx['amount'] ?? 0));
+        return $p ? $p + ['zone' => $card->zone] : null;
+    }
+
+    private function toServiceabilityEntry(array $r, array $ctx = []): array
     {
         $cost = (float) ($r['total_charges'] ?? 0);
         $price = $this->sellerPrice($cost);
@@ -251,12 +315,19 @@ class ShipcluesService implements CourierServiceInterface
         $weight = (float) ($r['charged_weight_in_gm'] ?? $r['weight_in_gm'] ?? 0);
         // Split the seller price into freight + COD in the same ratio as Shipclues' cost.
         $codSeller = ($cost > 0 && $codCost > 0) ? round($price * $codCost / $cost, 2) : 0;
+        $freight = round($price - $codSeller, 2);
+
+        if ($card = $this->rateCardPrice($r, $ctx)) {
+            $price = $card['courierCharge'];
+            $freight = $card['freightCharges'];
+            $codSeller = $card['codCharge'];
+        }
 
         return [
             'serviceabilityId' => (int) $r['courier_id'],          // Shipclues courier id
             'courierName' => \App\Support\CourierBrand::cleanName($r['courier_name'] ?? null),
             'courierCharge' => $price,
-            'freightCharges' => round($price - $codSeller, 2),
+            'freightCharges' => $freight,
             'codCharge' => $codSeller,
             'zone' => $r['zone'] ?? null,
             'zone_courier_name' => \App\Support\CourierBrand::cleanName($r['courier_name'] ?? null),
@@ -378,6 +449,15 @@ class ShipcluesService implements CourierServiceInterface
             }
 
             $sellerCharge = $this->sellerPrice((float) ($rate['total_charges'] ?? 0));
+            $preCard = $this->rateCardPrice($rate, [
+                'seller_id' => (int) $seller->id,
+                'zone' => \App\Support\RateCard::zoneForStates($pickup['state'] ?? null, $consignee['state'] ?? null),
+                'cod' => strtolower((string) $order->payment_type) === 'cod',
+                'amount' => (float) $order->collectable_amount,
+            ]);
+            if ($preCard) {
+                $sellerCharge = $preCard['courierCharge'];
+            }
 
             // 4. Wallet check (same rule as the other couriers)
             $credit = Recharge::where('seller_id', $seller->id)->where('status', 1)->where('type', 'Credit')->sum('amount');
@@ -397,6 +477,15 @@ class ShipcluesService implements CourierServiceInterface
             $awb = $ship['courier_awb_number'] ?: $ship['awb_number'];
             $actualCost = (float) ($ship['total_charges'] ?? $rate['total_charges'] ?? 0);
             $sellerCharge = $this->sellerPrice($actualCost);
+            $card = $this->rateCardPrice($ship + $rate, [
+                'seller_id' => (int) $seller->id,
+                'zone' => \App\Support\RateCard::zoneForStates($pickup['state'] ?? null, $consignee['state'] ?? null),
+                'cod' => strtolower((string) $order->payment_type) === 'cod',
+                'amount' => (float) $order->collectable_amount,
+            ]);
+            if ($card) {
+                $sellerCharge = $card['courierCharge'];
+            }
             $courierName = \App\Support\CourierBrand::cleanName($ship['courier_name'] ?? $rate['courier_name'] ?? ($params['provider_name'] ?? null));
 
             // 6. Save on our order

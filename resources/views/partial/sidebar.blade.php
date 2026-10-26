@@ -126,8 +126,8 @@
                 </div>
             </a>
         </li>
-        <li class="menu @routeis('zone.price.index') active @endrouteis">
-            <a href="{{ route('zone.price.index') }}" class="dropdown-toggle">
+        <li class="menu @routeis('zone.price.index,zone.pricesetting.add') active @endrouteis">
+            <a href="{{ route('zone.pricesetting.add') }}" class="dropdown-toggle">
                 <div class="">
                     <i class="fa-solid fa-map-location-dot"></i>
                     <span>Zone Price Setting</span>
