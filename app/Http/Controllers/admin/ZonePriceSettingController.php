@@ -74,6 +74,8 @@ class ZonePriceSettingController extends Controller
 
 
     ];
+        // Fship couriers (live list from the Fship account)
+        $LogisticProviders = array_merge($LogisticProviders, \App\Services\FshipService::rateCardKeys());
         $selectedSeller = null;
         $existingPrices = [];
         
@@ -219,6 +221,8 @@ class ZonePriceSettingController extends Controller
 'Ekart500gm_boxd',
 
     ];
+        // Fship couriers (live list from the Fship account)
+        $LogisticProviders = array_merge($LogisticProviders, \App\Services\FshipService::rateCardKeys());
 
         return view('admin.zonepricesetting.zone_price_edit', compact('zonePriceSetting', 'SellerList', 'LogisticProviders'));
     }

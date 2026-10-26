@@ -108,6 +108,14 @@
                 </div>
             </a>
         </li>
+        <li class="menu @routeis('admin.fship.index') active @endrouteis">
+            <a href="{{ route('admin.fship.index') }}" class="dropdown-toggle">
+                <div class="">
+                    <i class="fa-solid fa-plug"></i>
+                    <span>Fship Integration</span>
+                </div>
+            </a>
+        </li>
         <li class="menu @routeis('pricesetting') active @endrouteis">
             <a href="{{ route('pricesetting.add') }}" class="dropdown-toggle">
                 <div class="">

@@ -22,6 +22,9 @@ class CourierServiceProvider extends ServiceProvider
 
         // Shipclues aggregator (bound here so it works even when config is cached)
         $this->app->bind('courier.shipclues', fn() => new \App\Services\ShipcluesService);
+
+        // Fship aggregator (same reason)
+        $this->app->bind('courier.fship', fn() => new \App\Services\FshipService);
     }
 
     /**

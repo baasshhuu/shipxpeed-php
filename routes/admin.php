@@ -73,6 +73,12 @@ Route::middleware(['auth', 'permission', 'authCheck', 'verified'])->group(functi
     Route::post('courier-master', [\App\Http\Controllers\admin\CourierMasterController::class, 'store'])->name('courier.master.store');
     Route::post('courier-master/{id}/update', [\App\Http\Controllers\admin\CourierMasterController::class, 'update'])->name('courier.master.update');
 
+    // Fship aggregator: status, courier list, rate test, API log
+    Route::get('fship', [\App\Http\Controllers\admin\FshipController::class, 'index'])->name('admin.fship.index');
+    Route::post('fship/settings', [\App\Http\Controllers\admin\FshipController::class, 'saveKey'])->name('admin.fship.settings');
+    Route::post('fship/rate-test', [\App\Http\Controllers\admin\FshipController::class, 'rateTest'])->name('admin.fship.rate-test');
+    Route::get('fship/log/{id}', [\App\Http\Controllers\admin\FshipController::class, 'logShow'])->whereNumber('id')->name('admin.fship.log');
+
     Profile::routes();
     Route::get('dashboard', [HomeController::class, 'index'])->name('dashboard');
         Route::get('/shipment-report', [HomeController::class, 'shipment_report'])->name('shipment.report');

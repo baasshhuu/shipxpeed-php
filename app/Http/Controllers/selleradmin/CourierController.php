@@ -72,6 +72,7 @@ class CourierController extends Controller
                             $logisticProviders[] = array_merge($courier, [
 
                 'provider_logo' => match (true) {
+                    ($localProvider && $localProvider->code === 'fship') => \App\Services\FshipService::logoFor($courier['courierName'] ?? '', $localProvider->logo),
                     !empty($courier['logoHint']) => $courier['logoHint'],
                     str_starts_with($courier['courierName'], 'Amazon_') => 'brands/1703c4f8-55a6-4923-8c94-9bcb98f39c2d.jpeg',
                     $courier['courierName'] === 'DTDC-SMART' => 'brands/1750337596_images-removebg-preview.png',
@@ -114,7 +115,7 @@ class CourierController extends Controller
                     default => $localProvider->logo ?? null,
                 },
 
-                                'provider_name' => ($localProvider && in_array($localProvider->name, ['Smartship','Tekipost','Boxd','DTDC','Parcelx','Shiprocket','selloship','Shipclues']))
+                                'provider_name' => ($localProvider && (in_array($localProvider->name, ['Smartship','Tekipost','Boxd','DTDC','Parcelx','Shiprocket','selloship','Shipclues']) || $localProvider->code === 'fship'))
                                 ? match ($courier['courierName']) {
                                     'Bluedart 500 grams new' => 'Bluedart Surface 500gms',
                                     'Bluedart Air' => 'Bluedart Air 500gms',
@@ -245,6 +246,7 @@ class CourierController extends Controller
 
 
             'provider_logo' => match (true) {
+                    ($localProvider && $localProvider->code === 'fship') => \App\Services\FshipService::logoFor($courier['courierName'] ?? '', $localProvider->logo),
                 !empty($courier['logoHint']) => $courier['logoHint'],
                 str_starts_with($courier['courierName'], 'Amazon_') => 'brands/1703c4f8-55a6-4923-8c94-9bcb98f39c2d.jpeg',
                 $courier['courierName'] === 'DTDC-SMART' => 'brands/1750337596_images-removebg-preview.png',
@@ -289,7 +291,7 @@ class CourierController extends Controller
             },
 
 
-                            'provider_name' => ($localProvider && in_array($localProvider->name, ['Smartship','Tekipost','Boxd','DTDC','Parcelx','Shiprocket','selloship','Shipclues','Ekart']))
+                            'provider_name' => ($localProvider && (in_array($localProvider->name, ['Smartship','Tekipost','Boxd','DTDC','Parcelx','Shiprocket','selloship','Shipclues','Ekart']) || $localProvider->code === 'fship'))
                             ? match ($courier['courierName']) {
                                 'Bluedart 500 grams new' => 'Bluedart Surface 500gms',
                                 'Bluedart Air' => 'Bluedart Air 500gms',
@@ -579,6 +581,7 @@ class CourierController extends Controller
 
 
             'provider_logo' => match (true) {
+                    ($localProvider && $localProvider->code === 'fship') => \App\Services\FshipService::logoFor($courier['courierName'] ?? '', $localProvider->logo),
                 !empty($courier['logoHint']) => $courier['logoHint'],
                 str_starts_with($courier['courierName'], 'Amazon_') => 'brands/1703c4f8-55a6-4923-8c94-9bcb98f39c2d.jpeg',
                 $courier['courierName'] === 'DTDC-SMART' => 'brands/1750337596_images-removebg-preview.png',
