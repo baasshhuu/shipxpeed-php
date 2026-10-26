@@ -3,7 +3,9 @@
 @section('content')
 <style>
     .fs-pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600}
-    .fs-ok{background:#e6f6ec;color:#137333}.fs-bad{background:#fdecea;color:#b3261e}.fs-warn{background:#fff4e5;color:#8a5300}
+    .fs-ok{background:var(--sx-success-soft,#e6f6ec);color:var(--sx-success,#137333)}
+    .fs-bad{background:var(--sx-danger-soft,#fdecea);color:var(--sx-danger,#b3261e)}
+    .fs-warn{background:var(--sx-warning-soft,#fff4e5);color:var(--sx-warning,#8a5300)}
     .fs-mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
     .fs-table td,.fs-table th{vertical-align:middle;font-size:13px}
 </style>
