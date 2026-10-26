@@ -40,41 +40,126 @@ class SellerListController extends Controller
                 'gst_photo',
                 'cancel_cheque',
                 'status',
+                'kyc_status',
                 'created_at'
             );
 
+            switch ($request->get('filter')) {
+                case 'active':      $data->where('status', 1); break;
+                case 'inactive':    $data->where('status', 0); break;
+                case 'kyc_pending': $data->where(fn($q) => $q->where('kyc_status', 0)->orWhereNull('kyc_status')); break;
+                case 'kyc_done':    $data->where('kyc_status', 1); break;
+            }
+
+            $doc = function ($path, $label) {
+                if (!$path) {
+                    return '<span class="sx-chip miss" title="Not uploaded">' . $label . '</span>';
+                }
+                return '<a class="sx-chip ok" target="_blank" rel="noopener" href="' . e(asset('storage/' . $path)) . '">' . $label . '</a>';
+            };
+            $switch = function ($row, $field, $checked, $title) {
+                return '<label class="sx-switch" title="' . $title . '"><input type="checkbox" class="sx-toggle" data-id="' . $row->id . '" data-field="' . $field . '" ' . ($checked ? 'checked' : '') . '><span class="s"></span></label>';
+            };
+
             return Datatables::of($data)
-                ->editColumn('profile', fn($row) => '<div class="img-group"><img src="' . asset('storage/' . $row->profile) . '" alt="" width="50"></div>')
-                ->editColumn('adhar_card_front', fn($row) => '<div class="img-group"><img src="' . asset('storage/' . $row->adhar_card_front) . '" alt="" width="50"></div>')
-                ->editColumn('adhar_card_back', fn($row) => '<div class="img-group"><img src="' . asset('storage/' . $row->adhar_card_back) . '" alt="" width="50"></div>')
-                ->editColumn('gst_photo', fn($row) => '<div class="img-group"><img src="' . asset('storage/' . $row->gst_photo) . '" alt="" width="50"></div>')
-                ->editColumn('cancel_cheque', fn($row) => '<div class="img-group"><img src="' . asset('storage/' . $row->cancel_cheque) . '" alt="" width="50"></div>')
-                ->editColumn('pan_card', fn($row) => '<div class="img-group"><img src="' . asset('storage/' . $row->pan_card) . '" alt="" width="50"></div>')
-                ->editColumn('created_at', fn($row) => $row->created_at->format('d M, Y'))
-                ->editColumn('status', fn($row) => $row->status == 1
-                    ? '<span class="badge bg-success">Active</span>'
-                    : '<span class="badge bg-danger">Inactive</span>')
-                ->addColumn('view_agreement', fn($row) => '<button class="btn btn-sm btn-primary view-agreement" data-id="' . $row->id . '">Agreement</button>')
-                ->addColumn('action', function ($row) {
-                    $btn = '<div class="dropdown">
-                            <button class="btn btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">Actions</button>
-                            <ul class="dropdown-menu">';
-                    if (Helper::userCan(104, 'can_edit')) {
-                        $btn .= '<li><a class="dropdown-item" href="' . route('seller-list.edit', $row->id) . '">Edit</a></li>';
-                    }
-                    if (Helper::userCan(105, 'can_delete')) {
-                        $btn .= '<li><button class="dropdown-item text-danger delete" data-id="' . $row->id . '">Delete</button></li>';
-                    }
-                    $btn .= '<li><a class="dropdown-item" href="' . route('seller.impersonate', $row->id) . '">Access Seller Account</a></li>
-                        </ul>
-                    </div>';
-                    return $btn;
+                ->addColumn('seller', function ($row) {
+                    $initial = strtoupper(mb_substr($row->name ?: 'S', 0, 1));
+                    $avatar = $row->profile
+                        ? '<img src="' . e(asset('storage/' . $row->profile)) . '" alt="" onerror="this.remove()">'
+                        : '';
+                    $type = $row->user_type == 2 ? 'Business' : 'Individual';
+                    return '<div class="sx-seller-cell"><div class="sx-avatar">' . $initial . $avatar . '</div><div>'
+                        . '<div class="n">' . e($row->name ?: '—') . ' <span class="text-muted" style="font-weight:400;font-size:12px">#' . $row->id . ' · ' . $type . '</span></div>'
+                        . '<div class="e">' . e($row->email) . ($row->phone_number ? ' · ' . e($row->phone_number) : '') . '</div>'
+                        . ($row->gst_no ? '<div class="e">GST: ' . e($row->gst_no) . '</div>' : '')
+                        . '</div></div>';
                 })
-                ->rawColumns(['profile', 'adhar_card_front', 'adhar_card_back', 'gst_photo', 'cancel_cheque', 'pan_card', 'status', 'view_agreement', 'action'])
+                ->addColumn('documents', function ($row) use ($doc) {
+                    return '<div class="sx-doc-chips">'
+                        . $doc($row->pan_card, 'PAN')
+                        . $doc($row->adhar_card_front, 'Aadhaar F')
+                        . $doc($row->adhar_card_back, 'Aadhaar B')
+                        . $doc($row->gst_photo, 'GST')
+                        . $doc($row->cancel_cheque, 'Cheque')
+                        . '</div>';
+                })
+                ->addColumn('kyc', fn($row) => $row->kyc_status == 1
+                    ? '<span class="badge bg-success">Verified</span>'
+                    : '<span class="badge bg-warning">Pending</span>')
+                ->addColumn('status_switch', fn($row) => $switch($row, 'status', $row->status == 1, 'Seller can log in when ON'))
+                ->addColumn('negative_switch', fn($row) => $switch($row, 'negative_balance', $row->negative_balance == 1, 'Allow shipping on negative wallet balance'))
+                // fixed_price is stored inverted: 0 = RTO charge active, 1 = inactive
+                ->addColumn('rto_switch', fn($row) => $switch($row, 'rto_charge', $row->fixed_price == 0, 'Charge RTO to this seller'))
+                ->editColumn('created_at', fn($row) => optional($row->created_at)->format('d M, Y'))
+                ->addColumn('action', function ($row) {
+                    $btn = '<div class="sx-actions">';
+                    $btn .= '<a class="btn btn-outline-primary" target="_blank" rel="noopener" title="Open this seller\'s panel in a new tab" href="' . route('seller.impersonate', $row->id) . '"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Panel</a>';
+                    if (Helper::userCan(104, 'can_edit')) {
+                        $btn .= '<a class="btn btn-outline-secondary" title="Edit seller" href="' . route('seller-list.edit', $row->id) . '"><i class="fa-solid fa-pen"></i></a>';
+                    }
+                    $btn .= '<button class="btn btn-outline-secondary view-agreement" title="Agreement" data-id="' . $row->id . '"><i class="fa-solid fa-file-signature"></i></button>';
+                    if (Helper::userCan(104, 'can_delete')) {
+                        $btn .= '<button class="btn btn-outline-danger delete" title="Delete seller" data-id="' . $row->id . '"><i class="fa-solid fa-trash"></i></button>';
+                    }
+                    return $btn . '</div>';
+                })
+                ->filterColumn('seller', function ($query, $keyword) {
+                    $query->where(function ($q) use ($keyword) {
+                        $q->where('name', 'like', "%{$keyword}%")
+                          ->orWhere('email', 'like', "%{$keyword}%")
+                          ->orWhere('phone_number', 'like', "%{$keyword}%")
+                          ->orWhere('gst_no', 'like', "%{$keyword}%");
+                    });
+                })
+                ->rawColumns(['seller', 'documents', 'kyc', 'status_switch', 'negative_switch', 'rto_switch', 'action'])
                 ->make(true);
         }
 
-        return view('sellerlist.index');
+        $counts = [
+            'all'         => SellerList::count(),
+            'active'      => SellerList::where('status', 1)->count(),
+            'inactive'    => SellerList::where('status', 0)->count(),
+            'kyc_pending' => SellerList::where(fn($q) => $q->where('kyc_status', 0)->orWhereNull('kyc_status'))->count(),
+            'kyc_done'    => SellerList::where('kyc_status', 1)->count(),
+        ];
+
+        return view('sellerlist.index', compact('counts'));
+    }
+
+    /**
+     * Quick on/off switches from the seller list. Takes effect in the seller panel immediately.
+     */
+    public function toggle(Request $request, $id): JsonResponse
+    {
+        $request->validate([
+            'field' => ['required', 'in:status,negative_balance,kyc_status,rto_charge'],
+            'value' => ['required', 'boolean'],
+        ]);
+
+        $seller = SellerList::find($id);
+        if (!$seller) {
+            return response()->json(['status' => false, 'message' => 'Seller not found.'], 404);
+        }
+
+        $on = (bool) $request->boolean('value');
+        $field = $request->input('field');
+
+        if ($field === 'rto_charge') {
+            $seller->fixed_price = $on ? 0 : 1; // inverted storage
+        } else {
+            $seller->{$field} = $on ? 1 : 0;
+        }
+        $seller->save();
+
+        $labels = [
+            'status' => 'Account', 'negative_balance' => 'Negative balance',
+            'kyc_status' => 'KYC', 'rto_charge' => 'RTO charge',
+        ];
+
+        return response()->json([
+            'status'  => true,
+            'message' => $labels[$field] . ' ' . ($on ? 'turned on' : 'turned off') . ' for ' . ($seller->name ?: 'seller #' . $seller->id) . '.',
+        ]);
     }
 
 public function download()
@@ -137,6 +222,7 @@ public function download()
         if (!$cms) {
             return to_route('seller-list')->withError('Seller Not Found..!!');
         }
+        $cms->loadMissing('sellerAddress');
         return view('sellerlist.edit', compact('cms'));
     }
 
@@ -170,8 +256,21 @@ public function download()
             'ie_photo' => ['nullable'],
             'ad_Code' => ['nullable'],
             'ad_photo' => ['nullable'],
-
+            'kyc_status' => ['nullable', 'in:0,1'],
+            'new_password' => ['nullable', 'string', 'min:6'],
         ]);
+
+        // Never wipe an existing document just because no new file was chosen
+        foreach (['pan_card', 'adhar_card_front', 'adhar_card_back', 'gst_photo', 'cancel_cheque', 'profile', 'ie_photo', 'ad_photo'] as $fileField) {
+            if (!$request->hasFile($fileField)) {
+                unset($data[$fileField]);
+            }
+        }
+
+        if (!empty($data['new_password'])) {
+            $data['password'] = \Illuminate\Support\Facades\Hash::make($data['new_password']);
+        }
+        unset($data['new_password']);
 
 
 
@@ -221,7 +320,7 @@ public function download()
         }
 
         $cms->update($data);
-        return to_route('seller-list')->withSuccess('Seller List Updated Successfully..!!');
+        return to_route('seller-list.edit', $cms->id)->withSuccess('Seller updated. Changes are live in the seller panel.');
     }
 
 

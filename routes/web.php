@@ -517,9 +517,13 @@ Route::post('/inquiries', [FormsController::class, 'inquiries'])->name('inquirie
 Route::get('impersonate/leave', function () {
     $adminId = session('admin_impersonator_id');
     if ($adminId) {
+        $sellerId = Auth::guard('seller')->id();
+        Auth::guard('seller')->logout();
         Auth::guard('web')->loginUsingId($adminId);
         Session::forget('admin_impersonator_id');
-        return redirect()->route('admin.dashboard')->with('success', 'Returned to admin account.');
+        return $sellerId
+            ? redirect()->route('seller-list.edit', $sellerId)->with('success', 'Back in admin.')
+            : redirect()->route('dashboard')->with('success', 'Back in admin.');
     }
     return redirect()->route('login');
 })->name('impersonate.leave');

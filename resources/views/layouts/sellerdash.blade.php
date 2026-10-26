@@ -225,6 +225,12 @@
 </style>
 
 <body data-pc-preset="preset-1" data-pc-direction="ltr" data-pc-theme="light">
+    @if (session('admin_impersonator_id'))
+        <div style="position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:3000;background:#0b1020;color:#e8edf7;border:1px solid #4f8cff;border-radius:999px;padding:8px 10px 8px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);font-size:13.5px;max-width:calc(100% - 24px)">
+            <span><i class="fa-solid fa-user-shield" style="color:#4f8cff"></i>&nbsp; Admin view: <strong>{{ Auth::guard('seller')->user()->name ?? 'Seller' }}</strong></span>
+            <a href="{{ route('impersonate.leave') }}" style="background:#4f8cff;color:#fff;border-radius:999px;padding:5px 12px;text-decoration:none;font-weight:600;white-space:nowrap">Back to admin</a>
+        </div>
+    @endif
     <!-- [ Pre-loader ] start -->
     <div class="loader-bg">
         <div class="loader-track">

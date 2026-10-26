@@ -59,7 +59,14 @@ public function index(Request $request): View
                         ->count();
     $allRegister   = SellerList::count();
 
+    // Latest sellers for the dashboard quick-access table
+    $recentSellers = SellerList::select('id', 'name', 'email', 'phone_number', 'status', 'kyc_status', 'negative_balance', 'created_at')
+        ->latest()
+        ->take(8)
+        ->get();
+
     return view('home', compact(
+        'recentSellers',
         'todayOrder',
         'monthOrder',
         'weekOrder',

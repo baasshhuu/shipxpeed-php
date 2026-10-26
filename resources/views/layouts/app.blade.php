@@ -18,10 +18,18 @@
                     <a href="{{ route('dashboard') }}" class="nav-link"> {{ $site_settings['application_name'] }} </a>
                 </li>
             </ul>
-           <div class="">
-
-           </div>
-            <ul class="navbar-item flex-row ms-lg-auto ms-0 action-area">
+            <div class="sx-topbar-actions">
+                <a href="{{ route('seller-list') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fa-solid fa-users me-1"></i><span class="sx-hide-sm">Sellers</span>
+                </a>
+                <a href="{{ route('courier.rate.manager') }}" class="btn btn-sm btn-outline-secondary sx-hide-sm">
+                    <i class="fa-solid fa-truck-fast me-1"></i>Couriers &amp; Rates
+                </a>
+                <a href="{{ route('seller.login') }}" target="_blank" rel="noopener" class="btn btn-sm btn-primary sx-hide-sm">
+                    <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Seller Panel
+                </a>
+            </div>
+            <ul class="navbar-item flex-row ms-0 action-area">
                 <li class="nav-item dropdown user-profile-dropdown order-lg-0 order-1">
                     <a href="javascript:void(0);" class="nav-link dropdown-toggle user" id="userProfileDropdown"
                         data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -114,9 +122,7 @@
                     {{-- {{ $site_settings['copyright'] }} --}}
                 </div>
                 <div class="footer-section f-section-2">
-                    <p class="">
-                        Developed   By : <a href="#" target="_lucky">Vicky Developer</a>
-                    </p>
+                    <p class="">&copy; {{ date('Y') }} {{ $site_settings['application_name'] ?? 'Shipxpeed' }} &middot; Admin Panel</p>
                 </div>
             </div>
         </div>

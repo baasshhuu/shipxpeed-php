@@ -151,6 +151,7 @@ Route::post('/SendWhatsApp-send-message', [\App\Http\Controllers\admin\SendWhats
         Route::get('seller-list', 'index')->name('seller-list')->middleware('isAllow:104,can_view');
         Route::get('seller-list/add', 'add')->name('seller-list.add')->middleware('isAllow:104,can_add');
         Route::post('seller-list/add', 'save')->name('seller-list.add')->middleware('isAllow:104,can_add');
+        Route::post('seller-list/{id}/toggle', 'toggle')->name('seller-list.toggle')->middleware('isAllow:104,can_edit');
         Route::get('seller-list/{id}', 'edit')->name('seller-list.edit')->middleware('isAllow:104,can_edit');
         Route::post('seller-list', 'slug')->name('seller-list.slug')->middleware('isAllow:104,can_edit');
         Route::post('seller-list/{id}', 'update')->name('seller-list.edit')->middleware('isAllow:104,can_edit');
