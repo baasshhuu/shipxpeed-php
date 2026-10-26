@@ -13,6 +13,9 @@ class FshipController extends Controller
 {
     public function index(Request $request, FshipService $fship)
     {
+        if ($request->boolean('refresh')) {
+            \Illuminate\Support\Facades\Cache::forget('fship_unauthorized_' . md5($fship->apiKey()));
+        }
         $couriers = $fship->isConfigured() ? $fship->getCouriers((bool) $request->boolean('refresh')) : [];
 
         $logs = Schema::hasTable('courier_api_logs')
@@ -31,6 +34,7 @@ class FshipController extends Controller
 
         return view('admin.fship.index', [
             'configured' => $fship->isConfigured(),
+            'keySource'  => config('fship.api_key') ? 'env' : 'admin',
             'env'        => config('fship.env'),
             'baseUrl'    => config('fship.base_url'),
             'markup'     => config('fship.markup_percent'),
@@ -41,6 +45,29 @@ class FshipController extends Controller
             'rateResult' => $rateResult,
             'migrated'   => Schema::hasTable('courier_api_logs') && Schema::hasTable('fship_warehouses'),
         ]);
+    }
+
+    /** Save the production client key (and on/off) from the admin page. */
+    public function saveKey(Request $request)
+    {
+        $data = $request->validate([
+            'api_key' => ['nullable', 'string', 'max:255'],
+            'status'  => ['required', 'in:0,1'],
+        ]);
+        abort_unless(Schema::hasTable('logistic_providers'), 500, 'Run php artisan migrate first.');
+
+        $row = DB::table('logistic_providers')->where('code', FshipService::CODE)->first();
+        if (!$row) {
+            return redirect()->route('admin.fship.index')->with('error', 'Fship courier row missing - run php artisan migrate.');
+        }
+        $update = ['status' => (int) $data['status'], 'updated_at' => now()];
+        if (filled($data['api_key'] ?? null)) {
+            $update['api_key'] = trim($data['api_key']);
+        }
+        DB::table('logistic_providers')->where('id', $row->id)->update($update);
+        \Illuminate\Support\Facades\Cache::forget('fship_api_key');
+
+        return redirect()->route('admin.fship.index', ['refresh' => 1])->with('success', 'Fship settings saved.');
     }
 
     public function rateTest(Request $request, FshipService $fship)

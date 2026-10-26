@@ -15,11 +15,12 @@
     </div>
     <div class="card-body">
         @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
+        @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
 
         <div class="row g-3">
             <div class="col-md-3"><div class="text-muted small">Environment</div><strong>{{ ucfirst($env) }}</strong><div class="fs-mono text-muted">{{ $baseUrl }}</div></div>
             <div class="col-md-3"><div class="text-muted small">Client key</div>
-                @if($configured)<span class="fs-pill fs-ok">Set</span>@else<span class="fs-pill fs-bad">Missing — add FSHIP_API_KEY to .env</span>@endif
+                @if($configured)<span class="fs-pill fs-ok">Set ({{ $keySource === 'env' ? '.env' : 'saved here' }})</span>@else<span class="fs-pill fs-bad">Missing — paste it below</span>@endif
             </div>
             <div class="col-md-3"><div class="text-muted small">Connection</div>
                 @if(!$configured)<span class="fs-pill fs-warn">Not tested</span>
@@ -33,6 +34,19 @@
                 @unless($migrated)<div><span class="fs-pill fs-bad mt-1">Migration pending</span></div>@endunless
             </div>
         </div>
+        @if($provider && $env !== 'staging')
+        <form method="POST" action="{{ route('admin.fship.settings') }}" class="row g-2 align-items-end mt-2">
+            @csrf
+            <div class="col-md-6"><label class="form-label small">Fship client key (Fship › Settings › API Details)</label>
+                <input name="api_key" type="password" autocomplete="off" class="form-control form-control-sm" placeholder="{{ $configured ? 'Saved — leave blank to keep' : 'Paste client key' }}"></div>
+            <div class="col-6 col-md-3"><label class="form-label small">Show Fship to sellers</label>
+                <select name="status" class="form-select form-select-sm">
+                    <option value="1" @selected((string)$provider->status === '1')>On</option>
+                    <option value="0" @selected((string)$provider->status !== '1')>Off</option>
+                </select></div>
+            <div class="col-6 col-md-3"><button class="btn btn-sm btn-primary w-100">Save</button></div>
+        </form>
+        @endif
         <p class="text-muted small mt-3 mb-0">
             Sellers see every active Fship courier by default. Seller price = zone rate card for key <span class="fs-mono">Fship_&lt;Courier_Name&gt;</span> (Zone Price Setting) if one exists,
             otherwise Fship cost + {{ $markup }}% markup + GST. To hide Fship for a seller, set courier <span class="fs-mono">Fship</span> (or a single <span class="fs-mono">Fship_…</span> key) inactive in Active Slabs.

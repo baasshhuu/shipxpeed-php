@@ -36,9 +36,29 @@ class FshipService implements CourierServiceInterface
     /*  HTTP client                                                        */
     /* ------------------------------------------------------------------ */
 
+    /**
+     * Client key: FSHIP_API_KEY in .env, otherwise the key saved in
+     * Admin > Fship Integration (logistic_providers.api_key, code = fship).
+     * Staging always uses the public sandbox key from config/fship.php.
+     */
+    public function apiKey(): string
+    {
+        $key = (string) config('fship.api_key');
+        if ($key === '' && config('fship.env') !== 'staging') {
+            try {
+                $key = (string) Cache::remember('fship_api_key', now()->addMinutes(5), function () {
+                    return (string) DB::table('logistic_providers')->where('code', self::CODE)->value('api_key');
+                });
+            } catch (\Throwable $e) {
+                $key = '';
+            }
+        }
+        return trim($key);
+    }
+
     public function isConfigured(): bool
     {
-        return !empty(config('fship.api_key'));
+        return $this->apiKey() !== '';
     }
 
     /**
@@ -61,7 +81,7 @@ class FshipService implements CourierServiceInterface
 
         try {
             $client = Http::withHeaders([
-                'signature'    => config('fship.api_key'),
+                'signature'    => $this->apiKey(),
                 'Content-Type' => 'application/json',
                 'Accept'       => 'application/json',
             ])->timeout(config('fship.timeout', 30));
@@ -75,7 +95,9 @@ class FshipService implements CourierServiceInterface
             $data = $response->json();
 
             if ($http === 401) {
-                $error = 'Fship rejected the client key (401 Unauthorized). Check FSHIP_API_KEY / API access on the Fship account.';
+                $error = 'Fship rejected the client key (401 Unauthorized). Check the key / API access on the Fship account.';
+                // Stop hitting Fship on every courier-page load while the key is rejected
+                Cache::put('fship_unauthorized_' . md5($this->apiKey()), true, now()->addMinutes(10));
             } elseif ($http >= 500) {
                 $error = "Fship server error (HTTP {$http}).";
             } elseif (!is_array($data)) {
@@ -133,7 +155,7 @@ class FshipService implements CourierServiceInterface
     /** Courier list: [['courierId'=>1,'courierName'=>'...','logoUrl'=>'...','isActive'=>true], ...] */
     public function getCouriers(bool $fresh = false): array
     {
-        $key = 'fship_couriers_' . md5((string) config('fship.base_url') . config('fship.api_key'));
+        $key = 'fship_couriers_' . md5((string) config('fship.base_url') . $this->apiKey());
         if ($fresh) {
             Cache::forget($key);
         }
@@ -323,6 +345,9 @@ class FshipService implements CourierServiceInterface
         $cached = Cache::get($cacheKey);
         if (is_array($cached)) {
             return $cached;
+        }
+        if (Cache::has('fship_unauthorized_' . md5($this->apiKey()))) {
+            return [];
         }
         $res = $this->rateCalculator($payload, ['order_id' => $order->id]);
         if (!$res['ok']) {
