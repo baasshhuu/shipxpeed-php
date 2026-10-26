@@ -87,11 +87,18 @@ done
 
 php artisan view:clear
 php artisan route:clear
-php artisan route:list --name=seller-list >/dev/null 2>&1 || { echo "route:list failed"; restore; }
+# Boot the app and resolve the new routes (route:list is unusable here: an old route names a missing SeloshipController)
+CHK=$(php artisan tinker --execute="echo route('seller-list.toggle', 1) . ' ' . route('seller-list') . ' ' . route('impersonate.leave');" 2>&1 | tail -1)
+echo "$CHK" | grep -q "seller-list/1/toggle" || { echo "route check failed: $CHK"; restore; }
+echo "Routes OK"
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
 
 echo "--- checks ---"
-for u in /login /seller-login /assets/css/admin-theme.css; do
-  printf '%-34s %s\n' "$u" "$(curl -s -o /dev/null -w '%{http_code}' "https://shipxpeed.tech$u")"
+BAD=0
+for u in /login /admin/login /seller-login /assets/css/admin-theme.css; do
+  c=$(curl -s -o /dev/null -w '%{http_code}' "https://shipxpeed.tech$u")
+  printf '%-34s %s\n' "$u" "$c"
+  [ "$c" -ge 500 ] && BAD=1
 done
+[ "$BAD" = 1 ] && { echo "a page returned a server error"; restore; }
 echo "DONE. Backup kept at $BK"
