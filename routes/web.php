@@ -136,6 +136,14 @@ Route::get('/shopify-integration', function () {
 Route::get('/api-docs', function () {
     return view('api-docs');
 })->name('seller.api.docs');
+Route::get('/api-docs/postman.json', function () {
+    return response()->json(
+        app(\App\Services\SellerApiDocs::class)->postman(url('/api')),
+        200,
+        ['Content-Disposition' => 'attachment; filename="shipxpeed-api.postman_collection.json"'],
+        JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+    );
+})->name('api.docs.postman');
 Route::get('/download-delivered-orders', [StatusController::class, 'downloadDeliveredOrdersExcel']);
 
 Route::post('/aadhaar/generate', [CashfreeController::class, 'generateOtp'])->name('aadhaar.generate');
@@ -416,6 +424,7 @@ Route::post('/seller/orders/import', [Dashboard::class, 'importOrders'])->name('
     Route::get('/cod-remittance', [ResourceController::class, 'cod'])->name('seller.cod');
     Route::get('/help', [ResourceController::class, 'help'])->name('seller.help');
     Route::get('/api', [ResourceController::class, 'api'])->name('seller.api');
+    Route::post('/api/token', [\App\Http\Controllers\selleradmin\SellerApiController::class, 'token'])->name('seller.api.token');
     Route::get('/recharge', [ResourceController::class, 'recharge'])->name('seller.recharge');
     Route::get('/shipping-charge', [ResourceController::class, 'shippingcharge'])->name('seller.shippingcharge');
     Route::get('/all-charges', [ResourceController::class, 'allcharges'])->name('seller.allcharges');

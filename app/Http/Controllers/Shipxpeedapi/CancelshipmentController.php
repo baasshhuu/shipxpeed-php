@@ -38,8 +38,14 @@ class CancelshipmentController extends Controller
         $awb = $request->awb;
 
         try {
-            // Find the order by AWB number
-            $order = \App\Models\Order::where('awb_number', $awb)->first();
+            // Find the order by AWB number - only the calling seller's own orders
+            $apiSeller = $request->attributes->get('api_seller');
+            if (!$apiSeller) {
+                return response()->json(['success' => false, 'message' => 'Authorization token required'], 401);
+            }
+            $order = \App\Models\Order::where('awb_number', $awb)
+                ->where('seller_id', $apiSeller->id)
+                ->first();
 
             if (!$order) {
                 return response()->json([

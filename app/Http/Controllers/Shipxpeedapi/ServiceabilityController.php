@@ -21,7 +21,51 @@ use Illuminate\Support\Facades\Log;
 
 class ServiceabilityController extends Controller
 {
+    /**
+     * Courier name returned by the legacy rate methods => courier_id accepted by /api/create-shipment.
+     * Shipclues ("shipclues_<id>") and Fship ("fship_<id>") results already carry their own courier_id.
+     */
+    private const API_COURIER_IDS = [
+        'Delhivery'               => 'delhivery',
+        'Delhivery B2C (Express)' => 'delhivery_air',
+        'Shadowfax'               => 'shadowfax',
+        'NEW Ekart2KG'            => 'sell_Ekart_2KG',
+        'DTDC Air'                => 'dtdc_air',
+        'DTDC Surface 500gm'      => 'dtdc_surface_500gm',
+        'DTDC Surface 1kg'        => 'dtdc_surface_1kg',
+        'Delhivery 5 KG'          => 'delhivery_5kg',
+        'Delhivery 10 KG'         => 'delhivery_10kg',
+        'Amazon 2 KG'             => 'amazon_2kg',
+        'Amazon 500 GM'           => 'amazon_0_5kg',
+        'Deliveri 500gm'          => 'Delhivery_500gm',
+        'Amazon 500gm'            => 'Amazon_500gm',
+        'Amazon 1kg'              => 'Amazon_1kg',
+        'Amazon 2kg'              => 'Amazon_2kg',
+        'Xpressbee 250gms'        => 'xpressbee_250gms',
+        'Bluedart 2kg surface'    => 'bluedart_2kg_surface',
+        'Delhivery 250gms'        => 'delhivery_250gms',
+        'Bluedart Air 500gms'     => 'bluedart_air_500gms',
+        'Bluedart Surface 500gms' => 'bluedart_surface_500gms',
+    ];
 
+    /**
+     * Give every rate result the courier_id to book it with, and a "bookable" flag.
+     * (Partner IDs are shown to API clients as sx1_/sx2_ by the SellerApiToken middleware.)
+     */
+    private function withApiCourierIds(array $results): array
+    {
+        foreach ($results as &$r) {
+            if (empty($r['courier_id'])) {
+                $r['courier_id'] = self::API_COURIER_IDS[trim((string) ($r['courierName'] ?? ''))] ?? null;
+            }
+            $r['bookable'] = !empty($r['courier_id']);
+            $r['provider_name'] = 'ShipXpeed';
+            unset($r['provider_code']);
+        }
+        unset($r);
+
+        return $results;
+    }
 
 
     public function getAllServiceability(Request $request)
@@ -165,6 +209,8 @@ class ServiceabilityController extends Controller
                 'params' => $params
             ]);
         }
+
+        $allResults = $this->withApiCourierIds($allResults);
 
         return response()->json([
             'data' => $allResults,
@@ -2013,6 +2059,7 @@ public function callDtdcAPI(array $params): array
                     'params' => $serviceabilityParams
                 ]);
             }
+            $allResults = $this->withApiCourierIds($allResults);
 
             // Create order
             $order = new Order();
@@ -2020,6 +2067,8 @@ public function callDtdcAPI(array $params): array
             // Basic order information
             $order->seller_id = $sellerid;
             $order->order_number = $orderNumber;
+            // The seller's own order reference (searchable in the panel, same as orders created there)
+            $order->customer_order_id = $request->order_number;
             $order->payment_type = $request->payment_type;
             $order->order_amount = $totalAmount;
             $order->collectable_amount = $request->collectable_amount;
@@ -2141,8 +2190,15 @@ public function callDtdcAPI(array $params): array
                     ];
 
                     $searchNames = $courierNameMapping[$request->courier_id] ?? [$providerName];
-                    //  dd($allResults);
+                    // Exact courier_id match first (the rate the seller saw in the serviceability response)
                     foreach ($allResults as $result) {
+                        if (($result['courier_id'] ?? null) === $request->courier_id && isset($result['courierCharge'])) {
+                            $courierCharge = $result['courierCharge'];
+                            break;
+                        }
+                    }
+                    //  dd($allResults);
+                    foreach ($courierCharge > 0 ? [] : $allResults as $result) {
                         if (isset($result['courierName'])) {
                             foreach ($searchNames as $searchName) {
                                 if (stripos($result['courierName'], $searchName) !== false || $result['courierName'] == $searchName) {
@@ -2285,9 +2341,12 @@ public function callDtdcAPI(array $params): array
                 }
             }
 
+            $order->refresh(); // pick up the AWB / courier written by the assignment
             $responseData = [
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
+                'customer_order_id' => $order->customer_order_id,
+                'awb_number' => $order->awb_number ?: null,
                 'seller_id' => $order->seller_id,
                 'payment_type' => $order->payment_type,
                 'order_amount' => $order->order_amount,
@@ -2302,12 +2361,12 @@ public function callDtdcAPI(array $params): array
             if ($assignmentResult) {
                 $responseData['assignment_result'] = $assignmentResult;
                 $responseData['courier_id'] = $request->courier_id ?? null;
-                $responseData['courier_name'] = $courierMapping[$request->courier_id] ?? null;
+                $responseData['courier_name'] = $order->all_courier_name ?: ($courierMapping[$request->courier_id] ?? null);
             }
 
             $successMessage = 'Shipment created successfully';
             if ($courierAssigned) {
-                $successMessage .= ' and assigned to ' . ($courierMapping[$request->courier_id] ?? $request->courier_id);
+                $successMessage .= ' and assigned to ' . ($responseData['courier_name'] ?? $request->courier_id);
             } elseif ($request->courier_id && !$courierAssigned) {
                 $successMessage .= ' but courier assignment failed';
             }

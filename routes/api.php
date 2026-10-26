@@ -14,6 +14,7 @@ use App\Http\Controllers\Shipxpeedapi\RatecardController;
 use App\Http\Controllers\Shipxpeedapi\ServiceabilityController;
 use App\Http\Controllers\Shipxpeedapi\CancelshipmentController;
 use App\Http\Controllers\Shipxpeedapi\LabelController;
+use App\Http\Controllers\Shipxpeedapi\NdrController;
 use App\Http\Controllers\Api\StatusController;
 use App\Http\Controllers\Shipxpeedapi\TrackController;
 use App\Http\Controllers\Shipxpeedapi\ParcelxController;
@@ -135,24 +136,31 @@ Route::get('cashfree', [CashfreeController::class, 'verifyAadhaar']);
 
 // thard party apis 
 
-// ✅ Login API (token generate)
-Route::post('/token-generate', [AuthController::class, 'login']);
-// ✅ Create Warehouse API (requires Authorization token)
-Route::post('/create-warehouse', [WarehouseController::class, 'createWarehouse']);
-Route::post('/rate-card', [RatecardController::class, 'checkRate']);
-Route::post('/serviceability', [ServiceabilityController::class, 'checkServiceability']);
+// ✅ Login API (token generate) - 10 attempts / minute per IP
+Route::post('/token-generate', [AuthController::class, 'login'])->middleware('throttle:10,1');
 
+// Seller API - every call needs "Authorization: <token>" (or "Bearer <token>"). Docs: /seller/api, /api-docs
+Route::middleware(\App\Http\Middleware\SellerApiToken::class)->group(function () {
+    Route::post('/create-warehouse', [WarehouseController::class, 'createWarehouse']);
+    Route::post('/rate-card', [RatecardController::class, 'checkRate']);
+    // Courier fetch: every courier that serves the lane, with price, EDD and the courier_id to book it
+    Route::post('/serviceability', [ServiceabilityController::class, 'getAllServiceability']);
+    Route::post('/serviceability/all-providers', [ServiceabilityController::class, 'getAllServiceability']);
+    Route::post('/create-shipment', [ServiceabilityController::class, 'createShipment']);
+    Route::post('/cancel-shipment', [CancelshipmentController::class, 'cancelByAwb']);
+    Route::post('/label-by-awb', [LabelController::class, 'apiGetLabelByAwb']);
+    Route::post('/ndr-action', [NdrController::class, 'ndrReattempt']);
+    Route::post('/track-shipment', [TrackController::class, 'trackShipment']);
+});
 
-Route::post('/serviceability/all-providers', [ServiceabilityController::class, 'getAllServiceability']);
-Route::post('/create-shipment', [ServiceabilityController::class, 'createShipment']);
-Route::post('/assign-order', [ServiceabilityController::class, 'assignOrderAPI']);
-
-Route::post('/cancel-shipment', [CancelshipmentController::class, 'cancelByAwb']);
-Route::post('/label-by-awb', [LabelController::class, 'apiGetLabelByAwb']);
-Route::post('/ndr-action', [NdrController::class, 'ndrReattempt']);
-
-// Manual tracking route
-Route::post('/track-shipment', [TrackController::class, 'trackShipment']);
+// Not a separate step: pass courier_id to /api/create-shipment to book in one call
+Route::post('/assign-order', function () {
+    return response()->json([
+        'success' => false,
+        'message' => 'Use /api/create-shipment with a courier_id from /api/serviceability to create and book in one call.',
+        'responseCode' => 404,
+    ], 404);
+});
 
 
 

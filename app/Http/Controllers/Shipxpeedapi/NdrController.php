@@ -46,6 +46,12 @@ class NdrController extends Controller
         }
         $awb = $request->awb_number;
 
+        // One set of field names for every courier (Boxd reads remarks / rescheduleDate)
+        $request->merge(array_filter([
+            'remarks'        => $request->remarks ?? $request->remark,
+            'rescheduleDate' => $request->rescheduleDate ?? $request->reattempt_date,
+        ], fn ($v) => $v !== null));
+
         // Step 1: Fetch order using awb number and seller id
         $order = Order::where('awb_number', $awb)
                       ->where('seller_id', $sellerid)

@@ -433,7 +433,7 @@ class TrackController extends Controller
             
             // Prepare data to send to seller
             $sellerWebhookData = [
-                'awb' => $order->awb,
+                'awb' => $order->awb_number ?? $order->awb,
                 'order_id' => $order->order_id ?? $order->id,
                 'status' => $webhookData['current_status'] ?? $webhookData['shipment_status'] ?? $webhookData['status'] ?? $webhookData['status_title'] ?? $webhookData['delivery_status'],
                 'scan_type' => $webhookData['current_status_id'] ?? $webhookData['shipment_status_id'] ?? $webhookData['status_code'] ?? $webhookData['scan_type'] ?? $webhookData['event_type'] ?? null,
@@ -540,31 +540,59 @@ class TrackController extends Controller
         }
         
         $awb = $request->awb;
-        
+
         try {
-            // Find order by AWB
-            $order = Order::where('awb_number', $awb)->first();
-            
+            // Find order by AWB - only the calling seller's own orders
+            $apiSeller = $request->attributes->get('api_seller');
+            if (!$apiSeller) {
+                return response()->json(['status' => false, 'message' => 'Authorization token required'], 401);
+            }
+            $order = Order::where('awb_number', $awb)->where('seller_id', $apiSeller->id)->first();
+
             if (!$order) {
                 return response()->json([
                     'status' => false,
                     'message' => 'Order not found for AWB: ' . $awb
                 ], 404);
             }
-            
-            // Get tracking history
+
+            // Get tracking history (newest first)
             $trackingHistory = DB::table('tracking_histories')
                 ->where('awb', $awb)
                 ->orderBy('created_at', 'desc')
-                ->get();
-            
+                ->get()
+                ->map(fn ($h) => [
+                    'status'    => $h->status ?? null,
+                    'scan_type' => $h->scan_type ?? null,
+                    'location'  => $h->location ?? null,
+                    'remarks'   => $h->remarks ?? null,
+                    'courier'   => $h->courier_name ?? null,
+                    'time'      => $h->created_at ?? null,
+                ])
+                ->values();
+
+            $consignee = json_decode((string) $order->consignee, true) ?: [];
+
             return response()->json([
                 'status' => true,
                 'data' => [
-                    'order' => $order,
-                    'courier_provider' => $order->courier_provider ?? 'shiprocket',
+                    'awb_number'      => $order->awb_number,
+                    'order_id'        => $order->id,
+                    'order_number'    => $order->order_number,
+                    'customer_order_id' => $order->customer_order_id ?? null,
+                    'courier_name'    => $order->all_courier_name ?: ($order->courier_name ?: $order->courier_id),
+                    'current_status'  => $order->shipping_status ?: ($order->order_status ?: $order->status),
+                    'payment_type'    => $order->payment_type,
+                    'collectable_amount' => $order->collectable_amount,
+                    'shipped_on'      => $order->shipping_date ?? null,
+                    'delivered_on'    => $order->delivered_date ?? null,
+                    'destination'     => [
+                        'city'    => $consignee['city'] ?? null,
+                        'state'   => $consignee['state'] ?? null,
+                        'pincode' => $consignee['pincode'] ?? null,
+                    ],
+                    'created_at'      => optional($order->created_at)->toDateTimeString(),
                     'tracking_history' => $trackingHistory,
-                    'supported_providers' => self::COURIER_PROVIDERS
                 ]
             ]);
             
