@@ -51,7 +51,7 @@
             <div class="field">
                 <label for="password">Password</label>
                 <div class="control has-toggle">
-                    <input type="password" name="password" id="password" class="input" placeholder="At least 6 characters" autocomplete="new-password" required>
+                    <input type="password" name="password" id="password" class="input" placeholder="Min. 6 characters" autocomplete="new-password" required>
                     <button type="button" class="toggle" data-toggle-password="password" aria-label="Show password"></button>
                 </div>
                 <div class="strength" data-strength-for="password" data-score="0" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
