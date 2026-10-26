@@ -108,6 +108,7 @@
                 </div>
             </a>
         </li>
+        @if (Route::has('admin.fship.index'))
         <li class="menu @routeis('admin.fship.index') active @endrouteis">
             <a href="{{ route('admin.fship.index') }}" class="dropdown-toggle">
                 <div class="">
@@ -116,6 +117,7 @@
                 </div>
             </a>
         </li>
+        @endif
         <li class="menu @routeis('pricesetting') active @endrouteis">
             <a href="{{ route('pricesetting.add') }}" class="dropdown-toggle">
                 <div class="">
