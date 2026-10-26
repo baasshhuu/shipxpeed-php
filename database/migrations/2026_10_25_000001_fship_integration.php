@@ -61,7 +61,18 @@ return new class extends Migration
             if (Schema::hasColumn('logistic_providers', 'logo')) {
                 $row['logo'] = 'brands/45438f4b-44ad-4c1a-bd0e-d08695b2dc16.jpeg';
             }
-            DB::table('logistic_providers')->insert($row);
+            $id = (int) DB::table('logistic_providers')->insertGetId($row);
+
+            // ShipmentController::assignCourier() has branches hard-wired to these provider ids;
+            // the Fship row must never sit on one of them (only possible on an almost empty table).
+            $reserved = [1, 2, 4, 5, 6, 8, 9, 10, 11, 13, 28];
+            if (in_array($id, $reserved, true)) {
+                $new = (int) DB::table('logistic_providers')->max('id') + 1;
+                while (in_array($new, $reserved, true)) {
+                    $new++;
+                }
+                DB::table('logistic_providers')->where('id', $id)->update(['id' => $new]);
+            }
         }
     }
 

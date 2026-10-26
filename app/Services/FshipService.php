@@ -148,6 +148,21 @@ class FshipService implements CourierServiceInterface
         }
     }
 
+    /**
+     * Seller-safe text for an API error. Sellers never see the aggregator's name
+     * (same rule as App\Support\CourierBrand), and technical failures get a plain message.
+     */
+    public static function sellerMessage(?string $error, string $fallback = 'The courier could not process this request. Please try again or choose another courier.'): string
+    {
+        $e = trim((string) $error);
+        if ($e === '' || preg_match('/\b401\b|unauthori[sz]ed|client key|server error|connection failed|unexpected .*response|\bhttp \d{3}\b|status=false/i', $e)) {
+            return $fallback;
+        }
+        $e = preg_replace('/\bf\s*ship\b\s*[:\-]?\s*/i', '', $e);
+        $e = trim((string) preg_replace('/\s{2,}/', ' ', $e), " \t\n\r\0\x0B-_|/:");
+        return $e !== '' ? ucfirst($e) : $fallback;
+    }
+
     /* ------------------------------------------------------------------ */
     /*  Raw API wrappers (one per endpoint in the Fship guide)             */
     /* ------------------------------------------------------------------ */
@@ -623,7 +638,7 @@ class FshipService implements CourierServiceInterface
             $res = $this->addWarehouse($payload);
         }
         if (!$res['ok'] || empty($res['data']['warehouseId'])) {
-            return ['ok' => false, 'error' => 'Fship warehouse creation failed: ' . ($res['error'] ?? 'no warehouseId returned')];
+            return ['ok' => false, 'error' => 'Could not register the pickup address with the courier: ' . self::sellerMessage($res['error'] ?? null, 'please check the pickup address and try again.')];
         }
 
         $ids = ['id' => (int) $res['data']['warehouseId'], 'rto_id' => (int) ($res['data']['rtoWarehouseId'] ?? 0)];
@@ -661,7 +676,7 @@ class FshipService implements CourierServiceInterface
             $res = $this->bookOrder($this->decode($params));
         } catch (\Throwable $e) {
             Log::error('Fship assignOrder exception: ' . $e->getMessage(), ['params' => $params]);
-            $res = ['status' => false, 'message' => 'Fship booking failed: ' . $e->getMessage()];
+            $res = ['status' => false, 'message' => 'Courier booking failed. Please try again or choose another courier.'];
         }
         return $res + ['couriername' => self::CODE];
     }
@@ -700,7 +715,7 @@ class FshipService implements CourierServiceInterface
         $rate = collect($rates)->first(fn ($r) => $wantedId && (int) ($r['courier_id'] ?? 0) === $wantedId)
             ?? collect($rates)->first(fn ($r) => $wantedName !== '' && strtolower(trim((string) ($r['courier_name'] ?? ''))) === $wantedName);
         if (!$rate) {
-            return ['status' => false, 'message' => 'Selected Fship courier is not serviceable for this order any more. Please pick another courier.'];
+            return ['status' => false, 'message' => 'The selected courier is not serviceable for this order any more. Please pick another courier.'];
         }
 
         // Seller API bookings arrive without a picked price: charge the panel price for this courier
@@ -799,7 +814,7 @@ class FshipService implements CourierServiceInterface
 
         $data = $res['data'] ?? [];
         if (!$res['ok'] || empty($data['waybill'])) {
-            return ['status' => false, 'message' => 'Fship: ' . ($res['error'] ?? 'AWB not generated'), 'data' => $data];
+            return ['status' => false, 'message' => self::sellerMessage($res['error'] ?? null, 'The courier could not generate an AWB. Please try again or choose another courier.'), 'data' => $data];
         }
 
         $awb = (string) $data['waybill'];
@@ -837,14 +852,14 @@ class FshipService implements CourierServiceInterface
                 $order->save();
                 $pickupMsg = 'Pickup registered for ' . ($p['data']['apipickuporderids'][0]['pickupDate'] ?? 'next slot');
             } else {
-                $pickupMsg = 'Pickup not registered yet: ' . ($p['error'] ?? 'unknown');
+                $pickupMsg = 'Pickup not registered yet: ' . self::sellerMessage($p['error'] ?? null, 'please raise a pickup request.');
             }
         }
 
         return [
             'status'         => true,
             'couriername'    => self::CODE,
-            'message'        => 'Order booked with ' . $rate['courier_name'] . ' via Fship',
+            'message'        => 'Order booked with ' . $rate['courier_name'],
             'awb_number'     => $awb,
             'label'          => $order->label,
             'pickup_message' => $pickupMsg,
@@ -883,7 +898,7 @@ class FshipService implements CourierServiceInterface
         $alreadyCancelled = str_contains($msg, 'already cancel');
 
         if (!$res['ok'] && !$alreadyCancelled) {
-            return ['status' => false, 'message' => $res['error'] ?? 'Fship cancellation failed', 'responseCode' => $res['http']];
+            return ['status' => false, 'message' => self::sellerMessage($res['error'] ?? null, 'Cancellation failed. Please try again.'), 'responseCode' => $res['http']];
         }
 
         DB::transaction(function () use ($order) {
@@ -906,7 +921,7 @@ class FshipService implements CourierServiceInterface
             }
         });
 
-        return ['status' => true, 'message' => 'Shipment cancelled via Fship', 'responseCode' => 200];
+        return ['status' => true, 'message' => 'Shipment cancelled', 'responseCode' => 200];
     }
 
     /* ------------------------------------------------------------------ */
@@ -994,7 +1009,7 @@ class FshipService implements CourierServiceInterface
     public function ndrAction(Order $order, string $action, array $data = []): array
     {
         if (empty($order->courier_order_id)) {
-            return ['status' => false, 'message' => 'Fship order id missing on this order.'];
+            return ['status' => false, 'message' => 'Courier order reference missing on this order.'];
         }
         $consignee = $this->decode($order->consignee);
         $payload = [
@@ -1008,6 +1023,6 @@ class FshipService implements CourierServiceInterface
             'remarks'          => (string) ($data['remark'] ?? ''),
         ];
         $res = $this->reattemptOrder($payload, ['order_id' => $order->id, 'awb' => $order->awb_number]);
-        return ['status' => $res['ok'], 'message' => $res['ok'] ? 'NDR action sent to Fship' : ($res['error'] ?? 'Failed'), 'api_response' => $res['data']];
+        return ['status' => $res['ok'], 'message' => $res['ok'] ? 'NDR action sent to the courier' : self::sellerMessage($res['error'] ?? null, 'NDR action failed. Please try again.'), 'api_response' => $res['data']];
     }
 }
