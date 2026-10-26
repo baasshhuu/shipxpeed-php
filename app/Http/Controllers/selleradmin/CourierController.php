@@ -15,6 +15,32 @@ use Illuminate\Support\Facades\Http;
 
 class CourierController extends Controller
 {
+    /**
+     * Run this app's own serviceability API in-process (no HTTP round trip to another host),
+     * returning an object with the same successful()/json() shape the callers expect.
+     */
+    private function localServiceability(string $method, array $query)
+    {
+        try {
+            $request = Request::create('/api/couriers/serviceability', 'GET', $query);
+            $result = app(\App\Http\Controllers\Api\CourierController::class)->{$method}($request);
+            $data = $result instanceof \Illuminate\Http\JsonResponse ? $result->getData(true) : (array) $result;
+            $ok = true;
+        } catch (\Throwable $e) {
+            \Log::error('Local serviceability failed: ' . $e->getMessage(), ['method' => $method, 'query' => $query]);
+            $data = ['data' => [], 'message' => $e->getMessage()];
+            $ok = false;
+        }
+
+        return new class($data, $ok) {
+            public function __construct(private array $data, private bool $ok) {}
+            public function successful(): bool { return $this->ok; }
+            public function json(): array { return $this->data; }
+            public function status(): int { return $this->ok ? 200 : 500; }
+            public function body(): string { return (string) json_encode($this->data); }
+        };
+    }
+
 
 
 
@@ -37,7 +63,7 @@ class CourierController extends Controller
 
         if (!empty($orderIds)) {
             try {
-                $response = Http::get("https://shipxpeed.com/api/couriers/serviceability/bulk", [
+                $response = $this->localServiceability('serviceabilitybulk', [
                     'order_ids' => $orderIds  // Pass bulk order IDs
                 ]);
                 // return $response;
@@ -72,7 +98,7 @@ class CourierController extends Controller
                             $logisticProviders[] = array_merge($courier, [
 
                 'provider_logo' => match (true) {
-                    ($localProvider && $localProvider->code === 'fship') => \App\Services\FshipService::logoFor($courier['courierName'] ?? '', $localProvider->logo),
+                    ($localProvider && \App\Support\CourierBrand::isAggregator($localProvider)) => \App\Support\CourierBrand::sellerLogo($courier['courierName'] ?? '', $courier['logoHint'] ?? null),
                     !empty($courier['logoHint']) => $courier['logoHint'],
                     str_starts_with($courier['courierName'], 'Amazon_') => 'brands/1703c4f8-55a6-4923-8c94-9bcb98f39c2d.jpeg',
                     $courier['courierName'] === 'DTDC-SMART' => 'brands/1750337596_images-removebg-preview.png',
@@ -112,10 +138,10 @@ class CourierController extends Controller
                 $courier['courierName'] === 'Shreemaruti 500gm' => 'brands/Shreemaruti.jpg',
 
 
-                    default => $localProvider->logo ?? null,
+                    default => $localProvider->logo ?? \App\Support\CourierBrand::sellerLogo($courier['courierName'] ?? ''),
                 },
 
-                                'provider_name' => ($localProvider && (in_array($localProvider->name, ['Smartship','Tekipost','Boxd','DTDC','Parcelx','Shiprocket','selloship','Shipclues']) || $localProvider->code === 'fship'))
+                                'provider_name' => ($localProvider && (in_array($localProvider->name, ['Smartship','Tekipost','Boxd','DTDC','Parcelx','Shiprocket','selloship','Shipclues']) || \App\Support\CourierBrand::isAggregator($localProvider)))
                                 ? match ($courier['courierName']) {
                                     'Bluedart 500 grams new' => 'Bluedart Surface 500gms',
                                     'Bluedart Air' => 'Bluedart Air 500gms',
@@ -220,7 +246,7 @@ class CourierController extends Controller
 
     if ($firstOrderId) {
         try {
-            $response = Http::get("https://shipxpeed.com/api/couriers/serviceability", [
+            $response = $this->localServiceability('serviceability', [
                 'order_id' => $firstOrderId
             ]);
         //  return $response;
@@ -246,7 +272,7 @@ class CourierController extends Controller
 
 
             'provider_logo' => match (true) {
-                    ($localProvider && $localProvider->code === 'fship') => \App\Services\FshipService::logoFor($courier['courierName'] ?? '', $localProvider->logo),
+                    ($localProvider && \App\Support\CourierBrand::isAggregator($localProvider)) => \App\Support\CourierBrand::sellerLogo($courier['courierName'] ?? '', $courier['logoHint'] ?? null),
                 !empty($courier['logoHint']) => $courier['logoHint'],
                 str_starts_with($courier['courierName'], 'Amazon_') => 'brands/1703c4f8-55a6-4923-8c94-9bcb98f39c2d.jpeg',
                 $courier['courierName'] === 'DTDC-SMART' => 'brands/1750337596_images-removebg-preview.png',
@@ -287,11 +313,11 @@ class CourierController extends Controller
 
                 // tekipost
 
-                default => $localProvider->logo ?? null,
+                default => $localProvider->logo ?? \App\Support\CourierBrand::sellerLogo($courier['courierName'] ?? ''),
             },
 
 
-                            'provider_name' => ($localProvider && (in_array($localProvider->name, ['Smartship','Tekipost','Boxd','DTDC','Parcelx','Shiprocket','selloship','Shipclues','Ekart']) || $localProvider->code === 'fship'))
+                            'provider_name' => ($localProvider && (in_array($localProvider->name, ['Smartship','Tekipost','Boxd','DTDC','Parcelx','Shiprocket','selloship','Shipclues','Ekart']) || \App\Support\CourierBrand::isAggregator($localProvider)))
                             ? match ($courier['courierName']) {
                                 'Bluedart 500 grams new' => 'Bluedart Surface 500gms',
                                 'Bluedart Air' => 'Bluedart Air 500gms',
@@ -555,7 +581,7 @@ class CourierController extends Controller
 
     if ($firstOrderId) {
         try {
-            $response = Http::get("https://shipxpeed.com/api/reverse/couriers/serviceability", [
+            $response = $this->localServiceability('reverseServiceability', [
                 'order_id' => $firstOrderId
             ]);
         //  return $response;
@@ -581,7 +607,7 @@ class CourierController extends Controller
 
 
             'provider_logo' => match (true) {
-                    ($localProvider && $localProvider->code === 'fship') => \App\Services\FshipService::logoFor($courier['courierName'] ?? '', $localProvider->logo),
+                    ($localProvider && \App\Support\CourierBrand::isAggregator($localProvider)) => \App\Support\CourierBrand::sellerLogo($courier['courierName'] ?? '', $courier['logoHint'] ?? null),
                 !empty($courier['logoHint']) => $courier['logoHint'],
                 str_starts_with($courier['courierName'], 'Amazon_') => 'brands/1703c4f8-55a6-4923-8c94-9bcb98f39c2d.jpeg',
                 $courier['courierName'] === 'DTDC-SMART' => 'brands/1750337596_images-removebg-preview.png',
@@ -605,11 +631,11 @@ class CourierController extends Controller
                 $courier['courierName'] === 'Amazon 2kg' => 'brands/1703c4f8-55a6-4923-8c94-9bcb98f39c2d.jpeg',
                 $courier['courierName'] === 'Amazon 1kg' => 'brands/1703c4f8-55a6-4923-8c94-9bcb98f39c2d.jpeg',
 
-                default => $localProvider->logo ?? null,
+                default => $localProvider->logo ?? \App\Support\CourierBrand::sellerLogo($courier['courierName'] ?? ''),
             },
 
 
-                            'provider_name' => ($localProvider && in_array($localProvider->name, ['Smartship', 'Tekipost','Boxd','DTDC','Parcelx','Shiprocket']))
+                            'provider_name' => ($localProvider && (in_array($localProvider->name, ['Smartship', 'Tekipost','Boxd','DTDC','Parcelx','Shiprocket']) || \App\Support\CourierBrand::isAggregator($localProvider)))
                             ? match ($courier['courierName']) {
                                 'Bluedart 500 grams new' => 'Bluedart Surface 500gms',
                                 'Bluedart Air' => 'Bluedart Air 500gms',

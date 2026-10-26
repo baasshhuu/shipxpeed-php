@@ -202,7 +202,7 @@ class ShipcluesService implements CourierServiceInterface
             return array_map(function ($r) {
                 $e = $this->toServiceabilityEntry($r);
                 return [
-                    'courier_id' => 'shipclues_' . $e['serviceabilityId'],
+                    'courier_id' => 'sxc_' . $e['serviceabilityId'],
                     'courierName' => $e['courierName'],
                     'courierCharge' => $e['courierCharge'],
                     'freightCharges' => $e['freightCharges'],
@@ -254,33 +254,62 @@ class ShipcluesService implements CourierServiceInterface
 
         return [
             'serviceabilityId' => (int) $r['courier_id'],          // Shipclues courier id
-            'courierName' => (string) ($r['courier_name'] ?? 'Shipclues'),
+            'courierName' => \App\Support\CourierBrand::cleanName($r['courier_name'] ?? null),
             'courierCharge' => $price,
             'freightCharges' => round($price - $codSeller, 2),
             'codCharge' => $codSeller,
             'zone' => $r['zone'] ?? null,
-            'zone_courier_name' => (string) ($r['courier_name'] ?? 'Shipclues'),
+            'zone_courier_name' => \App\Support\CourierBrand::cleanName($r['courier_name'] ?? null),
             'minWeight' => $weight,
             'volWeight' => (float) ($r['vol_weight_in_gm'] ?? $weight),
             'edd' => $r['estimated_delivery_date'] ?? null,
-            'logoHint' => $this->logoFor((string) ($r['courier_name'] ?? '')),
+            'logoHint' => $this->logoFor((string) ($r['courier_name'] ?? ''), $r['courier_logo'] ?? null, (string) ($r['courier_keyword'] ?? $r['courier_id'] ?? '')),
         ];
     }
 
-    /** Re-use the brand images already in public/brands. */
-    private function logoFor(string $name): ?string
+    /**
+     * Courier logo for sellers. Uses our own brand images first; otherwise copies the
+     * courier's logo from the API into public/brands/couriers once, so the seller's
+     * browser never loads an aggregator-hosted URL.
+     */
+    private function logoFor(string $name, ?string $remoteLogo = null, string $keyword = ''): ?string
     {
-        $n = strtolower($name);
-        return match (true) {
-            str_contains($n, 'delhivery') => 'brands/45438f4b-44ad-4c1a-bd0e-d08695b2dc16.jpeg',
-            str_contains($n, 'bluedart') || str_contains($n, 'blue dart') => 'brands/1750337705_WhatsApp_Image_2025-06-19_at_5.17.34_PM__1_-removebg-preview.png',
-            str_contains($n, 'xpressbee') || str_contains($n, 'xb') => 'brands/Xpressbee.png',
-            str_contains($n, 'ekart') => 'brands/ecart.png',
-            str_contains($n, 'dtdc') => 'brands/1750337596_images-removebg-preview.png',
-            str_contains($n, 'amazon') => 'brands/1703c4f8-55a6-4923-8c94-9bcb98f39c2d.jpeg',
-            str_contains($n, 'maruti') => 'brands/Shreemaruti.jpg',
-            default => null,
-        };
+        if ($local = \App\Support\CourierBrand::logo($name)) {
+            return $local;
+        }
+        if (!$remoteLogo || !str_starts_with($remoteLogo, 'http')) {
+            return null;
+        }
+
+        $slug = \Illuminate\Support\Str::slug($keyword !== '' ? $keyword : $name) ?: md5($name);
+        $dir = public_path('brands/couriers');
+        foreach (['png', 'jpg', 'jpeg', 'webp', 'svg'] as $ext) {
+            if (is_file("$dir/$slug.$ext")) {
+                return "brands/couriers/$slug.$ext";
+            }
+        }
+
+        try {
+            $res = \Illuminate\Support\Facades\Http::timeout(6)->get($remoteLogo);
+            $type = strtolower((string) $res->header('Content-Type'));
+            $ext = match (true) {
+                str_contains($type, 'png') => 'png',
+                str_contains($type, 'webp') => 'webp',
+                str_contains($type, 'svg') => 'svg',
+                str_contains($type, 'jpeg'), str_contains($type, 'jpg') => 'jpg',
+                default => null,
+            };
+            if ($res->successful() && $ext && strlen($res->body()) > 100) {
+                if (!is_dir($dir)) {
+                    @mkdir($dir, 0755, true);
+                }
+                file_put_contents("$dir/$slug.$ext", $res->body());
+                return "brands/couriers/$slug.$ext";
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Courier logo download failed: ' . $e->getMessage());
+        }
+        return null;
     }
 
     /* =========================================================
@@ -298,7 +327,7 @@ class ShipcluesService implements CourierServiceInterface
 
         $row = \App\Models\LogisticProvider::where('code', self::CODE)->first();
         if (!$this->enabled() || ($row && (string) $row->status !== '1')) {
-            return $this->fail('Shipclues is currently disabled.');
+            return $this->fail('This courier is currently unavailable.');
         }
 
         $order = Order::find($orderId);
@@ -345,7 +374,7 @@ class ShipcluesService implements CourierServiceInterface
                 $courierId = (int) $rate['courier_id'];
             }
             if (!$rate) {
-                return $this->fail('The selected Shipclues courier is not serviceable for this order.');
+                return $this->fail('The selected courier is not serviceable for this order.');
             }
 
             $sellerCharge = $this->sellerPrice((float) ($rate['total_charges'] ?? 0));
@@ -362,13 +391,13 @@ class ShipcluesService implements CourierServiceInterface
             $shipRes = $this->request('POST', 'order/ship/', ['order_id' => $scOrderId, 'courier_id' => $courierId]);
             $ship = $shipRes->json() ?? [];
             if (!$shipRes->successful() || (empty($ship['courier_awb_number']) && empty($ship['awb_number']))) {
-                return $this->fail('Shipclues could not assign an AWB: ' . $this->errorText($shipRes));
+                return $this->fail('The courier could not assign an AWB: ' . \App\Support\CourierBrand::cleanName($this->errorText($shipRes), 'please try another courier'));
             }
 
             $awb = $ship['courier_awb_number'] ?: $ship['awb_number'];
             $actualCost = (float) ($ship['total_charges'] ?? $rate['total_charges'] ?? 0);
             $sellerCharge = $this->sellerPrice($actualCost);
-            $courierName = $ship['courier_name'] ?? $rate['courier_name'] ?? ($params['provider_name'] ?? 'Shipclues');
+            $courierName = \App\Support\CourierBrand::cleanName($ship['courier_name'] ?? $rate['courier_name'] ?? ($params['provider_name'] ?? null));
 
             // 6. Save on our order
             $order->courier_id = self::CODE;
@@ -414,7 +443,7 @@ class ShipcluesService implements CourierServiceInterface
             ];
         } catch (\Throwable $e) {
             Log::error('Shipclues assignOrder failed: ' . $e->getMessage(), ['order_id' => $orderId]);
-            return $this->fail('Shipclues booking failed: ' . $e->getMessage());
+            return $this->fail('Courier booking failed. Please try again or choose another courier.');
         }
     }
 
@@ -622,7 +651,7 @@ class ShipcluesService implements CourierServiceInterface
         $info = $this->arr($order->additional_info);
         $scOrderId = (int) ($info['shipclues_order_id'] ?? $order->courier_order_id);
         if (!$scOrderId) {
-            return ['status' => false, 'success' => false, 'message' => 'Shipclues order id missing for AWB ' . $awb];
+            return ['status' => false, 'success' => false, 'message' => 'Courier order reference missing for AWB ' . $awb];
         }
 
         $res = $this->request('POST', 'order/cancel-shipment/', ['order_id' => $scOrderId, 'cancel_order' => true]);
@@ -630,7 +659,7 @@ class ShipcluesService implements CourierServiceInterface
             return [
                 'status' => false,
                 'success' => false,
-                'message' => 'Shipclues cancellation failed: ' . $this->errorText($res),
+                'message' => 'Cancellation failed: ' . \App\Support\CourierBrand::cleanName($this->errorText($res), 'please try again'),
                 'responseCode' => $res->status(),
             ];
         }
@@ -657,7 +686,7 @@ class ShipcluesService implements CourierServiceInterface
         return [
             'status' => true,
             'success' => true,
-            'message' => 'Shipment cancelled successfully via Shipclues',
+            'message' => 'Shipment cancelled successfully',
             'data' => $res->json(),
             'responseCode' => 200,
         ];

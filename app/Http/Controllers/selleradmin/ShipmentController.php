@@ -1884,7 +1884,7 @@ if (
         if (($response['couriername'] ?? null) === 'shipclues') {
             return !empty($response['status'])
                 ? ['success' => true, 'awb' => $response['awb_number']]
-                : ['success' => false, 'message' => $response['message'] ?? 'Shipclues assignment failed'];
+                : ['success' => false, 'message' => $response['message'] ?? 'Courier assignment failed'];
         }
 
         // Fship response

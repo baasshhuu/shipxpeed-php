@@ -1880,7 +1880,7 @@ public function callDtdcAPI(array $params): array
                 'package_height' => 'required|numeric|min:1',
                 'courier_id' => ['nullable', 'string', function ($attribute, $value, $fail) {
                     $allowed = explode(',', 'delhivery_250gms,amazon_2kg,dtdc_air,dtdc_surface_500gm,delhivery_5kg,delhivery,bluedart_air_500gms,bluedart_surface_500gms,dtdc_surface_1kg,amazon_0_5kg,delhivery_air,delhivery_10kg,Delhivery_500gm,Amazon_500gm,xpressbee_250gms,Delhivery_ 250gms,bluedart_2kg_surface,Amazon_2kg,Amazon_1kg,sell_Ekart_2KG,shadowfax');
-                    if (!in_array($value, $allowed, true) && !str_starts_with((string) $value, 'shipclues_') && !str_starts_with((string) $value, 'fship_')) {
+                    if (!in_array($value, $allowed, true) && !str_starts_with((string) $value, 'shipclues_') && !str_starts_with((string) $value, 'sxc_') && !str_starts_with((string) $value, 'fship_')) {
                         $fail('The selected courier id is invalid.');
                     }
                 }],
@@ -1992,8 +1992,8 @@ public function callDtdcAPI(array $params): array
 
                         foreach ($providerResults as $service) {
                             $allResults[] = array_merge($service, [
-                                'provider_code' => $provider->code,
-                                'provider_name' => $provider->name,
+                                'provider_code' => \App\Support\CourierBrand::isAggregator($provider) ? 'shipxpeed' : $provider->code,
+                                'provider_name' => \App\Support\CourierBrand::isAggregator($provider) ? 'ShipXpeed' : $provider->name,
                                 'is_active' => true,
                             ]);
                         }
@@ -2085,17 +2085,17 @@ public function callDtdcAPI(array $params): array
 
                 ];
 
-                if (str_starts_with((string) $request->courier_id, 'shipclues_')) {
-                // Shipclues couriers: courier_id = "shipclues_<Shipclues courier id>" (from the serviceability response)
+                if (str_starts_with((string) $request->courier_id, 'sxc_') || str_starts_with((string) $request->courier_id, 'shipclues_')) {
+                // Shipclues couriers: courier_id = "sxc_<courier id>" (legacy "shipclues_<id>" still accepted)
                 $assignmentResult = app('courier.shipclues')->assignOrder([
                     'order_id' => $order->id,
-                    'serviceability_id' => (int) substr((string) $request->courier_id, strlen('shipclues_')),
+                    'serviceability_id' => (int) substr((string) $request->courier_id, strpos((string) $request->courier_id, '_') + 1),
                     'seller_id' => $sellerid,
                 ]);
                 $courierAssigned = !empty($assignmentResult['status']);
                 if ($courierAssigned) {
                     $order->refresh();
-                    $courierMapping[$request->courier_id] = $assignmentResult['courier_name'] ?? 'Shipclues';
+                    $courierMapping[$request->courier_id] = $assignmentResult['courier_name'] ?? 'Courier';
                 }
             } elseif (str_starts_with((string) $request->courier_id, 'fship_')) {
                 // Fship couriers: courier_id = "fship_<Fship courierId>" (from the serviceability response)

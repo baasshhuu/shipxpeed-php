@@ -64,14 +64,15 @@
 
                                 <div class="courier-info">
                                     <div class="courier-logo-container">
-                                        <img src="{{ asset($provider['provider_logo'] ?? 'images/default-logo.png') }}" 
-                                             alt="{{ $provider['provider_name'] }}" 
+                                        @php($__courierLabel = \App\Support\CourierBrand::cleanName(!empty($provider['provider_name']) ? $provider['provider_name'] : ($provider['courierName'] ?? null)))
+                                        <img src="{{ asset(!empty($provider['provider_logo']) ? $provider['provider_logo'] : \App\Support\CourierBrand::sellerLogo($__courierLabel)) }}" onerror="this.onerror=null;this.src='{{ asset(\App\Support\CourierBrand::DEFAULT_LOGO) }}';" 
+                                             alt="{{ $__courierLabel }}" 
                                              class="courier-logo">
                                     </div>
 
                                     <div class="courier-details">
                                         <h6 class="courier-name mb-1">
-                                            {{ !empty($provider['provider_name']) ? $provider['provider_name'] : ($provider['courierName'] ?? 'Unknown') }}
+                                            {{ $__courierLabel }}
                                         </h6>
                                         <div class="courier-specs">
                                             <span class="spec-item">

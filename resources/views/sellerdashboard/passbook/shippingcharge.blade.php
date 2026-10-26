@@ -493,7 +493,7 @@
                                         @endif
                                     </td>
                                     <td data-label="Courier Name">
-                                        <span class="shipping-courier-text">{{ $order->courier_id ?? 'N/A' }}</span>
+                                        <span class="shipping-courier-text">{{ \App\Support\CourierBrand::cleanName($order->courier_name ?: $order->zone_courier_name, 'N/A') }}</span>
                                     </td>
                                     <td data-label="Consignee Name">
                                         {{ $order->consignee['name'] ?? 'N/A' }}
