@@ -58,18 +58,27 @@ patch('routes/web.php',
     "        \$sellerId = Auth::guard('seller')->id();\n        Auth::guard('seller')->logout();\n        Auth::guard('web')->loginUsingId(\$adminId);\n        Session::forget('admin_impersonator_id');\n        return \$sellerId\n            ? redirect()->route('seller-list.edit', \$sellerId)->with('success', 'Back in admin.')\n            : redirect()->route('dashboard')->with('success', 'Back in admin.');",
     "Back in admin.");
 
-// 3) admin-view banner in the seller panel
-$body = '<body data-pc-preset="preset-1" data-pc-direction="ltr" data-pc-theme="light">';
-$banner = $body . <<<'HTML'
+// 3) admin-view banner in the seller panel (inserted right after the <body ...> tag, whatever its attributes)
+$file = 'resources/views/layouts/sellerdash.blade.php';
+$s = file_get_contents($file);
+if (strpos($s, 'admin_impersonator_id') !== false) {
+    echo "already patched: $file\n";
+} elseif (!preg_match('/<body\b[^>]*>/i', $s, $m, PREG_OFFSET_CAPTURE)) {
+    fwrite(STDERR, "no <body> tag in $file - skipping banner (everything else still goes live)\n");
+} else {
+    $banner = <<<'HTML'
 
     @if (session('admin_impersonator_id'))
         <div style="position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:3000;background:#0b1020;color:#e8edf7;border:1px solid #4f8cff;border-radius:999px;padding:8px 10px 8px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);font-size:13.5px;max-width:calc(100% - 24px)">
-            <span><i class="fa-solid fa-user-shield" style="color:#4f8cff"></i>&nbsp; Admin view: <strong>{{ Auth::guard('seller')->user()->name ?? 'Seller' }}</strong></span>
+            <span>Admin view: <strong>{{ Auth::guard('seller')->user()->name ?? 'Seller' }}</strong></span>
             <a href="{{ route('impersonate.leave') }}" style="background:#4f8cff;color:#fff;border-radius:999px;padding:5px 12px;text-decoration:none;font-weight:600;white-space:nowrap">Back to admin</a>
         </div>
     @endif
 HTML;
-patch('resources/views/layouts/sellerdash.blade.php', $body, $banner, "admin_impersonator_id");
+    $pos = $m[0][1] + strlen($m[0][0]);
+    file_put_contents($file, substr($s, 0, $pos) . $banner . substr($s, $pos));
+    echo "patched: $file\n";
+}
 PHP
 
 for f in app/Http/Controllers/admin/HomeController.php app/Http/Controllers/admin/SellerListController.php routes/admin.php routes/web.php; do
