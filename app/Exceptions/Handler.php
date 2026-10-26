@@ -4,6 +4,9 @@ namespace App\Exceptions;
 
 use Throwable;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Session\TokenMismatchException;
+use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -25,6 +28,22 @@ class Handler extends ExceptionHandler
      */
     public function register(): void
     {
+        // Seller logout with an expired/stale CSRF token (page left open past the
+        // session lifetime, or restored with the Back button): finish the logout
+        // and go to the login page instead of showing "419 Page Expired".
+        $this->renderable(function (Throwable $e, $request) {
+            $expired = $e instanceof TokenMismatchException
+                || ($e instanceof HttpExceptionInterface && $e->getStatusCode() === 419);
+
+            if ($expired && $request->is('seller/seller-logout')) {
+                Auth::guard('seller')->logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return redirect()->route('seller.login')->with('success', 'You have been logged out.');
+            }
+        });
+
         $this->renderable(function (MethodNotAllowedHttpException $e, $request) {
             if ($request->is('api/*')) {
                 return response()->json(['status' => false, 'message' => $e->getMessage()], 405);

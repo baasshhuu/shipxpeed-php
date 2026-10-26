@@ -481,7 +481,7 @@ class SellerAuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->back();
+        return redirect()->route('seller.login')->with('success', 'You have been logged out.');
     }
 
 
