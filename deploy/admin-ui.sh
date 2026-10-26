@@ -28,7 +28,7 @@ EXIST=""; for f in $COPY_FILES $PATCHED; do [ -e "$f" ] && EXIST="$EXIST $f"; do
 tar czf "$BK" $EXIST && echo "Backup: $BK"
 restore() {
   echo "!! restoring backup"; tar xzf "$BK"
-  for f in $COPY_FILES; do tar tzf "$BK" | grep -qx "$f" || rm -f "$f"; done
+  for f in $COPY_FILES; do grep -qxF "$f" <(tar tzf "$BK") || rm -f "$f"; done
   php artisan view:clear >/dev/null 2>&1; php artisan route:clear >/dev/null 2>&1
   echo "RESTORED - nothing changed"; exit 1
 }

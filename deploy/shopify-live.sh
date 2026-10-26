@@ -28,7 +28,7 @@ git fetch -q origin || { echo "FAIL: git fetch"; exit 1; }
 # backup (only existing files)
 EXIST=""; for f in $NEW_FILES $PATCHED; do [ -e "$f" ] && EXIST="$EXIST $f"; done
 tar czf "$BK" $EXIST && echo "Backup: $BK"
-restore() { echo "!! restoring backup"; tar xzf "$BK"; for f in $NEW_FILES; do git cat-file -e HEAD:"$f" 2>/dev/null || { tar tzf "$BK" | grep -qx "$f" || rm -f "$f"; }; done; echo "RESTORED - nothing changed"; exit 1; }
+restore() { echo "!! restoring backup"; tar xzf "$BK"; for f in $NEW_FILES; do git cat-file -e HEAD:"$f" 2>/dev/null || { grep -qxF "$f" <(tar tzf "$BK") || rm -f "$f"; }; done; echo "RESTORED - nothing changed"; exit 1; }
 
 mkdir -p app/Services/Shopify
 for f in $NEW_FILES; do git show "$REF:$f" > "$f" || restore; done

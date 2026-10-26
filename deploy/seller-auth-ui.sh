@@ -22,7 +22,7 @@ EXIST=""; for f in $FILES; do [ -e "$f" ] && EXIST="$EXIST $f"; done
 tar czf "$BK" $EXIST && echo "Backup: $BK" || { echo "FAIL: backup"; exit 1; }
 restore() {
     echo "!! restoring backup"; tar xzf "$BK"
-    for f in $FILES; do tar tzf "$BK" | grep -qx "$f" || rm -f "$f"; done
+    for f in $FILES; do grep -qxF "$f" <(tar tzf "$BK") || rm -f "$f"; done
     php artisan view:clear >/dev/null 2>&1
     echo "RESTORED - old pages are back"; exit 1
 }

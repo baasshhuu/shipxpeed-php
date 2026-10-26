@@ -45,7 +45,7 @@ EXIST=""; for f in $NEW_FILES $SHARED $SIDEBAR .env; do [ -e "$f" ] && EXIST="$E
 tar czf "$BK" $EXIST && echo "Backup: $BK"
 restore() {
   echo "!! restoring backup"; tar xzf "$BK"
-  for f in $NEW_FILES; do tar tzf "$BK" | grep -qx "$f" || rm -f "$f"; done
+  for f in $NEW_FILES; do grep -qxF "$f" <(tar tzf "$BK") || rm -f "$f"; done
   echo "RESTORED - nothing changed"; exit 1
 }
 
