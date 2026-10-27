@@ -1,472 +1,281 @@
- @extends('layouts.sellerdash')
+@extends('layouts.sellerdash')
 
 @section('content')
 <style>
-    .weight-discrepancy-page {
-        --wd-primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        --wd-info-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-        --wd-dark-gradient: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
-    }
-    .weight-discrepancy-page .wd-header {
-        background:linear-gradient(93deg, #8e9fd9 5%, #6791cf 75%, #5054e9 117%) !important;
-        color: white;
-        padding: 1rem 0;
-        margin-bottom: 1.5rem;
-        border-radius: 7px;
-        box-shadow: 0 3px 15px rgba(102, 126, 234, 0.3);
-        text-align: center;
-    }
-    .weight-discrepancy-page .wd-title {
-        font-size: 1.3rem;
-        font-weight: 700;
-        text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
-        margin-bottom: 0.2rem;
-    }
-    .weight-discrepancy-page .wd-subtitle {
-        font-size: 0.8rem;
-        opacity: 0.9;
-    }
-    .weight-discrepancy-page .wd-filter-card {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 3px 15px rgba(102, 126, 234, 0.08);
-        padding: 0.7rem 0.8rem;
-        margin-bottom: 1.2rem;
-       
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .weight-discrepancy-page .wd-filter-form {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr auto;
-        gap: 0.7rem;
-        align-items: center;
-        width: 100%;
-    }
-    .weight-discrepancy-page .wd-filter-form input[type="text"],
-    .weight-discrepancy-page .wd-filter-form input[type="date"] {
-        border-radius: 7px;
-        border: 1px solid #e3e7ef;
-        font-size: 0.82rem;
-        padding: 0.75rem 0.7rem;
-        background: #f6f8fc;
-        transition: border-color 0.2s;
-        min-width: 0;
-    }
-    .weight-discrepancy-page .wd-filter-form input[type="text"]:focus,
-    .weight-discrepancy-page .wd-filter-form input[type="date"]:focus {
-        border-color: #667eea;
-        outline: none;
-    }
-    .weight-discrepancy-page .wd-filter-form .btn {
-        border-radius: 8px;
-        font-size: 0.98rem;
-        padding: 0.55rem 1.1rem;
-        font-weight: 600;
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.08);
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        min-width: 0;
-    }
-    .weight-discrepancy-page .wd-filter-form .btn-dark {
-        background: #222;
-        border: none;
-        color: #fff;
-        transition: background 0.2s;
-    }
-    .weight-discrepancy-page .wd-filter-form .btn-dark:hover {
-        background: #444;
-    }
-    .weight-discrepancy-page .wd-table-card {
-        background: #f6f8fc;
-        border-radius: 7px;
-        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.10);
-        /* padding: 1rem 1rem; */
-        margin-bottom: 2rem;
-        border: 1px solid #e3e7ef;
-        overflow-x: auto;
-    }
-    .weight-discrepancy-page .wd-custom-table {
-        border: none;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 3px 15px rgba(0,0,0,0.08);
-        width: 100%;
-        background: #fff;
-    }
-    .weight-discrepancy-page .wd-custom-table thead th {
-        background: linear-gradient(90deg, #3576e3 0, #306cc9 100%) !important;
-        color: #fff;
-        border: none;
-       
-        padding: 0.7rem 0.7rem;
-        font-size: 0.85rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      
-    }
-    .weight-discrepancy-page .wd-custom-table tbody td {
-        border: none;
-        padding: 1rem 0.7rem;
-        vertical-align: middle;
-        text-align:center;
-        border-bottom: 1px solid #f1f3f4;
-        font-size: 0.9rem;
-        background: #fff;
-        color: #2c3e50;
-    }
-    .weight-discrepancy-page .wd-custom-table tbody tr:last-child td {
-        border-bottom: none;
-    }
-    .weight-discrepancy-page .wd-custom-table tbody tr:hover {
-        background: #f8f9ff;
-        transform: scale(1.01);
-        transition: all 0.2s;
-    }
-    .weight-discrepancy-page .wd-pagination {
-        display: flex;
-        justify-content: center;
-        margin-top: 1.5rem;
-    }
-    .weight-discrepancy-page .wd-pagination .pagination {
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.08);
-    }
-    .weight-discrepancy-page .wd-pagination .page-link {
-        border: 1px solid #e3e7ef;
-        color: #2c3e50;
-        padding: 0.6rem 0.9rem;
-        font-weight: 500;
-        background: #fff;
-        transition: all 0.2s;
-    }
-    .weight-discrepancy-page .wd-pagination .page-link:hover {
-        background: #667eea;
-        color: #fff;
-        border-color: #667eea;
-    }
-    .weight-discrepancy-page .wd-pagination .page-item.active .page-link {
-        background: #667eea;
-        border-color: #667eea;
-        color: #fff;
-        font-weight: 600;
-    }
-    .weight-discrepancy-page .wd-pagination .page-item.disabled .page-link {
-        color: #9ca3af;
-        background: #f9fafb;
-        border-color: #e3e7ef;
-    }
-    @media (max-width: 768px) {
-        .weight-discrepancy-page .wd-header {
-            font-size: 1.1rem;
-        }
-        .weight-discrepancy-page .wd-table-card {
-            padding: 1rem;
-        }
-        .weight-discrepancy-page .wd-custom-table thead th,
-        .weight-discrepancy-page .wd-custom-table tbody td {
-            padding: 0.7rem 0.4rem;
-            font-size: 0.85rem;
-        }
-        .weight-discrepancy-page .wd-filter-card {
-            padding: 1rem;
-        }
-        .weight-discrepancy-page .wd-pagination .page-link {
-            padding: 0.5rem 0.7rem;
-            font-size: 0.85rem;
-        }
+    .wds { --ink:#1e2a3b; --muted:#6b7a90; --line:#e4e8f0; --pri:#3d6ef5; --soft:#f5f7fc; }
+    .wds { color:var(--ink); }
+    .wds, .wds * { box-sizing:border-box; }
+    .wds .pc-content { max-width:100%; }
+    .wds .muted { color:var(--muted); font-size:12px; }
+    .wds-head { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+    .wds-head h1 { font-size:1.3rem; font-weight:700; margin:0; }
+    .wds-wallet { background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 14px; font-size:12px; color:var(--muted); }
+    .wds-wallet b { display:block; font-size:16px; color:var(--ink); }
+    .wds-wallet b.neg { color:#d93a4a; }
+    .wds-info { background:#eef3ff; border:1px solid #d6e1ff; color:#2b4a9b; border-radius:10px; padding:10px 14px; font-size:13px; margin-bottom:14px; }
+    .wds-stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:14px; }
+    .wds-stat { background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 14px; text-decoration:none; color:var(--ink); transition:border-color .15s; }
+    .wds-stat:hover { border-color:#b9c8f2; color:var(--ink); }
+    .wds-stat.active { border-color:var(--pri); box-shadow:0 0 0 1px var(--pri) inset; }
+    .wds-stat b { display:block; font-size:20px; line-height:1.25; }
+    .wds-stat span { font-size:12px; color:var(--muted); }
+    .wds-stat.warn b { color:#d97706; }
+    .wds-filter { display:flex; gap:8px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:14px; align-items:center; }
+    .wds-filter input { border:1px solid var(--line); background:var(--soft); border-radius:8px; padding:8px 10px; font-size:13px; }
+    .wds-filter input[type=text] { flex:1; min-width:180px; }
+    .wds-btn { border:0; border-radius:8px; padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+    .wds-btn.pri { background:var(--pri); color:#fff; }
+    .wds-btn.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
+    .wds-btn.warn { background:#f59e0b; color:#fff; }
+    .wds-btn:disabled { opacity:.6; cursor:wait; }
+    .wds-card { background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+    .wds-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .wds-table th { background:var(--soft); color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; font-weight:700; padding:10px 12px; text-align:left; white-space:nowrap; }
+    .wds-table td { padding:12px; border-top:1px solid var(--line); vertical-align:middle; }
+    .wds-awb { font-weight:700; font-family: ui-monospace, Menlo, monospace; }
+    .wds-up { color:#d93a4a; font-weight:700; }
+    .wds-badge { font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; white-space:nowrap; display:inline-block; }
+    .st-charged { background:#e8efff; color:#2f5bd8; }
+    .st-disputed { background:#fff4e0; color:#b86e00; }
+    .st-accepted { background:#e5f7ec; color:#178a46; }
+    .st-rejected { background:#fde8ea; color:#c42b3b; }
+    .st-closed { background:#eef0f4; color:#6b7a90; }
+    .wds-left { font-size:11px; color:#b86e00; font-weight:600; display:block; margin-top:3px; }
+    .wds-empty { padding:36px; text-align:center; color:var(--muted); }
+    .wds-pag { display:flex; justify-content:center; padding:12px; }
+    /* modal */
+    .wds-modal { position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:flex-start; justify-content:center; z-index:2000; padding:30px 10px; overflow:auto; }
+    .wds-modal.open { display:flex; }
+    .wds-box { background:#fff; border-radius:14px; width:100%; max-width:720px; box-shadow:0 20px 60px rgba(0,0,0,.25); }
+    .wds-box header { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-bottom:1px solid var(--line); }
+    .wds-box header h5 { margin:0; font-weight:700; font-size:1.05rem; }
+    .wds-x { background:none; border:0; font-size:24px; line-height:1; cursor:pointer; color:var(--muted); }
+    .wds-body { padding:16px 18px; }
+    .wds-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:8px; }
+    .wds-kv { background:var(--soft); border-radius:10px; padding:8px 10px; }
+    .wds-kv > span { display:block; font-size:11px; color:var(--muted); }
+    .wds-kv b { font-size:14px; }
+    .wds-sec { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:16px 0 6px; font-weight:700; }
+    .wds-note { background:var(--soft); border-radius:8px; padding:8px 12px; font-size:13px; white-space:pre-wrap; }
+    .wds-note.admin { border-left:3px solid var(--pri); }
+    .wds-proofs { display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:8px; }
+    .wds-proofs a, .wds-proofs video { display:block; border-radius:10px; overflow:hidden; background:#000; border:1px solid var(--line); }
+    .wds-proofs img, .wds-proofs video { width:100%; height:120px; object-fit:cover; display:block; }
+    .wds-tl { list-style:none; padding:0; margin:0; }
+    .wds-tl li { position:relative; padding:0 0 10px 18px; font-size:13px; }
+    .wds-tl li:before { content:''; position:absolute; left:3px; top:6px; width:8px; height:8px; border-radius:50%; background:var(--pri); }
+    .wds-tl small { color:var(--muted); display:block; }
+    .wds-form textarea { width:100%; border:1px solid var(--line); border-radius:10px; padding:10px; font-size:13px; min-height:84px; }
+    .wds-drop { display:block; border:2px dashed #c9d5f2; border-radius:12px; padding:16px; text-align:center; background:#f8faff; cursor:pointer; margin-top:10px; }
+    .wds-drop:hover { border-color:var(--pri); }
+    .wds-files { list-style:none; padding:0; margin:8px 0 0; font-size:12px; }
+    .wds-files li { display:flex; justify-content:space-between; gap:8px; padding:6px 10px; background:var(--soft); border-radius:8px; margin-top:4px; }
+    .wds-files li.bad { background:#fde8ea; color:#c42b3b; }
+    .wds-err { color:#c42b3b; font-size:12px; margin-top:6px; min-height:1em; }
+    @media (max-width: 640px) {
+        .wds-table thead { display:none; }
+        .wds-table, .wds-table tbody, .wds-table tr, .wds-table td { display:block; width:100%; }
+        .wds-table tr { border-top:1px solid var(--line); padding:10px 12px; }
+        .wds-table td { border:0; padding:3px 0; display:flex; justify-content:space-between; gap:10px; }
+        .wds-table td:before { content: attr(data-l); color:var(--muted); font-size:12px; flex-shrink:0; }
+        .wds-table td > * { text-align:right; min-width:0; word-break:break-word; }
+        .wds .pc-content { margin-left:0 !important; padding:0 10px; }
     }
 </style>
 
-<div class="pc-container weight-discrepancy-page" style="background:#646dff26;">
+<div class="pc-container wds">
     <div class="pc-content" style="margin-left:12px;">
-        <!-- Header -->
-        <div class="wd-header">
-            <div class="container">
-                <h1 class="wd-title">Weight Discrepancy Report</h1>
-                <p class="wd-subtitle">View and filter your weight discrepancy transactions</p>
+        <div class="wds-head">
+            <div>
+                <h1>Weight Discrepancy</h1>
+                <div class="muted">Courier re-weighed charges on your shipments, with proof upload and dispute status.</div>
             </div>
+            <div class="wds-wallet">Wallet balance<b class="{{ $totalAmount < 0 ? 'neg' : '' }}">₹{{ number_format($totalAmount, 2) }}</b></div>
         </div>
 
-        <!-- Filter Card -->
-        <div class="wd-filter-card" style="width:100%; min-height: 55px; display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.7rem;">
-            <form method="GET" action="{{ route('seller.weight.discrepancy') }}" class="wd-filter-form wd-filter-form-row" style="display: flex; flex-wrap: nowrap; gap: 0.7rem; align-items: center; flex:1;">
-                <div class="filter-date-group" style="display:flex; gap:0.5rem; flex:2 1 0%">
-                    <input type="date" name="start_date" value="{{ request('start_date') }}" placeholder="Start Date" style="flex:1 1 0%; min-width: 100px; width: 100%; max-width: 160px;" />
-                    <input type="date" name="end_date" value="{{ request('end_date') }}" placeholder="End Date" style="flex:1 1 0%; min-width: 100px; width: 100%; max-width: 160px;" />
-                    <button class="btn filter-mobile-shorten" type="submit" 
-                        style="flex:0 0 auto; white-space:nowrap; background:#fff; color:#222; box-shadow: 0 4px 20px rgba(102,126,234,0.18); border: none;">
-                        <i class="fas fa-filter"></i>
-                    </button>
-                    <a href="{{ route('seller.weight.discrepancy.excel', request()->all()) }}" class="btn filter-mobile-shorten" 
-                        style="flex:0 0 auto; white-space:nowrap; background:#fff; color:#43b244; box-shadow: 0 4px 20px rgba(102,126,234,0.18); border: none;">
-                        <i class="fa-solid fa-download"></i>
-                    </a>
-                </div>
-                <input type="text" name="awb" value="{{ request('awb') }}" placeholder="Enter AWB Number" style="flex:2 1 0%; min-width: 130px; width: 100%; max-width:200px;" />
-               
-                <div class="wd-actions-group" style="display:flex; align-items:center; gap:0.5rem;">
-                    
-                    <div class="wd-discrepancy-card" style="display:flex; align-items:center; justify-content:center; flex-shrink:0; height:38px;">
-                        <div class="card text-center shadow-sm" style="min-width: 82px; max-width: 118px; height:38px;padding:0;border-radius:7px; margin-bottom:0;">
-                            <div class="card-body bg-light" style="padding:0.27rem 0.5rem; height:38px; display:flex; flex-direction:column; justify-content:center;">
-                                <span style="font-size:0.73rem; margin-bottom: 0.06rem;white-space:nowrap;">Discrepancy</span>
-                                <span style="font-size:0.7rem;color:#222; margin:0;">{{ $totalDiscrepancies }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </form>
-            <style>
-                @media (max-width:600px) {
-                    .wd-filter-card {
-                        flex-direction: column !important;
-                        align-items: stretch !important;
-                        gap: 0.45rem !important;
-                        min-height: unset !important;
-                        padding: 0.7rem 0.45rem !important;
-                    }
-                    .wd-filter-form-row {
-                        flex-direction: column !important;
-                        gap: 0.35rem !important;
-                        width: 100%;
-                        align-items: stretch !important;
-                        flex-wrap: nowrap !important;
-                    }
-                    /* Row for date, filter and download */
-                    .filter-date-group {
-                        display: flex !important;
-                        flex-direction: row !important;
-                        gap: 0.16rem !important;
-                        width: 100% !important;
-                        align-items: center !important;
-                        justify-content: space-between !important;
-                        margin-bottom: 0.2rem !important;
-                    }
-                    .filter-date-group input[type="date"] {
-                        width: 27vw !important;
-                        min-width: 65px !important;
-                        font-size: 0.98rem;
-                        max-width: 110px;
-                    }
-                    /* Shrink and center filter & download btns in their divs */
-                    .filter-mobile-shorten {
-                        width: 33px !important;
-                        min-width: 30px !important;
-                        max-width: 36px !important;
-                        height: 32px !important;
-                        padding: 0 !important;
-                        font-size: 1.13rem !important;
-                        display: flex !important;
-                        align-items: center !important;
-                        justify-content: center !important;
-                        margin: 0 2px !important;
-                        border-radius: 6px !important;
-                    }
-                    .filter-date-group .btn,
-                    .filter-date-group a.btn {
-                        display: flex !important;
-                        align-items: center;
-                        justify-content: center;
-                    }
-                    /* AWB input takes full width under date/buttons row */
-                    .wd-filter-form-row input[type="text"] {
-                        width: 100% !important;
-                        min-width: 0 !important;
-                        max-width: 100vw !important;
-                        flex-basis: 100% !important;
-                        margin: 0.18rem 0 0.12rem 0 !important;
-                        font-size: 0.97rem !important;
-                    }
-                    /* Discrepancy card remains below in mobile */
-                    .wd-actions-group {
-                        width: 100% !important;
-                        flex-direction: row !important;
-                        gap: 0.38rem !important;
-                        justify-content: space-between !important;
-                        align-items: center !important;
-                        margin-top: 0.09rem !important;
-                    }
-                    .wd-discrepancy-card .card {
-                        width: 100% !important;
-                        min-width: 0 !important;
-                        max-width: 100vw !important;
-                        font-size: 0.93rem !important;
-                    }
-                }
-            </style>
+        @if(session('success'))<div class="alert alert-success py-2">{{ session('success') }}</div>@endif
+        @if(session('error'))<div class="alert alert-danger py-2">{{ session('error') }}</div>@endif
+        @if($errors->any())<div class="alert alert-danger py-2">{{ $errors->first() }}</div>@endif
+
+        <div class="wds-info">
+            <i class="fa-solid fa-circle-info me-1"></i>
+            When the courier charges more weight than you declared, the extra amount is debited from your wallet. If it's wrong, click <b>Raise dispute</b> within <b>{{ $windowHours }} hours</b> and upload photos / videos of the packed parcel on a weighing scale and with a measuring tape (up to {{ $maxFiles }} files, {{ $maxMb }} MB each). If accepted, the amount is refunded to your wallet automatically.
         </div>
 
-        <!-- Table Card -->
-        <div class="wd-table-card">
-            <div class="table-responsive">
-                <form method="POST" action="#">
-                    @csrf
-                    <table class="wd-custom-table">
-                        <thead>
-                            <tr>
-                                <th>AWB</th>
-                                <th>Courier</th>
-                                <th>Mentioned Weight</th>
-                                <th>Charged Weight</th>
-                                <th>Weight Mismatch</th>
-                                <th>Dispute Charges</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($data as $index => $row)
-                                <tr>
-                                    <td>{{ $row['awb'] }}</td>
-                                    <td>{{ $row['courier'] }}</td>
-                                    <td>{{ $row['mentionedweight'] ?? 'N/A' }}</td>
-                                    <td>{{ $row['chargedweight'] ?? 'N/A' }}</td>
-                                    <td>{{ $row['weightmissmatched'] ?? 'N/A' }}</td>
-                                    <td>{{ $row['weightdisputecharges'] ?? '0' }}</td>
-                                    <input type="hidden" name="sellers[{{ $index }}][seller_id]" value="{{ $row['seller_id'] }}">
-                                    <input type="hidden" name="sellers[{{ $index }}][amount]" value="{{ $row['weightdisputecharges'] }}">
-                                    <input type="hidden" name="sellers[{{ $index }}][weight_id]" value="{{ $row['id'] }}">
-                                    <input type="hidden" name="sellers[{{ $index }}][weight_awb]" value="{{ $row['awb'] }}">
-                                    <input type="hidden" name="sellers[{{ $index }}][weight_courier]" value="{{ $row['courier'] }}">
-                                    <input type="hidden" name="sellers[{{ $index }}][weight_mentionedweight]" value="{{ $row['mentionedweight'] }}">
-                                    <input type="hidden" name="sellers[{{ $index }}][weight_chargedweight]" value="{{ $row['chargedweight'] }}">
-                                    <input type="hidden" name="sellers[{{ $index }}][weight_weightmissmatched]" value="{{ $row['weightmissmatched'] }}">
-                                    <input type="hidden" name="sellers[{{ $index }}][weight_seller_name]" value="{{ $row['seller_name'] }}">
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="7" class="text-center text-muted">No weight discrepancies found.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </form>
-            </div>
-            
-            <!-- Pagination -->
-            <div class="wd-pagination">
-                {{ $disputes->appends(request()->query())->links('pagination::bootstrap-4') }}
-            </div>
+        @php $f = request('status'); @endphp
+        <div class="wds-stats">
+            <a class="wds-stat {{ !$f ? 'active' : '' }}" href="{{ route('seller.weight.discrepancy', request()->except('status', 'page')) }}"><b>{{ $stats['total'] }}</b><span>All discrepancies</span></a>
+            <a class="wds-stat warn {{ $f === 'open' ? 'active' : '' }}" href="{{ route('seller.weight.discrepancy', array_merge(request()->except('page'), ['status' => 'open'])) }}"><b>{{ $stats['open'] }}</b><span>Can dispute now</span></a>
+            <a class="wds-stat {{ $f === 'review' ? 'active' : '' }}" href="{{ route('seller.weight.discrepancy', array_merge(request()->except('page'), ['status' => 'review'])) }}"><b>{{ $stats['review'] }}</b><span>Under review</span></a>
+            <a class="wds-stat {{ $f === 'accepted' ? 'active' : '' }}" href="{{ route('seller.weight.discrepancy', array_merge(request()->except('page'), ['status' => 'accepted'])) }}"><b>{{ $stats['accepted'] }}</b><span>Accepted · refunded</span></a>
+            <a class="wds-stat {{ $f === 'rejected' ? 'active' : '' }}" href="{{ route('seller.weight.discrepancy', array_merge(request()->except('page'), ['status' => 'rejected'])) }}"><b>{{ $stats['rejected'] }}</b><span>Rejected</span></a>
+            <div class="wds-stat"><b>₹{{ number_format($stats['charged_amount'] - $stats['refunded_amount'], 2) }}</b><span>Net charged (₹{{ number_format($stats['refunded_amount'], 2) }} refunded)</span></div>
+        </div>
+
+        <form class="wds-filter" method="GET" action="{{ route('seller.weight.discrepancy') }}">
+            @if($f)<input type="hidden" name="status" value="{{ $f }}">@endif
+            <input type="date" name="start_date" value="{{ request('start_date') }}" title="From">
+            <input type="date" name="end_date" value="{{ request('end_date') }}" title="To">
+            <input type="text" name="awb" value="{{ request('awb') }}" placeholder="AWB or order number">
+            <button class="wds-btn pri" type="submit"><i class="fas fa-filter"></i> Filter</button>
+            <a class="wds-btn ghost" href="{{ route('seller.weight.discrepancy.excel', request()->all()) }}"><i class="fa-solid fa-download"></i> Excel</a>
+        </form>
+
+        <div class="wds-card">
+            @if(count($rows))
+                <table class="wds-table">
+                    <thead>
+                        <tr><th>Date</th><th>AWB / Order</th><th>Courier</th><th>Your weight</th><th>Courier charged</th><th>Charged</th><th>Status</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach($rows as $r)
+                        <tr>
+                            <td data-l="Date">{{ $r['deducted_at'] }}</td>
+                            <td data-l="AWB"><div><span class="wds-awb">{{ $r['awb'] }}</span><div class="muted">{{ $r['order_number'] }}</div></div></td>
+                            <td data-l="Courier">{{ $r['courier'] }}</td>
+                            <td data-l="Your weight">{{ $r['applied_kg'] !== null ? $r['applied_kg'] . ' kg' : '—' }}</td>
+                            <td data-l="Courier charged"><span><span class="wds-up">{{ $r['charged_kg'] !== null ? $r['charged_kg'] . ' kg' : '—' }}</span> <span class="muted">{{ ucfirst((string) $r['weight_type']) }}</span></span></td>
+                            <td data-l="Charged"><b>₹{{ number_format($r['excess_charge'], 2) }}</b></td>
+                            <td data-l="Status">
+                                <span>
+                                    <span class="wds-badge st-{{ $r['status'] }}">{{ $r['status_label'] }}</span>
+                                    @if($r['can_raise'])<span class="wds-left" data-deadline="{{ $r['deadline_iso'] }}"></span>@endif
+                                </span>
+                            </td>
+                            <td data-l="">
+                                @if($r['can_raise'])
+                                    <button type="button" class="wds-btn warn" onclick="wdsOpen({{ $r['id'] }}, true)"><i class="fa-solid fa-flag"></i> Raise dispute</button>
+                                @else
+                                    <button type="button" class="wds-btn ghost" onclick="wdsOpen({{ $r['id'] }}, false)">Details</button>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+                <div class="wds-pag">{{ $disputes->links('pagination::bootstrap-4') }}</div>
+            @else
+                <div class="wds-empty"><i class="fa-solid fa-scale-balanced fa-2x mb-2 d-block"></i>No weight discrepancies found.</div>
+            @endif
         </div>
     </div>
 </div>
+
+<div class="wds-modal" id="wdsModal" onclick="if(event.target===this)wdsClose()">
+    <div class="wds-box wds">
+        <header><h5 id="wdsTitle">Weight discrepancy</h5><button class="wds-x" type="button" onclick="wdsClose()">&times;</button></header>
+        <div class="wds-body" id="wdsBody"></div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const ROWS = {}; @json($rows).forEach(r => ROWS[r.id] = r);
+    const RAISE_URL = @json(route('seller.weight.dispute.raise', ['id' => '__ID__']));
+    const CSRF = @json(csrf_token());
+    const MAX_FILES = {{ (int) $maxFiles }}, MAX_BYTES = {{ (int) $maxMb }} * 1024 * 1024;
+    const OK_EXT = ['jpg','jpeg','png','webp','heic','mp4','mov','webm','3gp','mkv'];
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const kv = (k, v) => `<div class="wds-kv"><span>${esc(k)}</span><b>${v}</b></div>`;
+    const money = n => '₹' + Number(n || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    const size = b => b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';
+    const cap = s => (s || '').replace(/^./, c => c.toUpperCase());
+
+    function left(iso) {
+        const ms = new Date(iso) - new Date();
+        if (ms <= 0) return 'Window closed';
+        const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
+        return (h ? h + 'h ' : '') + m + 'm left to dispute';
+    }
+    function tick() { document.querySelectorAll('[data-deadline]').forEach(el => el.textContent = left(el.dataset.deadline)); }
+    tick(); setInterval(tick, 30000);
+
+    window.wdsOpen = function (id, raise) {
+        const r = ROWS[id]; if (!r) return;
+        document.getElementById('wdsTitle').textContent = (raise ? 'Raise dispute · ' : '') + 'AWB ' + r.awb;
+        let h = `<div class="wds-grid">
+            ${kv('Order', esc(r.order_number || '—'))}
+            ${kv('Courier', esc(r.courier))}
+            ${kv('Status', `<span class="wds-badge st-${esc(r.status)}">${esc(r.status_label)}</span>`)}
+            ${kv('Charged on', esc(r.deducted_at || '—'))}
+        </div>
+        <div class="wds-sec">Weight comparison</div>
+        <div class="wds-grid">
+            ${kv('Your dead weight', r.applied_dead_kg != null ? esc(r.applied_dead_kg) + ' kg' : '—')}
+            ${kv('Your volumetric (L×B×H÷5000)', r.applied_vol_kg != null ? esc(r.applied_vol_kg) + ' kg' : '—')}
+            ${kv('You were billed on', esc(r.applied_kg) + ' kg')}
+            ${kv('Courier charged', '<span class="wds-up">' + esc(r.charged_kg) + ' kg</span> · ' + esc(cap(r.weight_type)))}
+            ${r.courier_dims ? kv('Courier box size', esc(r.courier_dims)) : ''}
+            ${kv('Difference', r.diff_kg != null ? '+' + esc(r.diff_kg) + ' kg' : '—')}
+            ${kv('Extra slabs (500 g)', esc(r.extra_slabs ?? '—'))}
+            ${kv('Amount debited', '<b>' + money(r.excess_charge) + '</b>')}
+        </div>`;
+        if (r.admin_note) h += `<div class="wds-sec">Note from Shipxpeed</div><div class="wds-note admin">${esc(r.admin_note)}</div>`;
+        if (r.seller_remark) h += `<div class="wds-sec">Your dispute</div><div class="wds-note">${esc(r.seller_remark)}</div>`;
+        if (r.proofs && r.proofs.length) {
+            h += `<div class="wds-sec">Your proof</div><div class="wds-proofs">` + r.proofs.map(p => p.type === 'video'
+                ? `<video src="${esc(p.url)}" controls preload="metadata"></video>`
+                : `<a href="${esc(p.url)}" target="_blank" rel="noopener"><img src="${esc(p.url)}" alt="${esc(p.name)}" loading="lazy"></a>`).join('') + '</div>';
+        }
+        if (r.admin_remark) h += `<div class="wds-sec">Review note</div><div class="wds-note admin">${esc(r.admin_remark)}</div>`;
+        h += `<div class="wds-sec">Timeline</div><ul class="wds-tl">` + (r.timeline || []).map(t => `<li>${esc(t.text)}<small>${esc(t.at)}</small></li>`).join('') + '</ul>';
+
+        if (r.can_raise) {
+            h += `<div class="wds-sec">Raise dispute · <span style="text-transform:none;color:#b86e00">${esc(left(r.deadline_iso))} (until ${esc(r.deadline)})</span></div>
+            <form class="wds-form" id="wdsForm" method="POST" enctype="multipart/form-data" action="${esc(RAISE_URL.replace('__ID__', r.id))}">
+                <input type="hidden" name="_token" value="${esc(CSRF)}">
+                <textarea name="remark" id="wdsRemark" maxlength="1000" placeholder="Why is the courier weight wrong? e.g. Packed weight is 480 g, box 20×15×10 cm — see scale photo and video."></textarea>
+                <label class="wds-drop" for="wdsFiles">
+                    <i class="fa-solid fa-cloud-arrow-up fa-lg"></i><br>
+                    <b>Add photos / videos</b><br><span class="muted">Parcel on weighing scale, tape measure on each side · up to ${MAX_FILES} files · max ${MAX_BYTES / 1048576} MB each</span>
+                </label>
+                <input type="file" id="wdsFiles" name="proofs[]" multiple accept="image/*,video/*" hidden>
+                <ul class="wds-files" id="wdsList"></ul>
+                <div class="wds-err" id="wdsErr"></div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+                    <button type="button" class="wds-btn ghost" onclick="wdsClose()">Cancel</button>
+                    <button type="submit" class="wds-btn warn" id="wdsSubmit"><i class="fa-solid fa-paper-plane"></i> Submit dispute</button>
+                </div>
+            </form>`;
+        }
+        document.getElementById('wdsBody').innerHTML = h;
+        document.getElementById('wdsModal').classList.add('open');
+
+        const form = document.getElementById('wdsForm');
+        if (form) {
+            const input = document.getElementById('wdsFiles');
+            input.addEventListener('change', () => check(true));
+            form.addEventListener('submit', e => { if (!check(false)) { e.preventDefault(); return; }
+                const b = document.getElementById('wdsSubmit'); b.disabled = true; b.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading, please wait…'; });
+            if (raise) setTimeout(() => document.getElementById('wdsRemark').focus(), 50);
+        }
+    };
+
+    function check(onlyFiles) {
+        const files = Array.from(document.getElementById('wdsFiles').files);
+        const list = document.getElementById('wdsList'), err = document.getElementById('wdsErr');
+        let bad = '';
+        list.innerHTML = files.map(f => {
+            const ext = (f.name.split('.').pop() || '').toLowerCase();
+            const why = f.size > MAX_BYTES ? 'over ' + (MAX_BYTES / 1048576) + ' MB' : (!OK_EXT.includes(ext) ? 'not a photo/video' : '');
+            if (why && !bad) bad = f.name + ' is ' + why + '.';
+            return `<li class="${why ? 'bad' : ''}"><span>${esc(f.name)}</span><span>${size(f.size)}${why ? ' · ' + why : ''}</span></li>`;
+        }).join('');
+        if (!bad && files.length > MAX_FILES) bad = 'Choose at most ' + MAX_FILES + ' files.';
+        if (!onlyFiles) {
+            const remark = document.getElementById('wdsRemark').value.trim();
+            if (!bad && remark.length < 10) bad = 'Describe the issue (at least 10 characters).';
+            if (!bad && !files.length) bad = 'Add at least one photo or video as proof.';
+        }
+        err.textContent = bad;
+        return !bad;
+    }
+
+    window.wdsClose = function () {
+        document.getElementById('wdsModal').classList.remove('open');
+        document.querySelectorAll('#wdsBody video').forEach(v => v.pause());
+    };
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') wdsClose(); });
+})();
+</script>
 @endsection
-
-
-{{-- @extends('layouts.sellerdash')
-
-@section('content')
-<div class="container-fluid px-4">
-    <div class="card mb-4">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">Weight Discrepancy Report</h5>
-        </div>
-        <div class="card-body">
-
-            <form method="GET" action="{{ route('seller.weight.discrepancy') }}" class="mb-4" style="padding-left: 200px;">
-                <div class="row g-3 align-items-center">
-                    <div class="col-md-3">
-                        <label class="form-label">Start Date</label>
-                        <input type="date" name="start_date" value="{{ request('start_date') }}" class="form-control">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">End Date</label>
-                        <input type="date" name="end_date" value="{{ request('end_date') }}" class="form-control">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">AWB Number</label>
-                        <input type="text" name="awb" value="{{ request('awb') }}" class="form-control" placeholder="Enter AWB Number">
-                    </div>
-                    <div class="col-md-3 d-flex align-items-end">
-                        <button class="btn btn-dark w-100">Filter</button>
-                    </div>
-                </div>
-            </form>
-
-            <div class="row mb-4" style="padding-left: 190px;">
-                <div class="col-md-12">
-                    <div class="card text-center shadow-sm">
-                        <div class="card-body bg-light">
-                            <h6>Total Weight Discrepancies</h6>
-                            <h4>{{ $totalDiscrepancies }}</h4>
-                        </div>
-                    </div>
-                </div>
-              
-            </div>
-
-            <div class="mb-3 d-flex gap-2">
-                <a href="#" class="btn btn-success">
-                    <i class="fa fa-file-excel"></i> Download Excel
-                </a>
-                <a href="{{ route('seller.weight.discrepancy') }}" class="btn btn-secondary">
-                    <i class="fas fa-sync-alt"></i> Refresh
-                </a>
-            </div>
-
-            <form method="POST" action="#">
-                @csrf
-                <div class="table-responsive">
-                    <table class="table table-bordered table-hover align-middle">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>AWB</th>
-                                <th>Courier</th>
-                                <th>Mentioned Weight</th>
-                                <th>Charged Weight</th>
-                                <th>Weight Mismatch</th>
-                                <th>Dispute Charges</th>
-                           
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($data as $index => $row)
-                                <tr>
-                                    <td>{{ $row['awb'] }}</td>
-                                    <td>{{ $row['courier'] }}</td>
-                                    <td>{{ $row['mentionedweight'] ?? 'N/A' }}</td>
-                                    <td>{{ $row['chargedweight'] ?? 'N/A' }}</td>
-                                    <td>{{ $row['weightmissmatched'] ?? 'N/A' }}</td>
-                                    <td>{{ $row['weightdisputecharges'] ?? '0' }}</td>
-                            
-
-                                    <input type="hidden" name="sellers[{{ $index }}][seller_id]" value="{{ $row['seller_id'] }}">
-                                    <input type="hidden" name="sellers[{{ $index }}][amount]" value="{{ $row['weightdisputecharges'] }}">
-                                    <input type="hidden" name="sellers[{{ $index }}][weight_id]" value="{{ $row['id'] }}">
-                                    <input type="hidden" name="sellers[{{ $index }}][weight_awb]" value="{{ $row['awb'] }}">
-                                    <input type="hidden" name="sellers[{{ $index }}][weight_courier]" value="{{ $row['courier'] }}">
-                                    <input type="hidden" name="sellers[{{ $index }}][weight_mentionedweight]" value="{{ $row['mentionedweight'] }}">
-                                    <input type="hidden" name="sellers[{{ $index }}][weight_chargedweight]" value="{{ $row['chargedweight'] }}">
-                                    <input type="hidden" name="sellers[{{ $index }}][weight_weightmissmatched]" value="{{ $row['weightmissmatched'] }}">
-                                    <input type="hidden" name="sellers[{{ $index }}][weight_seller_name]" value="{{ $row['seller_name'] }}">
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="7" class="text-center text-muted">No weight discrepancies found.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="text-end mt-3">
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-@endsection --}}
-
-
-
-
-
-
-
-
-
-
-
-

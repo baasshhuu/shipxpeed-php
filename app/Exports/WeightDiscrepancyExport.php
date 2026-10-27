@@ -14,10 +14,12 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 class WeightDiscrepancyExport implements FromCollection, WithHeadings, WithStyles, WithColumnWidths
 {
     protected $data;
+    protected $headings;
 
-    public function __construct($data)
+    public function __construct($data, ?array $headings = null)
     {
         $this->data = $data;
+        $this->headings = $headings;
     }
 
     public function collection()
@@ -27,6 +29,9 @@ class WeightDiscrepancyExport implements FromCollection, WithHeadings, WithStyle
 
     public function headings(): array
     {
+        if ($this->headings) {
+            return $this->headings;
+        }
         return [
             'AWB Number',
             'Courier',
@@ -45,7 +50,7 @@ class WeightDiscrepancyExport implements FromCollection, WithHeadings, WithStyle
     public function styles(Worksheet $sheet)
     {
         // Style the header row
-        $sheet->getStyle('A1:I1')->applyFromArray([
+        $sheet->getStyle('A1:J1')->applyFromArray([
             'font' => [
                 'bold' => true,
                 'color' => ['rgb' => 'FFFFFF'],
@@ -62,7 +67,7 @@ class WeightDiscrepancyExport implements FromCollection, WithHeadings, WithStyle
 
         // Style data rows
         $lastRow = $sheet->getHighestRow();
-        $sheet->getStyle('A2:I' . $lastRow)->applyFromArray([
+        $sheet->getStyle('A2:J' . $lastRow)->applyFromArray([
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
                 'vertical' => Alignment::VERTICAL_CENTER,

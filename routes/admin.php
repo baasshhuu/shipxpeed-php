@@ -487,6 +487,9 @@ Route::post('/SendWhatsApp-send-message', [\App\Http\Controllers\admin\SendWhats
           Route::post('import-weight-dispute', 'importWeightDisputes')->name('import.weight.dispute')->middleware('isAllow:104,can_view');
          Route::post('weight-submit', 'submit')->name('weight.submit')->middleware('isAllow:104,can_view');
         Route::get('weight-dispatching-download', 'downloadExcel')->name('weight.dispatching.download')->middleware('isAllow:104,can_view');
+        Route::get('weight-dispute-template', 'template')->name('weight.dispute.template')->middleware('isAllow:104,can_view');
+        Route::post('weight-dispute/{id}/review', 'review')->name('weight.dispute.review')->middleware('isAllow:104,can_view');
+        Route::get('weight-dispute/{id}/proof/{n}', 'proof')->name('weight.dispute.proof')->middleware('isAllow:104,can_view');
 
     });
 

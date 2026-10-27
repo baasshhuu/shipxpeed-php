@@ -2,399 +2,169 @@
 
 namespace App\Http\Controllers\selleradmin;
 
-use Illuminate\View\View;
-use Illuminate\Http\Request;
-use App\Http\Controllers\Controller;
-use App\Models\Order;
-use App\Models\User;
-use App\Models\SellerList;
-use App\Models\WeightDisputes;
- use App\Imports\WeightDisputeImport;
-use Maatwebsite\Excel\Facades\Excel;
-use Carbon\Carbon;
-use App\Models\Recharge;
-use Auth;
-use Maatwebsite\Excel\Facades\Excel as ExcelExport;
 use App\Exports\WeightDiscrepancyExport;
+use App\Http\Controllers\admin\WeightDispatchingController as AdminWeight;
+use App\Http\Controllers\Controller;
+use App\Models\Recharge;
+use App\Models\WeightDisputes;
+use App\Support\WeightDisputeService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
 
-
+/**
+ * Seller > Weight Discrepancy
+ *  every charge with full details, raise a dispute with photo/video proof inside the dispute window,
+ *  follow the review until refund or closure.
+ */
 class WeightDispatchingController extends Controller
 {
+    public const MAX_FILES = 5;
+    public const MAX_KB = 10240; // 10 MB per file
 
+    private function sellerId(): int
+    {
+        return (int) Auth::guard('seller')->id();
+    }
 
+    private function query(Request $request)
+    {
+        $now = now();
+        $q = WeightDisputes::where('seller_id', $this->sellerId())
+            ->where('dispute_status', '!=', WeightDisputes::VOID);
 
+        switch ($request->get('status')) {
+            case 'open':
+                $q->where('dispute_status', WeightDisputes::CHARGED)->where('dispute_deadline', '>', $now);
+                break;
+            case 'review':
+                $q->where('dispute_status', WeightDisputes::DISPUTED);
+                break;
+            case 'accepted':
+                $q->where('dispute_status', WeightDisputes::ACCEPTED);
+                break;
+            case 'rejected':
+                $q->where('dispute_status', WeightDisputes::REJECTED);
+                break;
+            case 'closed':
+                $q->where(function ($w) use ($now) {
+                    $w->where('dispute_status', WeightDisputes::CLOSED)
+                      ->orWhere(fn ($w2) => $w2->where('dispute_status', WeightDisputes::CHARGED)->where('dispute_deadline', '<=', $now));
+                });
+                break;
+        }
+        if ($request->filled('start_date')) {
+            $q->whereDate('created_at', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $q->whereDate('created_at', '<=', $request->end_date);
+        }
+        if ($request->filled('awb')) {
+            $s = trim($request->awb);
+            $q->where(fn ($w) => $w->where('awb', 'like', "%$s%")->orWhere('order_number', 'like', "%$s%"));
+        }
+        return $q;
+    }
 
+    public function index(Request $request)
+    {
+        $seller = Auth::guard('seller')->user();
+        $sid = $this->sellerId();
 
-public function index(Request $request)
-{
-
-    $sellerId = Auth::guard('seller')->id();
-    $seller = Auth::guard('seller')->user();
-
-    // Optimize recharge calculations with single query
-    $rechargeData = Recharge::where('seller_id', $seller->id)
-        ->selectRaw('
+        $wallet = Recharge::where('seller_id', $sid)->selectRaw('
             SUM(CASE WHEN status = 1 AND type = "Credit" THEN amount ELSE 0 END) as credit_amount,
-            SUM(CASE WHEN type = "Debit" THEN amount ELSE 0 END) as debit_amount
-        ')
-        ->first();
+            SUM(CASE WHEN type = "Debit" THEN amount ELSE 0 END) as debit_amount')->first();
+        $totalAmount = ($wallet->credit_amount ?? 0) - ($wallet->debit_amount ?? 0);
 
-    $totalAmount = ($rechargeData->credit_amount ?? 0) - ($rechargeData->debit_amount ?? 0);
+        $disputes = $this->query($request)
+            ->orderByRaw("CASE WHEN dispute_status = 'charged' AND dispute_deadline > ? THEN 0 ELSE 1 END", [now()])
+            ->orderByDesc('id')->paginate(20)->withQueryString();
+        $rows = $disputes->getCollection()->map(fn (WeightDisputes $d) => $d->detail(false))->all();
 
-    // Get all seller's AWB numbers first to avoid N+1 queries
-    $sellerAwbs = Order::where('seller_id', $sellerId)
-        ->pluck('awb_number')
-        ->toArray();
+        $now = now();
+        $base = WeightDisputes::where('seller_id', $sid)->where('dispute_status', '!=', WeightDisputes::VOID);
+        $stats = [
+            'total' => (clone $base)->count(),
+            'open' => (clone $base)->where('dispute_status', WeightDisputes::CHARGED)->where('dispute_deadline', '>', $now)->count(),
+            'review' => (clone $base)->where('dispute_status', WeightDisputes::DISPUTED)->count(),
+            'accepted' => (clone $base)->where('dispute_status', WeightDisputes::ACCEPTED)->count(),
+            'rejected' => (clone $base)->where('dispute_status', WeightDisputes::REJECTED)->count(),
+            'charged_amount' => (float) (clone $base)->whereNotNull('deducted_at')->sum('excess_charge'),
+            'refunded_amount' => (float) (clone $base)->where('dispute_status', WeightDisputes::ACCEPTED)->sum('excess_charge'),
+        ];
 
-    if (empty($sellerAwbs)) {
         return view('sellerdashboard.WeightDispatching.index', [
-            'data' => [],
-            'totalDiscrepancies' => 0,
-            'pendingCount' => 0,
-            'acceptedCount' => 0,
-            'rejectedCount' => 0,
+            'rows' => $rows,
+            'disputes' => $disputes,
+            'stats' => $stats,
             'seller' => $seller,
             'totalAmount' => $totalAmount,
+            'windowHours' => WeightDisputes::windowHours(),
+            'maxFiles' => self::MAX_FILES,
+            'maxMb' => (int) (self::MAX_KB / 1024),
+            // kept for any old partial that still reads it
+            'totalDiscrepancies' => $stats['total'],
         ]);
     }
 
-    // Build optimized query for disputes
-    $query = WeightDisputes::whereIn('awb', $sellerAwbs);
-
-    if ($request->filled('start_date')) {
-        $query->whereDate('created_at', '>=', $request->start_date);
-    }
-
-    if ($request->filled('end_date')) {
-        $query->whereDate('created_at', '<=', $request->end_date);
-    }
-
-    if ($request->filled('awb')) {
-        $query->where('awb', 'like', '%' . $request->awb . '%');
-    }
-
-    $disputes = $query->paginate(20);
-
-    // Get seller info once
-    $sellerInfo = SellerList::find($sellerId);
-    $sellerName = $sellerInfo ? $sellerInfo->name : '';
-
-    // Map disputes data efficiently
-    $mappedData = $disputes->map(function ($dispute) use ($sellerId, $sellerName) {
-        return [
-            'id' => $dispute->id,
-            'awb' => $dispute->awb,
-            'courier' => $dispute->courier,
-            'mentionedweight' => $dispute->Mentionedweight,
-            'chargedweight' => $dispute->chargedweight,
-            'weightmissmatched' => $dispute->weightmissmatched,
-            'weightdisputecharges' => $dispute->weightdisputecharges,
-            'seller_id' => $sellerId,
-            'seller_name' => $sellerName,
-        ];
-    })->toArray();
-
-    // Calculate summary stats efficiently
-    $totalDiscrepancies = $disputes->count();
-    $pendingCount = $disputes->where('courier_status', 'Pending')->count();
-    $acceptedCount = $disputes->where('courier_status', 'Accepted')->count();
-    $rejectedCount = $disputes->where('courier_status', 'Rejected')->count();
-
-    return view('sellerdashboard.WeightDispatching.index', [
-        'data' => $mappedData,
-        'disputes' => $disputes,
-        'totalDiscrepancies' => $totalDiscrepancies,
-        'pendingCount' => $pendingCount,
-        'acceptedCount' => $acceptedCount,
-        'rejectedCount' => $rejectedCount,
-        'seller' => $seller,
-        'totalAmount' => $totalAmount,
-    ]);
-}
-
-
-// public function downloadExcel(Request $request)
-// {
-//     $sellerId = Auth::guard('seller')->id();
-//     $seller = Auth::guard('seller')->user();
-
-//     // Get all seller's AWB numbers first
-//     $sellerAwbs = Order::where('seller_id', $sellerId)
-//         ->pluck('awb_number')
-//         ->toArray();
-
-//     if (empty($sellerAwbs)) {
-//         return back()->with('error', 'No data found to export.');
-//     }
-
-//     // Build query for disputes with same filters as index method
-//     $query = WeightDisputes::whereIn('awb', $sellerAwbs);
-
-//     if ($request->filled('start_date')) {
-//         $query->whereDate('created_at', '>=', $request->start_date);
-//     }
-
-//     if ($request->filled('end_date')) {
-//         $query->whereDate('created_at', '<=', $request->end_date);
-//     }
-
-//     if ($request->filled('awb')) {
-//         $query->where('awb', 'like', '%' . $request->awb . '%');
-//     }
-
-//     $disputes = $query->get();
-
-//     // Get seller info
-//     $sellerInfo = SellerList::find($sellerId);
-//     $sellerName = $sellerInfo ? $sellerInfo->name : '';
-
-//     // Map data for export
-//     $exportData = $disputes->map(function ($dispute) use ($sellerId, $sellerName) {
-//         return [
-//             'AWB' => $dispute->awb,
-//             'Courier' => $dispute->courier,
-//             'Mentioned Weight' => $dispute->Mentionedweight,
-//             'Charged Weight' => $dispute->chargedweight,
-//             'Weight Mismatch' => $dispute->weightmissmatched,
-//             'Dispute Charges' => $dispute->weightdisputecharges,
-//             'Seller Name' => $sellerName,
-//             'Date' => $dispute->created_at->format('Y-m-d'),
-//             'order Status' => $dispute->order_status,
-//             'shipping Status' => $dispute->shipping_status
-
-//         ];
-//     });
-
-//     // Generate filename with current date and filters
-//     $filename = 'weight_discrepancy_report_' . date('Y_m_d_H_i_s') . '.xlsx';
-
-//     // Create Excel file and download
-//     return ExcelExport::download(new WeightDiscrepancyExport($exportData), $filename);
-// }
-
-
-
-
-public function downloadExcel(Request $request)
-{
-    $sellerId = Auth::guard('seller')->id();
-
-    // Seller info
-    $sellerInfo = SellerList::find($sellerId);
-    $sellerName = $sellerInfo ? $sellerInfo->name : '';
-
-    // Build query: JOIN weight_disputes with orders using AWB
-    $query = WeightDisputes::join('orders', 'orders.awb_number', '=', 'weight_disputes.awb')
-        ->where('orders.seller_id', $sellerId)
-        ->select(
-            'weight_disputes.*',
-            'orders.order_status as order_status',
-            'orders.shipping_status as shipping_status'
-        );
-
-    // Filters
-    if ($request->filled('start_date')) {
-        $query->whereDate('weight_disputes.created_at', '>=', $request->start_date);
-    }
-
-    if ($request->filled('end_date')) {
-        $query->whereDate('weight_disputes.created_at', '<=', $request->end_date);
-    }
-
-    if ($request->filled('awb')) {
-        $query->where('weight_disputes.awb', 'like', '%' . $request->awb . '%');
-    }
-
-    $disputes = $query->get();
-
-    if ($disputes->isEmpty()) {
-        return back()->with('error', 'No data found to export.');
-    }
-
-    // Map data for Excel
-    $exportData = $disputes->map(function ($dispute) use ($sellerName) {
-        return [
-            'AWB'                => $dispute->awb,
-            'Courier'            => $dispute->courier,
-            'Mentioned Weight'   => $dispute->Mentionedweight,
-            'Charged Weight'     => $dispute->chargedweight,
-            'Weight Mismatch'    => $dispute->weightmissmatched,
-            'Dispute Charges'    => $dispute->weightdisputecharges,
-            'Seller Name'        => $sellerName,
-            'Date'               => \Carbon\Carbon::parse($dispute->created_at)->format('Y-m-d'),
-            'Order Status'       => $dispute->order_status,
-            'Shipping Status'    => $dispute->shipping_status,
-        ];
-    });
-
-    // File name
-    $filename = 'weight_discrepancy_report_' . date('Y_m_d_H_i_s') . '.xlsx';
-
-    // Download Excel
-    return ExcelExport::download(
-        new WeightDiscrepancyExport($exportData),
-        $filename
-    );
-}
-
-
-
-
-
-        public function create()
+    public function raise(Request $request, $id)
     {
-        return view('WeightDispatching.add');
-      
-    }
-
-
-
-
-
-public function importWeightDisputes(Request $request)
-{
-    // dd($request);
-    $request->validate([
-        'excel_file' => 'required|mimes:xlsx,xls'
-    ]);
-
-    Excel::import(new WeightDisputeImport, $request->file('excel_file'));
-
-    return back()->with('success', 'Weight Dispute Data Imported Successfully!');
-}
-
-
-
-
-
-public function submit(Request $request)
-{
-    $sellers = $request->input('sellers');
-    // dd($sellers);
-
-    foreach ($sellers as $sellerData) {
-        // dd($sellerData);
-        if (!empty($sellerData['amount'])) {
-            // dd($sellerData);
-            // echo 'dwdada';die;
-            // 1. Recharge Entry
-            Recharge::create([
-                'seller_id'                  => $sellerData['seller_id'],
-                'type'                       => 'Debit',
-                'amount'                     => $sellerData['amount'],
-                'status'                     => 1,
-                'description'                => 'Weight Dispute Adjustment',
-                'weight_id'                  => $sellerData['weight_id'],
-                'weight_awb'                 => $sellerData['weight_awb'],
-                'weight_courier'             => $sellerData['weight_courier'],
-                'weight_mentionedweight'     => $sellerData['weight_mentionedweight'],
-                'weight_chargedweight'       => $sellerData['weight_chargedweight'],
-                'weight_weightmissmatched'   => $sellerData['weight_weightmissmatched'],
-                'weight_seller_name'         => $sellerData['weight_seller_name'],
-            ]);
-
-            // 2. Update WeightDisputes Status
-            WeightDisputes::where('id', $sellerData['weight_id'])->update([
-                'status' => 1,
-            ]);
+        $d = WeightDisputes::where('seller_id', $this->sellerId())->findOrFail($id);
+        if (!$d->canRaise()) {
+            return back()->with('error', 'You can raise a dispute only within ' . WeightDisputes::windowHours() . ' hours of the charge. This one is ' . strtolower(WeightDisputes::statusLabel($d->liveStatus())) . '.');
         }
+
+        $request->validate([
+            'remark' => 'required|string|min:10|max:1000',
+            'proofs' => 'required|array|min:1|max:' . self::MAX_FILES,
+            'proofs.*' => 'file|max:' . self::MAX_KB . '|mimes:jpg,jpeg,png,webp,heic,mp4,mov,webm,3gp,mkv',
+        ], [
+            'remark.required' => 'Tell us why the courier weight is wrong.',
+            'remark.min' => 'Please describe the issue in a little more detail (at least 10 characters).',
+            'proofs.required' => 'Add at least one photo or video as proof.',
+            'proofs.max' => 'You can upload at most ' . self::MAX_FILES . ' files.',
+            'proofs.*.max' => 'Each file must be 10 MB or smaller.',
+            'proofs.*.mimes' => 'Only photos (JPG, PNG, WEBP, HEIC) and videos (MP4, MOV, WEBM, 3GP, MKV) are allowed.',
+            'proofs.*.file' => 'A file did not upload completely. Please try again.',
+        ]);
+
+        try {
+            WeightDisputeService::raise($d, $request->remark, $request->file('proofs', []));
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        return back()->with('success', 'Dispute raised for AWB ' . $d->awb . '. Our team will review your proof; if accepted, ₹' . number_format((float) $d->excess_charge, 2) . ' is refunded to your wallet automatically.');
     }
 
-    return back()->with('success', 'All seller amounts have been debited and disputes updated.');
-}
+    public function proof($id, $n)
+    {
+        $d = WeightDisputes::where('seller_id', $this->sellerId())->findOrFail($id);
+        return AdminWeight::streamProof($d, (int) $n);
+    }
 
+    public function downloadExcel(Request $request)
+    {
+        $list = $this->query($request)->orderByDesc('id')->limit(20000)->get();
+        if ($list->isEmpty()) {
+            return back()->with('error', 'No data found to export.');
+        }
+        $data = $list->map(function (WeightDisputes $d) {
+            $x = $d->detail(false);
+            return [
+                $d->awb, $d->courier, $x['applied_kg'], $x['charged_kg'], $x['diff_kg'], $x['excess_charge'],
+                ucfirst((string) $d->weight_type), optional($d->deducted_at ?? $d->created_at)->format('Y-m-d'),
+                $x['status_label'], $x['deadline'],
+            ];
+        });
+        return Excel::download(new WeightDiscrepancyExport($data, [
+            'AWB Number', 'Courier', 'Your Weight (kg)', 'Courier Charged (kg)', 'Difference (kg)', 'Charged (₹)',
+            'Weight Type', 'Date', 'Status', 'Dispute By',
+        ]), 'weight_discrepancy_' . date('Y_m_d_His') . '.xlsx');
+    }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-// public function index(Request $request)
-// {
-
-//     $sellerId = Auth::guard('seller')->id();
-//         $seller = Auth::guard('seller')->user();
-
-        
-//     $sellerRechargeAmount = Recharge::where('seller_id', $seller->id)
-//         ->where('status', 1)
-//         ->where('type', 'Credit')
-//         ->sum('amount');
-
-//     $sellerUsedAmount = Recharge::where('seller_id', $seller->id)
-//         ->where('type', 'Debit')
-//         ->sum('amount');
-
-//     $totalAmount = $sellerRechargeAmount - $sellerUsedAmount;
-
-//     // Start with all disputes (we’ll filter manually by matching orders)
-//     $query = WeightDisputes::query();
-
-//     if ($request->filled('start_date')) {
-//         $query->whereDate('created_at', '>=', $request->start_date);
-//     }
-
-//     if ($request->filled('end_date')) {
-//         $query->whereDate('created_at', '<=', $request->end_date);
-//     }
-
-//     if ($request->filled('awb')) {
-//         $query->where('awb', 'like', '%' . $request->awb . '%');
-//     }
-
-//     $disputes = $query->get();
-//     $mappedData = [];
-
-//     foreach ($disputes as $dispute) {
-//         // Match AWB in order table and check if it belongs to the logged-in seller
-//         $order = Order::where('awb_number', $dispute->awb)
-//                       ->where('seller_id', $sellerId)
-//                       ->first();
-
-//         if ($order) {
-//             $seller = SellerList::find($order->seller_id);
-//             if ($seller) {
-//                 $mappedData[] = [
-//                     'id' => $dispute->id,
-//                     'awb' => $dispute->awb,
-//                     'courier' => $dispute->courier,
-//                     'mentionedweight' => $dispute->Mentionedweight,
-//                     'chargedweight' => $dispute->chargedweight,
-//                     'weightmissmatched' => $dispute->weightmissmatched,
-//                     'weightdisputecharges' => $dispute->weightdisputecharges,
-//                     'seller_id' => $seller->id,
-//                     'seller_name' => $seller->name,
-//                 ];
-//             }
-//         }
-//     }
-
-//     // Summary stats (only from disputes where the order matches the current seller)
-//     $allDisputes = WeightDisputes::all()->filter(function ($dispute) use ($sellerId) {
-//         $order = Order::where('awb_number', $dispute->awb)->where('seller_id', $sellerId)->first();
-//         return $order !== null;
-//     });
-
-//     return view('sellerdashboard.WeightDispatching.index', [
-//         'data' => $mappedData,
-//         'totalDiscrepancies' => $allDisputes->count(),
-//         'pendingCount' => $allDisputes->where('courier_status', 'Pending')->count(),
-//         'acceptedCount' => $allDisputes->where('courier_status', 'Accepted')->count(),
-//         'rejectedCount' => $allDisputes->where('courier_status', 'Rejected')->count(),
-//         'seller' => $seller,
-//                 'totalAmount' => $totalAmount,
-
-//     ]);
-// }
-
-
-
+    /** Old placeholder route. */
+    public function submit()
+    {
+        return redirect()->route('seller.weight.discrepancy');
+    }
 }
