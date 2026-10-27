@@ -34,6 +34,7 @@ class FshipController extends Controller
 
         return view('admin.fship.index', [
             'configured' => $fship->isConfigured(),
+            'keyHint'    => $fship->isConfigured() ? strlen($fship->apiKey()) . ' chars, ends …' . substr($fship->apiKey(), -4) : null,
             'keySource'  => config('fship.api_key') ? 'env' : 'admin',
             'env'        => config('fship.env'),
             'baseUrl'    => config('fship.base_url'),
@@ -62,7 +63,10 @@ class FshipController extends Controller
         }
         $update = ['status' => (int) $data['status'], 'updated_at' => now()];
         if (filled($data['api_key'] ?? null)) {
-            $update['api_key'] = trim($data['api_key']);
+            // Keep only the key itself: drop spaces/newlines and any pasted label like "Client Key:"
+            $k = preg_replace('/\s+/', '', (string) $data['api_key']);
+            $k = preg_replace('/^(client_?key|clientkey|signature|key)[:=]/i', '', $k);
+            $update['api_key'] = $k;
         }
         DB::table('logistic_providers')->where('id', $row->id)->update($update);
         \Illuminate\Support\Facades\Cache::forget('fship_api_key');

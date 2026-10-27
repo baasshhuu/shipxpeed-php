@@ -129,20 +129,23 @@ class FshipService implements CourierServiceInterface
             if (!self::$logTableExists) {
                 return;
             }
-            DB::table('courier_api_logs')->insert([
-                'courier'     => self::CODE,
-                'endpoint'    => $endpoint,
-                'method'      => strtoupper($method),
-                'request'     => $payload === null ? null : mb_substr(json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), 0, 60000),
-                'response'    => $body === null ? null : mb_substr($body, 0, 60000),
-                'http_status' => $http,
-                'success'     => $ok,
-                'duration_ms' => $ms,
-                'order_id'    => $ctx['order_id'] ?? null,
-                'awb'         => $ctx['awb'] ?? null,
-                'created_at'  => now(),
-                'updated_at'  => now(),
-            ]);
+            static $cols = null;
+            if ($cols === null) {
+                $cols = array_flip(Schema::getColumnListing('courier_api_logs'));
+            }
+            $req  = $payload === null ? null : mb_substr(json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), 0, 60000);
+            $resp = $body === null ? null : mb_substr($body, 0, 60000);
+            // Works with this panel's table and with the older Shipclues-style table
+            $row = [
+                'courier' => self::CODE, 'endpoint' => $endpoint, 'method' => strtoupper($method),
+                'request' => $req, 'request_body' => $req,
+                'response' => $resp, 'response_body' => $resp,
+                'http_status' => $http, 'status_code' => $http,
+                'success' => $ok, 'duration_ms' => $ms,
+                'order_id' => $ctx['order_id'] ?? null, 'awb' => $ctx['awb'] ?? null,
+                'created_at' => now(), 'updated_at' => now(),
+            ];
+            DB::table('courier_api_logs')->insert(array_intersect_key($row, $cols));
         } catch (\Throwable $e) {
             // Logging must never break shipping.
         }

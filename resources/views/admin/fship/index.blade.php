@@ -22,7 +22,7 @@
         <div class="row g-3">
             <div class="col-md-3"><div class="text-muted small">Environment</div><strong>{{ ucfirst($env) }}</strong><div class="fs-mono text-muted">{{ $baseUrl }}</div></div>
             <div class="col-md-3"><div class="text-muted small">Client key</div>
-                @if($configured)<span class="fs-pill fs-ok">Set ({{ $keySource === 'env' ? '.env' : 'saved here' }})</span>@else<span class="fs-pill fs-bad">Missing — paste it below</span>@endif
+                @if($configured)<span class="fs-pill fs-ok">Set ({{ $keySource === 'env' ? '.env' : 'saved here' }})</span><div class="small text-muted mt-1">{{ $keyHint ?? '' }}</div>@else<span class="fs-pill fs-bad">Missing — paste it below</span>@endif
             </div>
             <div class="col-md-3"><div class="text-muted small">Connection</div>
                 @if(!$configured)<span class="fs-pill fs-warn">Not tested</span>
@@ -144,12 +144,12 @@
                 <tr>
                     <td class="text-nowrap">{{ \Carbon\Carbon::parse($l->created_at)->format('d M H:i:s') }}</td>
                     <td class="fs-mono">{{ $l->endpoint }}</td>
-                    <td>{{ $l->http_status }}</td>
+                    <td>{{ $l->http_status ?? $l->status_code ?? '' }}</td>
                     <td>{!! $l->success ? '<span class="fs-pill fs-ok">OK</span>' : '<span class="fs-pill fs-bad">Fail</span>' !!}</td>
                     <td>{{ $l->duration_ms }}</td>
-                    <td>{{ $l->order_id }}</td>
-                    <td class="fs-mono">{{ $l->awb }}</td>
-                    <td class="fs-mono text-muted" style="max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ \Illuminate\Support\Str::limit((string) $l->response, 140) }}</td>
+                    <td>{{ $l->order_id ?? '' }}</td>
+                    <td class="fs-mono">{{ $l->awb ?? '' }}</td>
+                    <td class="fs-mono text-muted" style="max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ \Illuminate\Support\Str::limit((string) ($l->response ?? $l->response_body ?? ''), 140) }}</td>
                     <td><a href="{{ route('admin.fship.log', $l->id) }}" target="_blank" class="small">View</a></td>
                 </tr>
             @empty
