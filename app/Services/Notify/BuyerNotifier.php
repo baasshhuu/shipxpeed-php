@@ -116,7 +116,7 @@ class BuyerNotifier
         [$label, $headline] = NotifySettings::STAGES[$event] ?? ['Update', 'Your order has an update'];
         $brand = self::brand($seller);
         $consignee = self::arr($order->consignee);
-        $orderNo = $order->customer_order_id ?: ($order->order_number ?: $order->id);
+        $orderNo = ltrim((string) ($order->customer_order_id ?: ($order->order_number ?: $order->id)), "# ");
         $prepaid = strtolower((string) $order->payment_type) !== 'cod';
 
         $items = [];
@@ -156,7 +156,7 @@ class BuyerNotifier
     public static function sms($seller, Order $order, string $event): string
     {
         $brand = self::brand($seller);
-        $orderNo = $order->customer_order_id ?: ($order->order_number ?: $order->id);
+        $orderNo = ltrim((string) ($order->customer_order_id ?: ($order->order_number ?: $order->id)), "# ");
         $courier = self::courier($order, 'our courier');
         $link = OrderStatusNotifier::trackingLink($order);
         $line = match ($event) {
