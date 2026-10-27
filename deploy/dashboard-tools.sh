@@ -16,12 +16,24 @@ public/videos/how-to-create-order.jpg
 "
 ROUTES=routes/web.php
 
-git fetch -q origin || { echo "FAIL: git fetch"; exit 1; }
+echo "Shipxpeed dashboard tools installer"
+git fetch -q origin || { echo "FAIL: git fetch (check the server can reach GitHub)"; exit 1; }
+git cat-file -e "$REF:deploy/dashboard-tools.sh" || { echo "FAIL: latest code not found on $REF"; exit 1; }
 
-# The live dashboard view is the one with the KPI tiles
-VIEW=$(grep -rl --include='*.blade.php' 'sxd-kpis' resources/views | head -1)
-[ -n "$VIEW" ] || { echo "FAIL: could not find the dashboard view (sxd-kpis)"; exit 1; }
-echo "Dashboard view: $VIEW"
+# Where to add the card: the live dashboard view (has the KPI tiles), else the classic
+# dashboard view, else the seller layout (shown on the dashboard page only).
+GUARD=0
+VIEW=$(grep -rlE --include='*.php' 'sxd-kpis|Shipment pipeline' resources/views 2>/dev/null | grep -v '/partials/quick-tools' | head -1)
+if [ -z "$VIEW" ]; then
+  V2=$(php artisan tinker --execute='$a = app("router")->getRoutes()->getByName("seller.dashboard")?->getActionName(); echo "ACTION " . $a . PHP_EOL;' 2>/dev/null | grep '^ACTION' | sed 's/^ACTION //')
+  echo "Dashboard route action: ${V2:-unknown}"
+  for c in resources/views/layouts/sellerdash.blade.php resources/views/sellerdashboard/dashboard.blade.php; do
+    [ -f "$c" ] && { VIEW=$c; break; }
+  done
+  [ "$VIEW" = "resources/views/layouts/sellerdash.blade.php" ] && GUARD=1
+fi
+[ -n "$VIEW" ] || { echo "FAIL: could not find the dashboard view"; ls resources/views resources/views/sellerdashboard | head -50; exit 1; }
+echo "Adding card to: $VIEW"
 
 EXIST=""; for f in $NEW_FILES $ROUTES $VIEW; do [ -e "$f" ] && EXIST="$EXIST $f"; done
 tar czf "$BK" $EXIST && echo "Backup: $BK"
@@ -35,7 +47,7 @@ restore() {
 for f in $NEW_FILES; do mkdir -p "$(dirname "$f")"; git show "$REF:$f" > "$f" || restore; done
 echo "Copied dashboard card, rate endpoint and video"
 
-VIEW="$VIEW" php <<'PHP' || restore
+VIEW="$VIEW" GUARD="$GUARD" php <<'PHP' || restore
 <?php
 // route: POST /seller/quick-rate, inside the seller group next to the dashboard route
 $r = 'routes/web.php';
@@ -55,13 +67,16 @@ if (strpos($s, 'QuickRateController') !== false) {
 $v = getenv('VIEW');
 $s = file_get_contents($v);
 $inc = "@include('sellerdashboard.partials.quick-tools')";
+$block = getenv('GUARD') === '1'
+    ? "@if(request()->routeIs('seller.dashboard'))\n" . $inc . "\n@endif"
+    : $inc;
 if (strpos($s, $inc) !== false) {
     echo "already there: include\n";
 } else {
     $k = strrpos($s, '@endsection');
     if ($k === false) { $k = strripos($s, '</body>'); }
     if ($k === false) { fwrite(STDERR, "no @endsection or </body> in $v\n"); exit(1); }
-    file_put_contents($v, substr($s, 0, $k) . "\n" . $inc . "\n" . substr($s, $k));
+    file_put_contents($v, substr($s, 0, $k) . "\n" . $block . "\n" . substr($s, $k));
     echo "patched: $v\n";
 }
 PHP
