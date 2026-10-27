@@ -328,6 +328,7 @@ Route::get('/dashboard-data', [Dashboard::class, 'getDashboardData']);
     // Route::get('/prepaid-cod-data-get', [Dashboard::class, 'getPrepaidCodData'])->name('prepaid-cod-data-get');
 
     Route::get('/dashboard', [Dashboard::class, 'index'])->name('seller.dashboard');
+    Route::post('/quick-rate', \App\Http\Controllers\selleradmin\QuickRateController::class)->name('seller.quick.rate');
     Route::get('/happy-new-year', [Dashboard::class, 'happynewyear'])->name('seller.happynewyear');
 
 
