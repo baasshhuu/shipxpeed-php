@@ -92,32 +92,22 @@ public function index(Request $request): View
 
 public function shipment_report(Request $request)
 {
-    // echo 'xxsxs';die;
-    // All sellers for dropdown
-    $sellers = SellerList::select('id', 'name')->get();
+    $f = \App\Support\ShipmentReport::filters($request);
+    $perPage = in_array((int) $request->per_page, [25, 50, 100, 200], true) ? (int) $request->per_page : 25;
 
-    // Start building query
-    $query = Order::with('seller')->whereNotNull('awb_number');
+    $data = \App\Support\ShipmentReport::query($f)->paginate($perPage)->withQueryString();
+    $extras = \App\Support\ShipmentReport::extras($data->getCollection());
+    $rows = $data->getCollection()->map(fn ($o) => \App\Support\ShipmentReport::row($o, $extras));
 
-    // Filter by seller
-    if ($request->filled('seller_id')) {
-        $query->where('seller_id', $request->seller_id);
-    }
-
-    // Filter by start date
-    if ($request->filled('start_date')) {
-        $query->whereDate('created_at', '>=', $request->start_date);
-    }
-
-    // Filter by end date
-    if ($request->filled('end_date')) {
-        $query->whereDate('created_at', '<=', $request->end_date);
-    }
-
-    // Get filtered data
-    $data = $query->paginate(10);
-
-    return view('shipment_report', compact('data', 'sellers'));
+    return view('shipment_report', [
+        'data'     => $data,
+        'rows'     => $rows,
+        'summary'  => \App\Support\ShipmentReport::summary($f),
+        'sellers'  => \App\Support\ShipmentReport::sellers(),
+        'couriers' => \App\Support\ShipmentReport::couriers(),
+        'f'        => $f,
+        'perPage'  => $perPage,
+    ]);
 }
 
 /**

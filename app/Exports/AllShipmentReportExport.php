@@ -2,99 +2,122 @@
 
 namespace App\Exports;
 
+use App\Support\ShipmentReport;
 use Illuminate\Http\Request;
-use App\Models\Order;
-use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\FromGenerator;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class AllShipmentReportExport implements FromCollection, WithHeadings
+/**
+ * Admin › Shipment Report › Export Excel. Same filters and the same numbers
+ * as the page (both use App\Support\ShipmentReport), with every field.
+ */
+class AllShipmentReportExport implements FromGenerator, WithHeadings, ShouldAutoSize, WithStyles, WithEvents
 {
-    protected $request;
+    /** column heading => row key */
+    public const COLUMNS = [
+        'Order Date'                 => 'order_date',
+        'Shipped Date'               => 'shipped_date',
+        'Delivered Date'             => 'delivered_date',
+        'Order No.'                  => 'order_number',
+        'Channel Order No.'          => 'channel_order',
+        'AWB Number'                 => 'awb',
+        'Seller ID'                  => 'seller_id',
+        'Seller Name'                => 'seller_name',
+        'Seller Email'               => 'seller_email',
+        'Seller Phone'               => 'seller_phone',
+        'Courier'                    => 'courier',
+        'Courier Account'            => 'courier_account',
+        'Zone'                       => 'zone',
+        'Payment Type'               => 'payment',
+        'Order Value (₹)'            => 'order_value',
+        'COD to Collect (₹)'         => 'cod_amount',
+        'COD Remittance'             => 'cod_remittance',
+        'Status'                     => 'status',
+        'Courier Status (raw)'       => 'courier_status',
+        'RTO Reason'                 => 'rto_reason',
+        'Buyer Name'                 => 'buyer_name',
+        'Buyer Phone'                => 'buyer_phone',
+        'Buyer Alt. Phone'           => 'buyer_alt_phone',
+        'Buyer Email'                => 'buyer_email',
+        'Buyer Address'              => 'buyer_address',
+        'Buyer Landmark'             => 'buyer_landmark',
+        'Buyer City'                 => 'buyer_city',
+        'Buyer State'                => 'buyer_state',
+        'Buyer Pincode'              => 'buyer_pincode',
+        'Pickup Location'            => 'pickup_name',
+        'Pickup Contact'             => 'pickup_contact',
+        'Pickup Phone'               => 'pickup_phone',
+        'Pickup Address'             => 'pickup_address',
+        'Pickup City'                => 'pickup_city',
+        'Pickup State'               => 'pickup_state',
+        'Pickup Pincode'             => 'pickup_pincode',
+        'Products'                   => 'products',
+        'SKUs'                       => 'skus',
+        'Total Qty'                  => 'qty',
+        'Dead Weight (kg)'           => 'weight_kg',
+        'Length (cm)'                => 'length_cm',
+        'Breadth (cm)'               => 'breadth_cm',
+        'Height (cm)'                => 'height_cm',
+        'Volumetric Weight (kg)'     => 'vol_weight_kg',
+        'Shipping Charge excl. GST (₹)' => 'freight_taxable',
+        'GST 18% (₹)'                => 'gst',
+        'Shipping Charged incl. GST (₹)' => 'shipping_charged',
+        'RTO Charge (₹)'             => 'rto_charge',
+        'Cancellation Refund (₹)'    => 'refund',
+        'Weight Dispute Charge (₹)'  => 'weight_charge',
+        'WhatsApp Alerts (₹)'        => 'whatsapp_charge',
+        'Net Billed (₹)'             => 'net',
+    ];
 
-    public function __construct(Request $request)
+    public function __construct(protected Request $request)
     {
-        $this->request = $request;
     }
 
-    public function collection()
+    public function generator(): \Generator
     {
-        $query = Order::with('seller')->whereNotNull('awb_number');
-
-        if ($this->request->filled('seller_id')) {
-            $query->where('seller_id', $this->request->seller_id);
+        $f = ShipmentReport::filters($this->request);
+        $keys = array_values(self::COLUMNS);
+        // newest first, streamed in chunks so big date ranges don't run out of memory
+        foreach (ShipmentReport::query($f)->lazy(500)->chunk(500) as $chunk) {
+            $chunk = $chunk->collect();
+            $extras = ShipmentReport::extras($chunk);
+            foreach ($chunk as $order) {
+                $row = ShipmentReport::row($order, $extras);
+                yield array_map(fn ($k) => $row[$k] ?? null, $keys);
+            }
         }
-
-        if ($this->request->filled('start_date')) {
-            $query->whereDate('created_at', '>=', $this->request->start_date);
-        }
-
-        if ($this->request->filled('end_date')) {
-            $query->whereDate('created_at', '<=', $this->request->end_date);
-        }
-
-        return $query->get()->map(function ($order) {
-            // $amount = $order->seller_amount_walate ?? 0;
-                    $amountIncludingGST = $order->seller_amount_walate ?? 0;
-                                 $amount = round($amountIncludingGST / 1.18, 2); // ✅ GST removed amount
-
-            $gst = round($amount * 0.18, 2);
-            $total = $amount + $gst;
-
-            // Consignee details decode
-            $consignee = is_string($order->consignee) ? json_decode($order->consignee, true) : ($order->consignee ?? []);
-            $order_items = is_string($order->order_items) ? json_decode($order->order_items, true) : ($order->order_items ?? []);
-
-            return [
-                $order->awb_number,
-                $order->seller->name ?? 'N/A',
-                $order->seller->email ?? 'N/A',
-                $order->seller->phone_number ?? 'N/A',
-                ucfirst($order->shipping_status ?? 'N/A'),
-                $order->payment_type ?? 'N/A',
-                $order_items['name'] ?? 'N/A',
-
-                $consignee['name'] ?? 'N/A',
-                $consignee['phone'] ?? 'N/A',
-                $consignee['address'] ?? 'N/A',
-                $consignee['address_2'] ?? 'N/A',
-                $consignee['pincode'] ?? 'N/A',
-                $consignee['city'] ?? 'N/A',
-                $consignee['state'] ?? 'N/A',
-                $order->package_weight ?? 'N/A',
-                $order->package_length ?? 'N/A',
-                $order->package_breadth ?? 'N/A',
-                $order->package_height ?? 'N/A',
-                $amount,
-                $gst,
-                $total,
-            ];
-        });
     }
 
     public function headings(): array
     {
-        return [
-            'AWB Number',
-            'Seller Name',
-            'Seller Email',
-            'Seller Phone',
-            'Shipping Status',
-            'Payment Type',
-            'Product name',
-            'Consignee Name',
-            'Consignee Phone',
-            'Consignee Address',
-            'Address 2',
-            'Pincode',
-            'City',
-            'State',
-            'Package Weight',
-            'Package Length',
-            'Package Breadth',
-            'Package Height',
-            'Amount',
-            'GST (18%)',
-            'Total Amount',
-        ];
+        return array_keys(self::COLUMNS);
+    }
+
+    public function styles(Worksheet $sheet): array
+    {
+        return [1 => ['font' => ['bold' => true]]];
+    }
+
+    public function registerEvents(): array
+    {
+        return [AfterSheet::class => function (AfterSheet $e) {
+            $s = $e->sheet->getDelegate();
+            $s->freezePane('A2');
+            $s->setAutoFilter($s->calculateWorksheetDimension());
+            // long numbers (AWB, phone, pincode) shown in full instead of 3.85E+13
+            foreach (['AWB Number', 'Buyer Phone', 'Buyer Alt. Phone', 'Seller Phone', 'Pickup Phone', 'Buyer Pincode', 'Pickup Pincode', 'Order No.', 'Channel Order No.'] as $h) {
+                $i = array_search($h, array_keys(self::COLUMNS), true);
+                if ($i === false) {
+                    continue;
+                }
+                $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1);
+                $s->getStyle($col . '2:' . $col . $s->getHighestRow())->getNumberFormat()->setFormatCode('0');
+            }
+        }];
     }
 }
