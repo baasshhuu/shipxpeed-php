@@ -34,7 +34,8 @@ git fetch -q origin || { echo "FAIL: git fetch"; exit 1; }
 for f in app/Http/Controllers/selleradmin/RateCardController.php app/Http/Controllers/selleradmin/ToolsController.php resources/views/sellerdashboard/tools/newratecalculater.blade.php app/Models/ZonePriceSetting.php; do
   # OK when the server copy equals some GitHub version of the file (no local edits to lose)
   if [ -e "$f" ]; then
-    git log --format=%H "$REF" -- "$f" | while read c; do git show "$c:$f" 2>/dev/null | cmp -s - "$f" && { echo match; break; }; done | grep -q match && continue
+    M=$(for c in $(git log --format=%H "$REF" -- "$f"); do git show "$c:$f" 2>/dev/null | cmp -s - "$f" && { echo match; break; }; done)
+    [ "$M" = "match" ] && continue
   fi
   if [ -e "$f" ]; then
     echo "NOTE: $f has local edits on this server - stopping so nothing is lost. Send this output to Claude."; exit 1
