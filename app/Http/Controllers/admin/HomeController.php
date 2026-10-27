@@ -92,22 +92,33 @@ public function index(Request $request): View
 
 public function shipment_report(Request $request)
 {
-    $f = \App\Support\ShipmentReport::filters($request);
-    $perPage = in_array((int) $request->per_page, [25, 50, 100, 200], true) ? (int) $request->per_page : 25;
+    $step = 'filters';
+    try {
+        $f = \App\Support\ShipmentReport::filters($request);
+        $perPage = in_array((int) $request->per_page, [25, 50, 100, 200], true) ? (int) $request->per_page : 25;
 
-    $data = \App\Support\ShipmentReport::query($f)->paginate($perPage)->withQueryString();
-    $extras = \App\Support\ShipmentReport::extras($data->getCollection());
-    $rows = $data->getCollection()->map(fn ($o) => \App\Support\ShipmentReport::row($o, $extras));
+        $step = 'rows';
+        $data = \App\Support\ShipmentReport::query($f)->paginate($perPage)->withQueryString();
+        $extras = \App\Support\ShipmentReport::extras($data->getCollection());
+        $rows = $data->getCollection()->map(fn ($o) => \App\Support\ShipmentReport::row($o, $extras));
 
-    return view('shipment_report', [
-        'data'     => $data,
-        'rows'     => $rows,
-        'summary'  => \App\Support\ShipmentReport::summary($f),
-        'sellers'  => \App\Support\ShipmentReport::sellers(),
-        'couriers' => \App\Support\ShipmentReport::couriers(),
-        'f'        => $f,
-        'perPage'  => $perPage,
-    ]);
+        $step = 'summary';
+        $summary = \App\Support\ShipmentReport::summary($f);
+        $step = 'sellers';
+        $sellers = \App\Support\ShipmentReport::sellers();
+        $step = 'couriers';
+        $couriers = \App\Support\ShipmentReport::couriers();
+
+        $step = 'page';
+        return response(view('shipment_report', compact('data', 'rows', 'summary', 'sellers', 'couriers', 'f', 'perPage'))->render());
+    } catch (\Throwable $e) {
+        \Illuminate\Support\Facades\Log::error('Shipment report failed at ' . $step, ['error' => $e->getMessage(), 'at' => $e->getFile() . ':' . $e->getLine()]);
+        // admin-only page: show what failed so it can be fixed without server access
+        return response('<div style="font:14px system-ui;padding:24px;max-width:900px"><h3>Shipment report could not load</h3><p>Step: <b>'
+            . e($step) . '</b></p><pre style="white-space:pre-wrap;background:#f4f4f4;padding:12px;border-radius:8px">'
+            . e(get_class($e) . ': ' . $e->getMessage() . "\n" . str_replace(base_path() . '/', '', $e->getFile()) . ':' . $e->getLine())
+            . '</pre><p>Send a screenshot of this to Claude.</p></div>', 500);
+    }
 }
 
 /**
