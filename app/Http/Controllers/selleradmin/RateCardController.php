@@ -28,6 +28,8 @@ class RateCardController extends Controller
             'length' => 'nullable|numeric|min:0',
             'breadth' => 'nullable|numeric|min:0',
             'height' => 'nullable|numeric|min:0',
+            'originState' => 'nullable|string|max:80',
+            'destinationState' => 'nullable|string|max:80',
         ]);
 
         // Same weight basis as shipping an order (package weight in grams)
@@ -36,6 +38,8 @@ class RateCardController extends Controller
         $rates = ShipRate::quote((int) $seller->id, [
             'origin' => $v['origin'],
             'destination' => $v['destination'],
+            'origin_state' => $v['originState'] ?? null,
+            'destination_state' => $v['destinationState'] ?? null,
             'payment_type' => $v['payment_type'],
             'order_amount' => (float) $v['order_amount'],
             'weight_grams' => $grams,

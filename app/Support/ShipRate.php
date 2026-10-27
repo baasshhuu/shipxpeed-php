@@ -42,7 +42,8 @@ class ShipRate
                 $ctx['amount'] = (float) ($p['order_amount'] ?? 0);
                 $from = $p['origin_pincode'] ?? $p['origin'] ?? null;
                 $dest = $p['destination_pincode'] ?? $p['destination'] ?? null;
-                $ctx['zone'] = ($from && $dest) ? self::zoneForPincodes($from, $dest) : null;
+                $ctx['zone'] = RateCard::zoneForStates($p['origin_state'] ?? null, $p['destination_state'] ?? null)
+                    ?? (($from && $dest) ? self::zoneForPincodes($from, $dest) : null);
             }
         } catch (\Throwable $e) {
             Log::warning('ShipRate::remember failed: ' . $e->getMessage());
@@ -73,16 +74,52 @@ class ShipRate
         if ($hit !== null) {
             return $hit ?: null;
         }
-        $state = '';
-        try {
-            $res = Http::timeout(5)->get('https://api.postalpincode.in/pincode/' . $pin);
-            $state = (string) ($res->json()[0]['PostOffice'][0]['State'] ?? '');
-        } catch (\Throwable $e) {
-            $state = '';
+        $state = self::stateFromDelhivery($pin) ?? '';
+        if ($state === '') {
+            try {
+                $res = Http::timeout(5)->get('https://api.postalpincode.in/pincode/' . $pin);
+                $state = (string) ($res->json()[0]['PostOffice'][0]['State'] ?? '');
+            } catch (\Throwable $e) {
+                $state = '';
+            }
         }
         Cache::put('pin_state_' . $pin, $state, $state ? now()->addDays(60) : now()->addMinutes(10));
         return $state ?: null;
     }
+
+    /** State name for a pincode from the Delhivery pincode API (our own token). */
+    private static function stateFromDelhivery(string $pin): ?string
+    {
+        $token = env('DELHIVERY_B2C_TOKEN');
+        if (!$token) {
+            return null;
+        }
+        try {
+            $res = Http::timeout(6)->withHeaders(['Authorization' => 'Token ' . $token, 'Accept' => 'application/json'])
+                ->get('https://track.delhivery.com/c/api/pin-codes/json/', ['filter_codes' => $pin]);
+            $pc = $res->json()['delivery_codes'][0]['postal_code'] ?? null;
+            if (!is_array($pc)) {
+                return null;
+            }
+            $code = strtoupper(trim((string) ($pc['state_code'] ?? '')));
+            return self::STATE_CODES[$code] ?? (strlen($code) > 3 ? ucwords(strtolower($code)) : null);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /** Delhivery state codes -> state names as used in the panel's zone table. */
+    private const STATE_CODES = [
+        'AN' => 'Andaman & Nicobar Islands', 'AP' => 'Andhra Pradesh', 'AR' => 'Arunachal Pradesh', 'AS' => 'Assam',
+        'BR' => 'Bihar', 'BH' => 'Bihar', 'CH' => 'Chandigarh', 'CG' => 'Chhattisgarh', 'CT' => 'Chhattisgarh',
+        'DN' => 'Dadra and Nagar Haveli and Daman and Diu', 'DD' => 'Dadra and Nagar Haveli and Daman and Diu',
+        'DL' => 'Delhi', 'GA' => 'Goa', 'GJ' => 'Gujarat', 'HR' => 'Haryana', 'HP' => 'Himachal Pradesh',
+        'JK' => 'Jammu & Kashmir', 'JH' => 'Jharkhand', 'KA' => 'Karnataka', 'KL' => 'Kerala', 'LA' => 'Ladakh',
+        'LD' => 'Lakshadweep', 'MP' => 'Madhya Pradesh', 'MH' => 'Maharashtra', 'MN' => 'Manipur', 'ML' => 'Meghalaya',
+        'MZ' => 'Mizoram', 'NL' => 'Nagaland', 'OR' => 'Odisha', 'OD' => 'Odisha', 'PY' => 'Puducherry', 'PB' => 'Punjab',
+        'RJ' => 'Rajasthan', 'SK' => 'Sikkim', 'TN' => 'Tamil Nadu', 'TG' => 'Telangana', 'TS' => 'Telangana',
+        'TR' => 'Tripura', 'UP' => 'Uttar Pradesh', 'UK' => 'Uttarakhand', 'UT' => 'Uttarakhand', 'WB' => 'West Bengal',
+    ];
 
     /** Rate-card key for a Shipclues courier name. */
     public static function shipcluesKey(?string $courierName): string
@@ -180,7 +217,9 @@ class ShipRate
         $grams = max(1, (float) ($in['weight_grams'] ?? 500));
         $cod = strtolower((string) ($in['payment_type'] ?? 'prepaid')) === 'cod';
         $amount = (float) ($in['order_amount'] ?? 0);
-        $zone = self::zoneForPincodes($in['origin'] ?? '', $in['destination'] ?? '');
+        // States filled in by the calculator page (India Post lookup in the browser), else server lookup
+        $zone = RateCard::zoneForStates($in['origin_state'] ?? null, $in['destination_state'] ?? null)
+            ?? self::zoneForPincodes($in['origin'] ?? '', $in['destination'] ?? '');
         $out = [];
 
         // Delhivery (direct): zone rate card
@@ -203,6 +242,8 @@ class ShipRate
                     'seller_id' => $sellerId,
                     'origin_pincode' => $in['origin'] ?? '',
                     'destination_pincode' => $in['destination'] ?? '',
+                    'origin_state' => $in['origin_state'] ?? null,
+                    'destination_state' => $in['destination_state'] ?? null,
                     'payment_type' => $cod ? 'cod' : 'prepaid',
                     'order_amount' => $amount,
                     'package_weight' => $grams,
