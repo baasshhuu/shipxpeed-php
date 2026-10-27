@@ -297,6 +297,41 @@ class RateCard
         return !CourierAccess::isOn($sellerId, $key, $aggregatorName);
     }
 
+    /**
+     * Zone an order lands in: pickup (warehouse) state -> consignee state via the panel's zone table.
+     * Falls back to a pincode -> state lookup when a state is missing, then to the zone saved on the order.
+     * Returns ['zone' => 'A'|null, 'from' => state|null, 'to' => state|null].
+     */
+    public static function zoneForOrder($order): array
+    {
+        $pickup = is_array($order->pickup) ? $order->pickup : (json_decode((string) $order->pickup, true) ?: []);
+        $to = is_array($order->consignee) ? $order->consignee : (json_decode((string) $order->consignee, true) ?: []);
+
+        $fromState = trim((string) ($pickup['state'] ?? '')) ?: null;
+        $toState = trim((string) ($to['state'] ?? '')) ?: null;
+        try {
+            if (!$fromState && !empty($pickup['pincode'])) {
+                $fromState = ShipRate::stateForPincode($pickup['pincode']);
+            }
+            if (!$toState && !empty($to['pincode'])) {
+                $toState = ShipRate::stateForPincode($to['pincode']);
+            }
+        } catch (\Throwable $e) {
+        }
+
+        static $memo = [];
+        $key = strtolower((string) $fromState) . '|' . strtolower((string) $toState);
+        if (!array_key_exists($key, $memo)) {
+            $memo[$key] = self::zoneForStates($fromState, $toState);
+        }
+
+        return [
+            'zone' => $memo[$key] ?? self::normalizeZone($order->zone ?? null),
+            'from' => $fromState,
+            'to'   => $toState,
+        ];
+    }
+
     public static function zoneForStates(?string $pickupState, ?string $deliveryState): ?string
     {
         if (!$pickupState || !$deliveryState) {

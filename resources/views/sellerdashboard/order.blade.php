@@ -1750,6 +1750,7 @@
                             <th>Collectable</th>
                             <!-- <th>Method</th> -->
                             <th>Shipping Details</th>
+                            <th>Zone</th>
                             <!-- <th>Weight</th> -->
                             <th>Warehouse</th>
                             <th width="95">Actions</th>
@@ -1884,6 +1885,23 @@
                                     @endif
                                 </div>
                             </td>
+                            {{-- zone-col:start --}}
+                            <td>
+                                @php
+                                    $zi = \App\Support\RateCard::zoneForOrder($order);
+                                    $zoneTip = ($zi['from'] && $zi['to'])
+                                        ? ucwords(strtolower($zi['from'])) . ' → ' . ucwords(strtolower($zi['to']))
+                                        : 'Pickup or delivery state missing';
+                                @endphp
+                                @if($zi['zone'])
+                                    <span class="zone-badge" title="{{ $zoneTip }}">Zone {{ $zi['zone'] }}</span>
+                                    <div class="zone-route text-truncate" title="{{ $zoneTip }}">{{ $zoneTip }}</div>
+                                @else
+                                    <span class="zone-badge zone-badge--none" title="{{ $zoneTip }}">—</span>
+                                    <div class="zone-route">{{ $zi['from'] && $zi['to'] ? 'No zone mapped' : 'Add state/pincode' }}</div>
+                                @endif
+                            </td>
+                            {{-- zone-col:end --}}
                             <!-- <td>
                                 <span class="badge bg-light text-dark border border-info-emphasis" style="font-size: .91em; color: #3c4765;">
                                     <i class="ti ti-weight me-1"></i>{{ $order->package_weight }}kg
@@ -2635,4 +2653,113 @@ window.emergencyCleanup = function() {
         });
     });
 </script>
+
+{{-- orders-polish:start --}}
+{{-- Orders page polish: consistent sizes and spacing on the dark theme (loaded last so it wins) --}}
+<style id="orders-polish">
+/* ---------- Filter by Status ---------- */
+.status-filter-row{padding:18px 20px !important}
+.status-filter-row h5,.status-filter-row .h5{font-size:15px !important;font-weight:600 !important;margin-bottom:12px !important}
+.status-btns-container{display:flex !important;flex-wrap:wrap !important;gap:8px !important;height:auto !important}
+.status-btn-premium{flex:0 0 auto !important;width:auto !important;max-width:none !important;height:34px !important;
+  border-width:1px !important;border-radius:999px !important;font-size:13px !important;font-weight:500 !important;
+  background:var(--sx-raised,#152036) !important;border-color:var(--sx-line-2,rgba(196,206,235,.16)) !important;
+  color:var(--sx-fg-2,#a3abc2) !important;box-shadow:none !important;transform:none !important}
+.status-btn-premium:hover,.status-btn-premium:focus{background:var(--sx-hover,#1a2742) !important;color:var(--sx-fg,#e9ecf5) !important;
+  border-color:var(--sx-blue,#3b7bff) !important;transform:none !important}
+.status-btn-premium.active,.status-btn-premium[aria-current]{background:var(--sx-blue-bg) !important;color:var(--sx-blue-2,#6b9cff) !important;border-color:var(--sx-blue,#3b7bff) !important}
+.status-btn-content{height:34px !important;padding:0 14px !important;font-size:13px !important;white-space:nowrap !important;line-height:1 !important;gap:7px}
+.status-btn-content i{margin:0 !important;font-size:12px !important}
+
+/* ---------- Toolbar: filters on the left, actions on the right, one row ---------- */
+.table-header{padding:14px 16px !important}
+.table-controls{display:flex !important;align-items:center !important;justify-content:space-between !important;gap:10px !important;flex-wrap:wrap}
+.table-controls > .d-flex{gap:10px !important}
+.table-controls .filter-block{height:36px !important;border-radius:10px !important;background:var(--sx-raised,#152036) !important;
+  border:1px solid var(--sx-line-2,rgba(196,206,235,.16)) !important;box-shadow:none !important;padding:0 !important;width:auto !important}
+.date-filter-responsive{padding:0 10px !important}
+.date-group-premium{gap:8px !important;flex-wrap:nowrap !important}
+.date-group-premium > label,.date-group-premium > span{font-size:13px !important;color:var(--sx-fg-2,#a3abc2) !important;font-weight:500 !important;margin:0 !important}
+.date-group-premium > input[type="date"]{height:28px !important;width:132px !important;min-width:0 !important;font-size:13px !important;
+  padding:0 8px !important;border-radius:7px !important;background:var(--sx-surface,#0f1626) !important;
+  border:1px solid var(--sx-line,rgba(196,206,235,.09)) !important;color:var(--sx-fg,#e9ecf5) !important;color-scheme:dark}
+.search-ref-id-group{box-shadow:none !important;min-width:220px}
+.search-ref-id-group input.form-control{height:34px !important;background:transparent !important;border:0 !important;
+  color:var(--sx-fg,#e9ecf5) !important;font-size:13px !important;padding-left:32px !important}
+.search-ref-id-group .search-icon{font-size:12px !important;color:var(--sx-fg-3,#6d7690) !important}
+.table-controls .filter-block .dropdown-toggle{height:34px !important;min-width:170px;padding:0 12px !important;font-size:13px !important;font-weight:500 !important;
+  background:transparent !important;color:var(--sx-fg,#e9ecf5) !important;box-shadow:none !important;border:0 !important}
+.table-controls .filter-block .dropdown-toggle span,.table-controls .filter-block .dropdown-toggle i,
+.table-controls .filter-block .dropdown-toggle:hover span,.table-controls .filter-block .dropdown-toggle:hover .fas{color:var(--sx-fg-2,#a3abc2) !important}
+.table-controls .filter-block .dropdown-toggle::after{display:none}
+.table-controls > .d-flex.align-items-center.gap-2:last-child .btn{width:36px !important;height:36px !important;padding:0 !important;
+  display:inline-flex;align-items:center;justify-content:center;border-radius:10px !important;font-size:14px !important;
+  background:var(--sx-raised,#152036) !important;border:1px solid var(--sx-line-2,rgba(196,206,235,.16)) !important;color:var(--sx-fg-2,#a3abc2) !important}
+.table-controls > .d-flex.align-items-center.gap-2:last-child .btn i{font-size:14px !important}
+.table-controls > .d-flex.align-items-center.gap-2:last-child .dropdown-toggle::after{display:none}
+
+/* ---------- Orders table ---------- */
+.premium-table{font-size:13px !important}
+.premium-table thead th{font-size:11px !important;font-weight:600 !important;letter-spacing:.06em !important;padding:12px 12px !important;
+  color:var(--sx-fg-3,#6d7690) !important;white-space:nowrap;text-transform:uppercase}
+.premium-table tbody td{padding:12px 12px !important;font-size:13px !important;vertical-align:middle !important;line-height:1.35}
+.premium-table tbody td span,.premium-table tbody td small,.premium-table tbody td div{font-size:inherit}
+.premium-table .form-check-input{width:16px;height:16px}
+/* Order ID + status */
+.premium-table tbody td a{font-size:13px !important;font-weight:600}
+.premium-table tbody td .badge{font-size:10.5px !important;font-weight:600 !important;padding:3px 8px !important;border-radius:6px !important;letter-spacing:.03em}
+/* Product card: name on top, qty + weight below, nothing overlapping */
+.premium-product-card{background:var(--sx-raised,#152036) !important;border:1px solid var(--sx-line,rgba(196,206,235,.09)) !important;
+  border-left:3px solid var(--sx-blue,#3b7bff) !important;border-radius:8px !important;padding:8px 10px !important;
+  min-width:170px !important;max-width:210px !important;box-shadow:none !important;gap:5px !important}
+.premium-product-card > span.text-truncate{font-size:13px !important;max-width:185px !important;color:var(--sx-fg,#e9ecf5) !important}
+.premium-product-card > .d-flex{gap:8px;flex-wrap:wrap;justify-content:flex-start !important}
+.premium-product-card .text-muted{font-size:11.5px !important;color:var(--sx-fg-3,#6d7690) !important}
+.premium-product-card .text-muted .fw-semibold{font-size:11.5px !important;color:var(--sx-fg-2,#a3abc2) !important}
+.premium-product-card .badge{font-size:10.5px !important;font-weight:500 !important;padding:2px 7px !important;
+  background:var(--sx-blue-bg) !important;color:var(--sx-blue-2,#6b9cff) !important;text-transform:none;letter-spacing:0 !important}
+/* Payment cell */
+.premium-table tbody td .fw-semibold.d-inline-flex{font-size:10.5px !important;padding:2px 7px !important;border-radius:6px !important;
+  background:var(--sx-ok-bg) !important;color:var(--sx-ok,#5fd3a1) !important}
+/* Customer + warehouse */
+.premium-table .customer-info{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left}
+.premium-table .customer-info > div{font-size:13px !important;color:var(--sx-fg,#e9ecf5) !important}
+.premium-table .customer-info small{font-size:11.5px !important;color:var(--sx-fg-3,#6d7690) !important}
+.premium-table tbody td .badge.w-100{font-size:12px !important;font-weight:500 !important;color:var(--sx-fg-2,#a3abc2) !important;
+  background:transparent !important;max-width:160px;letter-spacing:0;text-transform:none}
+.table-action-btn{width:32px;height:32px;padding:0 !important;display:inline-flex !important;align-items:center;justify-content:center}
+.table-action-btn::after{display:none}
+
+/* Zone */
+/* Zone the order lands in */
+.zone-badge{display:inline-block;min-width:62px;padding:3px 10px;border-radius:999px;font-size:.78rem;font-weight:600;
+  background:rgba(79,110,247,.12);color:#3b55d9;border:1px solid rgba(79,110,247,.35);white-space:nowrap}
+.zone-badge--none{background:rgba(135,147,170,.12);color:#8793aa;border-color:rgba(135,147,170,.35)}
+.zone-route{font-size:.72rem;color:#8793aa;max-width:150px;margin:3px auto 0}
+.zone-badge{background:var(--sx-blue-bg,rgba(59,123,255,.14)) !important;color:var(--sx-blue-2,#6b9cff) !important;
+  border-color:rgba(59,123,255,.35) !important;font-size:11.5px !important}
+.zone-badge--none{background:transparent !important;color:var(--sx-fg-3,#6d7690) !important;border-color:var(--sx-line-2) !important}
+.zone-route{color:var(--sx-fg-3,#6d7690) !important;font-size:11px !important}
+
+/* Layout fixes: pills fill each row; filters left, actions right */
+.status-btn-premium{flex:1 1 auto !important}
+.table-controls{flex-wrap:nowrap !important;align-items:flex-start !important}
+.table-controls > .d-flex:first-child{flex:1 1 auto;min-width:0}
+.table-controls > .d-flex.align-items-center.gap-2:last-child{flex:0 0 auto;margin-left:auto}
+.table-controls .date-filter-responsive{padding:0 10px !important}
+.date-group-premium > input[type="date"]{width:124px !important}
+.table-controls .filter-block:has(.search-ref-id-group){flex:1 1 170px;min-width:170px;max-width:300px}
+.search-ref-id-group{min-width:0 !important}
+.table-controls .filter-block .dropdown-toggle{min-width:160px}
+
+@media (max-width: 767.98px){
+  .status-btns-container{display:grid !important;grid-template-columns:repeat(2,1fr) !important}
+  .status-btn-premium{width:100% !important}
+  .table-controls{flex-wrap:wrap !important}
+  .table-controls .filter-block{width:100% !important;max-width:none !important}
+  .search-ref-id-group{min-width:0}
+}
+</style>
+{{-- orders-polish:end --}}
+
 @endsection
