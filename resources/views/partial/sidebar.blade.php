@@ -42,14 +42,6 @@
                 </div>
             </a>
         </li>
-        <li class="menu @routeis('SendWhatsApp.index') active @endrouteis">
-            <a href="{{ route('SendWhatsApp.index') }}" class="dropdown-toggle">
-                <div class="">
-                    <i class="fa-brands fa-whatsapp"></i>
-                    <span>WhatsApp Messages</span>
-                </div>
-            </a>
-        </li>
         <li class="sx-menu-heading">Orders &amp; Shipments</li>
         <li class="menu @routeis('get.orders') active @endrouteis">
             <a href="{{ route('get.orders') }}" class="dropdown-toggle">
@@ -84,22 +76,6 @@
             </a>
         </li>
         <li class="sx-menu-heading">Couriers &amp; Rates</li>
-        <li class="menu @routeis('courier.rate.manager') active @endrouteis">
-            <a href="{{ route('courier.rate.manager') }}" class="dropdown-toggle">
-                <div class="">
-                    <i class="fa-solid fa-truck-fast"></i>
-                    <span>Courier &amp; Rate Manager</span>
-                </div>
-            </a>
-        </li>
-        <li class="menu @routeis('courier.master.index') active @endrouteis">
-            <a href="{{ route('courier.master.index') }}" class="dropdown-toggle">
-                <div class="">
-                    <i class="fa-solid fa-list-check"></i>
-                    <span>Courier Master</span>
-                </div>
-            </a>
-        </li>
         <li class="menu @routeis('logistics') active @endrouteis">
             <a href="{{ route('logistics') }}" class="dropdown-toggle">
                 <div class="">
@@ -118,22 +94,6 @@
             </a>
         </li>
         @endif
-        <li class="menu @routeis('pricesetting') active @endrouteis">
-            <a href="{{ route('pricesetting.add') }}" class="dropdown-toggle">
-                <div class="">
-                    <i class="fa-solid fa-tags"></i>
-                    <span>Price Setting</span>
-                </div>
-            </a>
-        </li>
-        <li class="menu @routeis('zone.price.index,zone.pricesetting.add') active @endrouteis">
-            <a href="{{ route('zone.pricesetting.add') }}" class="dropdown-toggle">
-                <div class="">
-                    <i class="fa-solid fa-map-location-dot"></i>
-                    <span>Zone Price Setting</span>
-                </div>
-            </a>
-        </li>
         <li class="menu @routeis('rate.manager') active @endrouteis">
             <a href="{{ route('rate.manager') }}" class="dropdown-toggle">
                 <div class="">
@@ -146,7 +106,7 @@
             <a href="{{ route('active.slebs.add') }}" class="dropdown-toggle">
                 <div class="">
                     <i class="fa-solid fa-layer-group"></i>
-                    <span>Active Slabs</span>
+                    <span>Courier Status</span>
                 </div>
             </a>
         </li>
@@ -241,79 +201,6 @@
                 </li>
                 @endif 
                 @if(Helper::userCan(102))
-                <li class="@routeis('careers-details') active @endrouteis">
-                    <a href="{{ route('careers-details') }}">Career Details</a>
-                </li>
-                @endif
-
-            </ul>
-        </li>
-        @endif
-        <li class="sx-menu-heading">Website</li>
-        <li class="menu @routeis('landing-brands') active @endrouteis">
-            <a href="{{ route('landing-brands') }}" class="dropdown-toggle">
-                <div class="">
-                    <i class="fa-solid fa-globe"></i>
-                    <span>Landing Brands</span>
-                </div>
-            </a>
-        </li>
-        <li class="menu @routeis('team-spirit') active @endrouteis">
-            <a href="{{ route('team-spirit') }}" class="dropdown-toggle">
-                <div class="">
-                    <i class="fa-solid fa-handshake"></i>
-                    <span>Team Spirit</span>
-                </div>
-            </a>
-        </li>
-        <li class="menu @routeis('beyond-work') active @endrouteis">
-            <a href="{{ route('beyond-work') }}" class="dropdown-toggle">
-                <div class="">
-                    <i class="fa-solid fa-champagne-glasses"></i>
-                    <span>Beyond Work</span>
-                </div>
-            </a>
-        </li>
-        @if(Helper::userCan([104]))
-        <li class="menu @routeis('sliders,testimonials,cms,faq,enquiries,admin-banners') active @endrouteis">
-            <a href="#static_content" data-bs-toggle="collapse"
-                aria-expanded="{{ Helper::routeis('sliders,testimonials,cms,faq,enquiries,admin-banners') }}"
-                class="dropdown-toggle">
-                <div class="">
-                    <i class="fa-sharp fa-solid fa-photo-film"></i>
-                    <span>Content</span>
-                </div>
-                <div> <i class="fa-solid fa-chevron-right"></i> </div>
-            </a>
-            <ul class="collapse submenu list-unstyled @routeis('sliders,testimonials,cms,faq,enquiries,admin-banners') show @endrouteis"
-                id="static_content" data-bs-parent="#accordionExample">
-                @if(Helper::userCan(104))
-                <li class="@routeis('testimonial') active @endrouteis">
-                    <a href="{{ route('testimonial') }}">Testimonial</a>
-                </li>
-                @endif
-
-
-                @if(Helper::userCan(104))
-                <li class="@routeis('careers') active @endrouteis">
-                    <a href="{{ route('careers') }}">Career</a>
-                </li>
-                @endif
-
-                @if(Helper::userCan(104))
-                <li class="@routeis('privacy-policy') active @endrouteis">
-                    <a href="{{ route('privacy-policy') }}">Privacy Policy</a>
-                </li>
-                @endif
-                @if(Helper::userCan(104))
-                <li class="@routeis('refund-policy') active @endrouteis">
-                    <a href="{{ route('refund-policy') }}">Refund Policy</a>
-                </li>
-                @endif
-                @if(Helper::userCan(104))
-                <li class="@routeis('terms-and-condition') active @endrouteis">
-                    <a href="{{ route('terms-and-condition') }}">Terms And Condition</a>
-                </li>
                 @endif
 
             </ul>
@@ -340,32 +227,6 @@
                 @if(Helper::userCan(103))
                 <li class="@routeis('users') active @endrouteis">
                     <a href="{{ route('users') }}">Sub Admins</a>
-                </li>
-                @endif
-            </ul>
-        </li>
-        @endif
-        @if(Helper::userCan([105,106]))
-        <li class="menu @routeis('states,cities') active @endrouteis">
-            <a href="#location_content" data-bs-toggle="collapse" aria-expanded="{{ Helper::routeis('states,cities') }}"
-                class="dropdown-toggle">
-                <div class="">
-                    <i class="fa-duotone fa-location-dot"></i>
-                    <span>Location</span>
-                </div>
-                <div> <i class="fa-solid fa-chevron-right"></i> </div>
-            </a>
-            <ul class="collapse submenu list-unstyled @routeis('states,cities') show @endrouteis" id="location_content"
-                data-bs-parent="#accordionExample">
-                @if(Helper::userCan(105))
-                <li class="@routeis('states') active @endrouteis">
-                    <a class="nav-link" href="{{ route('states') }}">States</a>
-                </li>
-                @endif
-
-                @if(Helper::userCan(106))
-                <li class="@routeis('cities') active @endrouteis">
-                    <a class="nav-link" href="{{ route('cities') }}">Cities</a>
                 </li>
                 @endif
             </ul>

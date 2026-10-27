@@ -22,7 +22,7 @@
                 <a href="{{ route('seller-list') }}" class="btn btn-sm btn-outline-secondary">
                     <i class="fa-solid fa-users me-1"></i><span class="sx-hide-sm">Sellers</span>
                 </a>
-                <a href="{{ route('courier.rate.manager') }}" class="btn btn-sm btn-outline-secondary sx-hide-sm">
+                <a href="{{ route('rate.manager') }}" class="btn btn-sm btn-outline-secondary sx-hide-sm">
                     <i class="fa-solid fa-truck-fast me-1"></i>Couriers &amp; Rates
                 </a>
                 <a href="{{ route('seller.login') }}" target="_blank" rel="noopener" class="btn btn-sm btn-primary sx-hide-sm">
