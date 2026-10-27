@@ -63,7 +63,7 @@ class NotifyController extends Controller
             'smsLive'     => (bool) config('notify.sms_enabled', false),
             'emailLog'    => $emailLog,
             'demoSms'     => BuyerNotifier::sms($seller, $sample, 'out_for_delivery'),
-            'demoBrand'   => OrderStatusNotifier::brandName($seller, $sample),
+            'demoBrand'   => BuyerNotifier::brand($seller),
             'balance'     => $balance,
             'totalAmount' => $balance, // seller layout header
         ]);

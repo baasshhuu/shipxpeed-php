@@ -114,7 +114,7 @@ class BuyerNotifier
     public static function email($seller, Order $order, string $event, array $s): array
     {
         [$label, $headline] = NotifySettings::STAGES[$event] ?? ['Update', 'Your order has an update'];
-        $brand = OrderStatusNotifier::brandName($seller, $order);
+        $brand = self::brand($seller);
         $consignee = self::arr($order->consignee);
         $orderNo = $order->customer_order_id ?: ($order->order_number ?: $order->id);
         $prepaid = strtolower((string) $order->payment_type) !== 'cod';
@@ -155,7 +155,7 @@ class BuyerNotifier
     /** SMS text for a stage (preview now; sent once an SMS gateway is connected). */
     public static function sms($seller, Order $order, string $event): string
     {
-        $brand = OrderStatusNotifier::brandName($seller, $order);
+        $brand = self::brand($seller);
         $orderNo = $order->customer_order_id ?: ($order->order_number ?: $order->id);
         $courier = self::courier($order, 'our courier');
         $link = OrderStatusNotifier::trackingLink($order);
@@ -201,6 +201,13 @@ class BuyerNotifier
             ]);
         } catch (QueryException $e) {
         }
+    }
+
+    /** Name buyers see: the seller's brand name (Notify page), else the account name. */
+    public static function brand($seller): string
+    {
+        $b = trim((string) ($seller->whatsapp_brand_name ?? ''));
+        return $b !== '' ? $b : (trim((string) ($seller->name ?? '')) ?: 'our store');
     }
 
     private static function courier(Order $order, string $fallback): string

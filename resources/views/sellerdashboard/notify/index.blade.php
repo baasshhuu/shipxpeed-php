@@ -27,8 +27,8 @@
 .nf-pane{padding:20px}
 .nf-pane[hidden]{display:none}
 /* WhatsApp hero */
-.nf-hero{display:grid;grid-template-columns:1.15fr .85fr;gap:24px;align-items:center;padding:30px;border-radius:14px;background:linear-gradient(115deg,rgba(124,58,237,.10),rgba(59,123,255,.06) 45%,rgba(37,211,102,.12));border:1px solid var(--nf-line)}
-@media (max-width:991px){.nf-hero{grid-template-columns:1fr;padding:22px}}
+.nf-hero{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:center;padding:30px;border-radius:14px;background:linear-gradient(115deg,rgba(124,58,237,.10),rgba(59,123,255,.06) 45%,rgba(37,211,102,.12));border:1px solid var(--nf-line)}
+@media (max-width:1279px){.nf-hero{grid-template-columns:1fr;padding:22px}}
 .nf-hero h1{font-size:34px;line-height:1.15;font-weight:800;margin:0 0 12px;color:var(--nf-fg)}
 .nf-hero h1 span{background:linear-gradient(90deg,#6d6bff,#22c55e);-webkit-background-clip:text;background-clip:text;color:transparent}
 @media (max-width:575px){.nf-hero h1{font-size:27px}}
@@ -59,11 +59,11 @@
 .nf-bub{background:#fff;color:#111;border-radius:0 10px 10px 10px;padding:9px 10px 6px;font-size:12px;line-height:1.45;box-shadow:0 1px 1px rgba(0,0,0,.12);max-width:92%}
 .nf-bub .t{font-size:9.5px;color:#999;text-align:right;margin-top:3px}
 .nf-bub .cta{display:block;border-top:1px solid #eee;margin-top:7px;padding-top:7px;text-align:center;color:#0a7cff;font-weight:600}
-.nf-toast-card{position:absolute;left:-46px;bottom:70px;background:#fff;color:#111;border-radius:12px;padding:10px 12px;display:flex;gap:9px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.25);font-size:12px;max-width:230px}
-.nf-toast-card i{font-size:22px;color:#25d366}
-.nf-toast-card b{display:block;font-size:12.5px}
-.nf-toast-card span{color:#16a34a;font-weight:600}
-@media (max-width:575px){.nf-toast-card{left:-6px}}
+.nf-pop{position:absolute;left:-46px;bottom:70px;background:#fff;color:#111;border-radius:12px;padding:10px 12px;display:flex;gap:9px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.25);font-size:12px;max-width:230px}
+.nf-pop i{font-size:22px;color:#25d366}
+.nf-pop b{display:block;font-size:12.5px}
+.nf-pop span{color:#16a34a;font-weight:600}
+@media (max-width:575px){.nf-pop{left:-6px}}
 /* cards */
 .nf-card{border:1px solid var(--nf-line);border-radius:12px;padding:18px;margin-top:18px;background:var(--nf-raised)}
 .nf-card h3{font-size:16px;font-weight:700;margin:0 0 4px;color:var(--nf-fg)}
@@ -129,7 +129,7 @@
 </style>
 
 <div class="pc-container nf">
-<div class="pc-content">
+<div class="pc-content sxd">{{-- "sxd": keeps the global theme from repainting this page --}}
 
     <div class="nf-crumb"><a href="{{ url('/seller/dashboard') }}">Dashboard</a><i class="ti ti-chevron-right"></i><span>Tools</span><i class="ti ti-chevron-right"></i><span style="color:var(--nf-fg)">Notify</span></div>
 
@@ -200,7 +200,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="nf-toast-card"><i class="ti ti-brand-whatsapp"></i><div><b>Whatsapp Notification</b><span>On the way</span> | Track your order now</div></div>
+                        <div class="nf-pop"><i class="ti ti-brand-whatsapp"></i><div><b>Whatsapp Notification</b><span>On the way</span> | Track your order now</div></div>
                     </div>
                 </div>
 
