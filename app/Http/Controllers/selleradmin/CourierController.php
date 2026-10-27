@@ -201,6 +201,7 @@ class CourierController extends Controller
             }
         }
 
+        $logisticProviders = \App\Support\Xpeed\CourierPreferences::apply((int) \Illuminate\Support\Facades\Auth::guard('seller')->id(), \App\Models\Order::whereIn('id', (array) $orderIds)->where('seller_id', \Illuminate\Support\Facades\Auth::guard('seller')->id())->get(), $logisticProviders); // xpeed prefs
         // Seller info
         $seller = Auth::guard('seller')->user();
         $sellerId = Auth::guard('seller')->id();
@@ -382,6 +383,7 @@ class CourierController extends Controller
         }
     }
 
+        $logisticProviders = \App\Support\Xpeed\CourierPreferences::apply((int) \Illuminate\Support\Facades\Auth::guard('seller')->id(), [\App\Models\Order::find($firstOrderId)], $logisticProviders); // xpeed prefs
     // Seller info
     $seller = Auth::guard('seller')->user();
     $sellerId = Auth::guard('seller')->id();

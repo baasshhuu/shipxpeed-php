@@ -173,6 +173,7 @@ return [
         Maatwebsite\Excel\ExcelServiceProvider::class,
         Yajra\DataTables\DataTablesServiceProvider::class,
         App\Providers\CourierServiceProvider::class,
+        App\Providers\XpeedServiceProvider::class, // xpeed control suite
     ])->toArray(),
 
     /*

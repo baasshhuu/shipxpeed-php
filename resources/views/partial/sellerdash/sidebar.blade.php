@@ -601,6 +601,7 @@
                         </ul>
                     </div>
                 </li>
+                @include('partial.sellerdash.xpeed-menu') {{-- xpeed menu --}}
                 <li>
                     <a href="{{ route('shipmentprice') }}" class="nav-link sidebar-sub-nav-link {{ request()->routeIs('shipmentprice') ? 'active' : '' }}">
                         <i class="ti ti-currency-dollar"></i>
@@ -893,6 +894,7 @@
                         </ul>
                     </div>
                 </li>
+                @include('partial.sellerdash.xpeed-menu') {{-- xpeed menu --}}
                 <li>
                     <a href="{{ route('shipmentprice') }}" class="nav-link sidebar-sub-nav-link {{ request()->routeIs('shipmentprice') ? 'active' : '' }}">
                         <i class="ti ti-currency-dollar"></i>

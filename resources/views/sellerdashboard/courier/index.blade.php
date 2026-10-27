@@ -40,7 +40,7 @@
                         <div class="courier-card {{ $index === 0 ? 'recommended' : '' }}">
                             @if($index === 0)
                                 <div class="recommended-badge">
-                                    <i class="fas fa-star"></i> Recommended
+                                    <i class="fas fa-star"></i> {{ $provider['xp_badge'] ?? 'Recommended' }}
                                 </div>
                             @endif
                             

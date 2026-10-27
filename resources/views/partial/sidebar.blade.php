@@ -9,6 +9,7 @@
                 </div>
             </a>
         </li>
+        @include('partial.xpeed-admin-menu') {{-- xpeed menu --}}
         <li class="sx-menu-heading">Sellers</li>
         <li class="menu @routeis('seller-list') active @endrouteis">
             <a href="{{ route('seller-list') }}" class="dropdown-toggle">
