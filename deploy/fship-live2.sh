@@ -98,10 +98,19 @@ fi
 chown -R www-data:www-data app config routes resources database storage bootstrap/cache 2>/dev/null
 sudo -u www-data php artisan migrate --path=database/migrations/2026_10_25_000001_fship_integration.php --force || restore
 sudo -u www-data php artisan optimize:clear >/dev/null || restore
-# (route:list is not used: it crashes on an unrelated old route to a missing SeloshipController)
-R=$(sudo -u www-data php artisan tinker --execute="echo (\\Illuminate\\Support\\Facades\\Route::has('admin.fship.index') ? 'FSHIP_ROUTES_OK' : 'FSHIP_ROUTES_MISSING').PHP_EOL;" 2>&1 | tail -3)
-echo "$R"; echo "$R" | grep -q FSHIP_ROUTES_OK || restore
-sudo -u www-data php artisan tinker --execute="app('courier.fship'); echo 'Fship adapter loads OK'.PHP_EOL;" 2>&1 | tail -1
+# Boot check without route:list (crashes on an unrelated legacy route) or tinker (needs a writable HOME)
+cat > /tmp/fship-check.php <<'PHPEOF'
+<?php
+chdir($argv[1]);
+require 'vendor/autoload.php';
+$app = require 'bootstrap/app.php';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo Illuminate\Support\Facades\Route::has('admin.fship.index') ? "FSHIP_ROUTES_OK\n" : "FSHIP_ROUTES_MISSING\n";
+app('courier.fship');
+echo "FSHIP_ADAPTER_OK\n";
+PHPEOF
+R=$(sudo -u www-data env HOME=/tmp php /tmp/fship-check.php "$APP" 2>&1 | tail -5)
+echo "$R"; echo "$R" | grep -q FSHIP_ADAPTER_OK && echo "$R" | grep -q FSHIP_ROUTES_OK || restore
 for u in https://shipxpeed.tech/fship https://shipxpeed.tech/login; do
   c=$(curl -s -o /dev/null -w '%{http_code}' -k "$u"); echo "$u -> $c"
   [ "$c" = "500" ] && { echo "FAIL: panel returns 500"; tail -20 storage/logs/laravel.log; restore; }
