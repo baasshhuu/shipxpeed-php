@@ -74,6 +74,48 @@ class CashfreePgService
         return $res->json();
     }
 
+    /**
+     * Create a Payment Link (paid on Cashfree's own page — no domain whitelisting needed).
+     *
+     * @throws \RuntimeException
+     */
+    public function createLink(array $payload): array
+    {
+        $res = $this->client()->post($this->baseUrl() . '/links', $payload);
+
+        if (!$res->successful() || empty($res->json('link_url'))) {
+            Log::error('Cashfree PG create link failed', [
+                'link_id' => $payload['link_id'] ?? null,
+                'status'  => $res->status(),
+                'body'    => $res->json() ?? $res->body(),
+            ]);
+            throw new \RuntimeException($res->json('message') ?: 'Could not start payment with Cashfree.');
+        }
+
+        return $res->json();
+    }
+
+    /** Fetch a payment link (link_status: ACTIVE | PAID | EXPIRED | CANCELLED, link_amount_paid). */
+    public function getLink(string $linkId): ?array
+    {
+        $res = $this->client()->get($this->baseUrl() . '/links/' . rawurlencode($linkId));
+
+        if (!$res->successful()) {
+            Log::warning('Cashfree PG get link failed', ['link_id' => $linkId, 'status' => $res->status(), 'body' => $res->body()]);
+            return null;
+        }
+
+        return $res->json();
+    }
+
+    /** Orders created under a payment link (to record the paid order / payment id). */
+    public function getLinkOrders(string $linkId): array
+    {
+        $res = $this->client()->get($this->baseUrl() . '/links/' . rawurlencode($linkId) . '/orders');
+
+        return $res->successful() && is_array($res->json()) ? $res->json() : [];
+    }
+
     /** Fetch an order from Cashfree (source of truth for order_status). */
     public function getOrder(string $orderId): ?array
     {

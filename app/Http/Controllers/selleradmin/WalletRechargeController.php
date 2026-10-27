@@ -64,12 +64,48 @@ class WalletRechargeController extends Controller
             'gateway_status' => 'CREATED',
         ]);
 
+        $notifyUrl = route('cashfree.pg.webhook');
+
+        // Default: Payment Link (Cashfree-hosted page, works without domain whitelisting).
+        // Set CASHFREE_PG_CHECKOUT=sdk (config cashfree.pg.checkout) to use the embedded JS checkout instead.
+        if (config('cashfree.pg.checkout', 'link') !== 'sdk') {
+            $linkId = 'SXL_' . $recharge->id . '_' . time();
+            $linkMeta = ['return_url' => route('seller.recharge.cashfree.return') . '?link_id=' . $linkId];
+            if (str_starts_with($notifyUrl, 'https://')) {
+                $linkMeta['notify_url'] = $notifyUrl;
+            }
+
+            try {
+                $link = $this->cashfree->createLink([
+                    'link_id'          => $linkId,
+                    'link_amount'      => $amount,
+                    'link_currency'    => 'INR',
+                    'link_purpose'     => 'Shipxpeed wallet recharge',
+                    'customer_details' => array_filter([
+                        'customer_name'  => mb_substr((string) ($seller->name ?? 'Seller'), 0, 100),
+                        'customer_email' => filter_var($seller->email, FILTER_VALIDATE_EMAIL) ?: null,
+                        'customer_phone' => $phone,
+                    ]),
+                    'link_meta'        => $linkMeta,
+                    'link_notify'      => ['send_sms' => false, 'send_email' => false],
+                    'link_expiry_time' => now()->addDay()->toIso8601String(),
+                    'link_notes'       => ['recharge_id' => (string) $recharge->id, 'seller_id' => (string) $seller->id],
+                ]);
+            } catch (\Throwable $e) {
+                $recharge->update(['gateway_status' => 'ORDER_FAILED']);
+                return back()->with('error', 'Could not start payment: ' . $e->getMessage());
+            }
+
+            $recharge->update(['gateway_order_id' => $linkId, 'gateway_status' => 'ACTIVE']);
+
+            return redirect()->away($link['link_url']);
+        }
+
         $orderId = 'SXR_' . $recharge->id . '_' . time();
 
         $meta = [
             'return_url' => route('seller.recharge.cashfree.return') . '?order_id={order_id}',
         ];
-        $notifyUrl = route('cashfree.pg.webhook');
         if (str_starts_with($notifyUrl, 'https://')) {
             $meta['notify_url'] = $notifyUrl; // Cashfree only accepts https notify URLs
         }
@@ -106,7 +142,7 @@ class WalletRechargeController extends Controller
     /** Step 3 — browser returns from Cashfree. Never trusts query params; asks Cashfree. */
     public function handleReturn(Request $request)
     {
-        $orderId = (string) $request->query('order_id', '');
+        $orderId = (string) ($request->query('link_id') ?: $request->query('order_id', ''));
         $recharge = $orderId !== '' ? Recharge::where('gateway_order_id', $orderId)->first() : null;
 
         $target = auth('seller')->check() ? redirect()->route('seller.dashboard') : redirect()->route('seller.login');
@@ -134,8 +170,13 @@ class WalletRechargeController extends Controller
             return response()->json(['ok' => false], 401);
         }
 
-        $orderId = data_get(json_decode($raw, true), 'data.order.order_id');
-        $recharge = $orderId ? Recharge::where('gateway_order_id', $orderId)->first() : null;
+        $data = json_decode($raw, true) ?: [];
+        $ids = array_filter([
+            data_get($data, 'data.link_id'),                    // payment link events
+            data_get($data, 'data.order.order_tags.link_id'),   // payment events for link orders
+            data_get($data, 'data.order.order_id'),             // SDK checkout orders
+        ]);
+        $recharge = $ids ? Recharge::whereIn('gateway_order_id', array_values($ids))->first() : null;
 
         if ($recharge) {
             $this->settle($recharge);
@@ -153,6 +194,10 @@ class WalletRechargeController extends Controller
     {
         if ((string) $recharge->status === '1') {
             return 'paid';
+        }
+
+        if (str_starts_with((string) $recharge->gateway_order_id, 'SXL_')) {
+            return $this->settleLink($recharge);
         }
 
         $order = $this->cashfree->getOrder($recharge->gateway_order_id);
@@ -206,6 +251,57 @@ class WalletRechargeController extends Controller
             return 'failed';
         }
 
+        return 'pending';
+    }
+
+    /** Settle a Payment Link recharge: credit once when Cashfree says the link is PAID in full. */
+    protected function settleLink(Recharge $recharge): string
+    {
+        $link = $this->cashfree->getLink($recharge->gateway_order_id);
+        if (!$link) {
+            return 'pending';
+        }
+
+        $status = strtoupper((string) ($link['link_status'] ?? ''));
+
+        if ($status === 'PAID') {
+            $paid = (float) ($link['link_amount_paid'] ?? 0);
+            if ($paid + 0.009 < (float) $recharge->amount) {
+                Log::critical('Cashfree PG link amount mismatch', ['recharge_id' => $recharge->id, 'link' => $link]);
+                $recharge->update(['gateway_status' => 'AMOUNT_MISMATCH']);
+                return 'failed';
+            }
+
+            $paymentId = null;
+            foreach ($this->cashfree->getLinkOrders($recharge->gateway_order_id) as $o) {
+                if (strtoupper($o['order_status'] ?? '') === 'PAID') {
+                    $paymentId = (string) ($o['cf_order_id'] ?? $o['order_id'] ?? '');
+                    break;
+                }
+            }
+
+            DB::transaction(function () use ($recharge, $paymentId) {
+                $row = Recharge::whereKey($recharge->id)->lockForUpdate()->first();
+                if ($row && (string) $row->status !== '1') {
+                    $row->update([
+                        'status'             => '1',
+                        'gateway_status'     => 'PAID',
+                        'gateway_payment_id' => $paymentId,
+                        'paid_at'            => now(),
+                    ]);
+                }
+            });
+
+            $recharge->refresh();
+            return 'paid';
+        }
+
+        if (in_array($status, ['EXPIRED', 'CANCELLED'], true)) {
+            $recharge->update(['status' => '0', 'gateway_status' => $status]);
+            return 'failed';
+        }
+
+        // ACTIVE / PARTIALLY_PAID: seller closed the page or payment still processing
         return 'pending';
     }
 }
