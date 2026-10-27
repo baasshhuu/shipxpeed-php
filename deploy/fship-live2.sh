@@ -98,8 +98,9 @@ fi
 chown -R www-data:www-data app config routes resources database storage bootstrap/cache 2>/dev/null
 sudo -u www-data php artisan migrate --path=database/migrations/2026_10_25_000001_fship_integration.php --force || restore
 sudo -u www-data php artisan optimize:clear >/dev/null || restore
-sudo -u www-data php artisan route:list --name=fship >/dev/null 2>&1 || { sudo -u www-data php artisan route:list --name=fship 2>&1 | tail -5; restore; }
-echo "Routes OK: $(sudo -u www-data php artisan route:list --name=fship 2>/dev/null | grep -c fship) Fship routes"
+# (route:list is not used: it crashes on an unrelated old route to a missing SeloshipController)
+R=$(sudo -u www-data php artisan tinker --execute="echo (\\Illuminate\\Support\\Facades\\Route::has('admin.fship.index') ? 'FSHIP_ROUTES_OK' : 'FSHIP_ROUTES_MISSING').PHP_EOL;" 2>&1 | tail -3)
+echo "$R"; echo "$R" | grep -q FSHIP_ROUTES_OK || restore
 sudo -u www-data php artisan tinker --execute="app('courier.fship'); echo 'Fship adapter loads OK'.PHP_EOL;" 2>&1 | tail -1
 for u in https://shipxpeed.tech/fship https://shipxpeed.tech/login; do
   c=$(curl -s -o /dev/null -w '%{http_code}' -k "$u"); echo "$u -> $c"
