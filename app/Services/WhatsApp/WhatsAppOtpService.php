@@ -2,17 +2,18 @@
 
 namespace App\Services\WhatsApp;
 
+use App\Services\Sms\TwoFactorClient;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * WhatsApp OTP: one-time codes for signup (verify mobile) and OTP login.
+ * Mobile OTP (SMS via 2Factor or WhatsApp via AiSensy): one-time codes for signup (verify mobile) and OTP login.
  * Codes are stored hashed, expire, are rate-limited per number and burn after too many wrong tries.
  */
 class WhatsAppOtpService
 {
-    public function __construct(private AiSensyClient $client)
+    public function __construct(private AiSensyClient $client, private TwoFactorClient $sms)
     {
     }
 
@@ -21,8 +22,9 @@ class WhatsAppOtpService
      */
     public function send(string $purpose, string $phone, string $name = 'Customer', ?string $ip = null): array
     {
-        if (!WhatsAppSettings::otpEnabled()) {
-            return ['ok' => false, 'message' => 'WhatsApp OTP is not available right now.'];
+        $channel = WhatsAppSettings::otpChannel();
+        if ($channel === null) {
+            return ['ok' => false, 'message' => 'Mobile OTP is not available right now.'];
         }
         $cfg = config('whatsapp.otp');
 
@@ -54,24 +56,30 @@ class WhatsAppOtpService
             'updated_at' => now(),
         ]);
 
-        $extra = [];
-        if ((bool) (WhatsAppSettings::saved()['otp_copy_button'] ?? true)) {
-            // Authentication templates carry a "Copy code" button that needs the code as its URL parameter
-            $extra['buttons'] = [[
-                'type' => 'button', 'sub_type' => 'url', 'index' => 0,
-                'parameters' => [['type' => 'text', 'text' => $code]],
-            ]];
+        if ($channel === 'sms') {
+            $res = $this->sms->sendOtp($phone, $code);
+        } else {
+            $extra = [];
+            if ((bool) (WhatsAppSettings::saved()['otp_copy_button'] ?? true)) {
+                // Authentication templates carry a "Copy code" button that needs the code as its URL parameter
+                $extra['buttons'] = [[
+                    'type' => 'button', 'sub_type' => 'url', 'index' => 0,
+                    'parameters' => [['type' => 'text', 'text' => $code]],
+                ]];
+            }
+            $res = $this->client->send(WhatsAppSettings::otpCampaign(), $phone, $name, [$code], $extra);
         }
-
-        $res = $this->client->send(WhatsAppSettings::otpCampaign(), $phone, $name, [$code], $extra);
         DB::table('whatsapp_otps')->where('id', $id)->update(['send_status' => $res['ok'] ? 'sent' : 'failed', 'updated_at' => now()]);
 
         if (!$res['ok']) {
             DB::table('whatsapp_otps')->where('id', $id)->update(['consumed_at' => now()]);
-            return ['ok' => false, 'message' => 'Could not send the WhatsApp code. Check the number is on WhatsApp and try again.'];
+            return ['ok' => false, 'message' => $channel === 'sms'
+                ? 'Could not send the SMS code. Check the number and try again.'
+                : 'Could not send the WhatsApp code. Check the number is on WhatsApp and try again.'];
         }
 
-        return ['ok' => true, 'message' => 'Code sent on WhatsApp to ' . AiSensyClient::mask($phone) . '.', 'retry_after' => $cfg['resend_seconds']];
+        $via = $channel === 'sms' ? 'by SMS' : 'on WhatsApp';
+        return ['ok' => true, 'message' => "Code sent {$via} to " . AiSensyClient::mask($phone) . '.', 'retry_after' => $cfg['resend_seconds']];
     }
 
     /**
@@ -97,7 +105,7 @@ class WhatsAppOtpService
             DB::table('whatsapp_otps')->where('id', $row->id)->update([
                 'attempts' => $attempts, 'consumed_at' => $burn ? now() : null, 'updated_at' => now(),
             ]);
-            return ['ok' => false, 'message' => $burn ? 'Too many wrong tries. Request a new code.' : 'Wrong WhatsApp code. Please check and try again.'];
+            return ['ok' => false, 'message' => $burn ? 'Too many wrong tries. Request a new code.' : 'Wrong mobile code. Please check and try again.'];
         }
 
         DB::table('whatsapp_otps')->where('id', $row->id)->update(['consumed_at' => now(), 'updated_at' => now()]);

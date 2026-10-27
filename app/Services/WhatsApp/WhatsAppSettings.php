@@ -59,10 +59,34 @@ class WhatsAppSettings
         return (bool) (self::saved()['alerts_enabled'] ?? true) && self::apiKey() !== null;
     }
 
-    /** WhatsApp OTP on signup / OTP login. */
+    /** Mobile OTP (SMS or WhatsApp) on signup / OTP login. */
     public static function otpEnabled(): bool
     {
+        return self::otpChannel() !== null;
+    }
+
+    /** WhatsApp OTP specifically (AiSensy key + OTP campaign + admin switch). */
+    public static function whatsappOtpEnabled(): bool
+    {
         return (bool) (self::saved()['otp_enabled'] ?? true) && self::apiKey() !== null && filled(self::otpCampaign());
+    }
+
+    /** 'sms' (2Factor), 'whatsapp' (AiSensy) or null when no mobile OTP is set up. */
+    public static function otpChannel(): ?string
+    {
+        $wanted = strtolower((string) config('sms.channel', 'sms'));
+        $sms = \App\Services\Sms\TwoFactorClient::configured();
+        $wa = self::whatsappOtpEnabled();
+        if ($wanted === 'whatsapp') {
+            return $wa ? 'whatsapp' : ($sms ? 'sms' : null);
+        }
+        return $sms ? 'sms' : ($wa ? 'whatsapp' : null);
+    }
+
+    /** "SMS" / "WhatsApp" for screens and messages. */
+    public static function otpChannelLabel(): string
+    {
+        return self::otpChannel() === 'whatsapp' ? 'WhatsApp' : 'SMS';
     }
 
     public static function otpCampaign(): ?string

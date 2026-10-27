@@ -26,6 +26,7 @@
     $otpEmail = session('seller_temp_data')['email'] ?? null;
     $waRequired = !empty(session('seller_temp_data')['wa_required']);
     $waPhone = session('seller_temp_data')['wa_phone'] ?? null;
+    $otpVia = \App\Services\WhatsApp\WhatsAppSettings::otpChannelLabel();
     $waMasked = $waPhone ? substr($waPhone, 0, 3) . ' ' . substr($waPhone, 3, 2) . '••••' . substr($waPhone, -3) : null;
 @endphp
 <div class="card">
@@ -35,7 +36,7 @@
     <h2>{{ $waRequired ? 'Verify email and mobile' : 'Check your email' }}</h2>
     <p class="sub">
         @if ($otpEmail)
-            Enter the 6-digit code we sent to <strong>{{ $otpEmail }}</strong>@if($waRequired) and the WhatsApp code sent to <strong>{{ $waMasked }}</strong>@endif.
+            Enter the 6-digit code we sent to <strong>{{ $otpEmail }}</strong>@if($waRequired) and the {{ $otpVia }} code sent to <strong>{{ $waMasked }}</strong>@endif.
         @else
             Enter the 6-digit code we sent to your email.
         @endif
@@ -66,14 +67,14 @@
         </div>
         <input type="hidden" name="otp" id="otp-hidden">
         @if ($waRequired)
-        <div class="otp-block" data-target="mobile-otp-hidden" data-name="WhatsApp">
+        <div class="otp-block" data-target="mobile-otp-hidden" data-name="{{ $otpVia }}">
             <div class="otp-head">
-                <span class="label" id="waLabel">WhatsApp code</span>
+                <span class="label" id="waLabel">{{ $otpVia }} code</span>
                 <button type="button" class="linkbtn" id="waResend">Resend</button>
             </div>
             <div class="otp" role="group" aria-labelledby="waLabel">
                 @for ($i = 0; $i < 6; $i++)
-                    <input type="text" inputmode="numeric" maxlength="1" pattern="[0-9]*" aria-label="WhatsApp code digit {{ $i + 1 }}" autocomplete="off">
+                    <input type="text" inputmode="numeric" maxlength="1" pattern="[0-9]*" aria-label="{{ $otpVia }} code digit {{ $i + 1 }}" autocomplete="off">
                 @endfor
             </div>
             <div class="error error-otp"></div>

@@ -2,7 +2,7 @@
 
 @section('title', 'Log in')
 
-@php $waLogin = \App\Services\WhatsApp\WhatsAppSettings::otpEnabled(); @endphp
+@php $waLogin = \App\Services\WhatsApp\WhatsAppSettings::otpEnabled(); $otpVia = \App\Services\WhatsApp\WhatsAppSettings::otpChannelLabel(); $otpVerb = $otpVia === 'SMS' ? 'by SMS' : 'on WhatsApp'; @endphp
 
 @push('styles')
 <style>
@@ -35,7 +35,7 @@
     @if ($waLogin)
     <div class="tabs" role="tablist" aria-label="Login method">
         <button type="button" role="tab" id="tabEmail" aria-selected="true" aria-controls="loginForm">Email &amp; password</button>
-        <button type="button" role="tab" id="tabWa" aria-selected="false" aria-controls="waForm">WhatsApp OTP</button>
+        <button type="button" role="tab" id="tabWa" aria-selected="false" aria-controls="waForm">Mobile OTP</button>
     </div>
     @endif
 
@@ -73,7 +73,7 @@
         </div>
         <div class="field" id="waOtpField" hidden>
             <div class="label-row">
-                <label for="wa_otp">Code sent on WhatsApp</label>
+                <label for="wa_otp">Code sent {{ $otpVerb }}</label>
                 <button type="button" class="linkbtn" id="waResend">Resend</button>
             </div>
             <div class="otp-row">
@@ -81,7 +81,7 @@
             </div>
             <div class="error error-otp"></div>
         </div>
-        <button type="submit" class="btn btn-primary" id="waBtn"><span class="spin"></span><span class="btn-text">Send code on WhatsApp</span></button>
+        <button type="submit" class="btn btn-primary" id="waBtn"><span class="spin"></span><span class="btn-text">Send code {{ $otpVerb }}</span></button>
     </form>
     @endif
 
@@ -179,7 +179,7 @@
 
     function clearErr() { form.querySelectorAll('.error').forEach(el => el.textContent = ''); form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid')); }
     function err(name, m) { const i = form.querySelector('[name="' + name + '"]'); if (i) i.classList.add('is-invalid'); form.querySelector('.error-' + name).textContent = m; }
-    function reset() { sent = false; otpField.hidden = true; otp.value = ''; SX.loading(btn, false, 'Send code on WhatsApp'); }
+    function reset() { sent = false; otpField.hidden = true; otp.value = ''; SX.loading(btn, false, @json('Send code ' . $otpVerb)); }
     function countdown(sec) {
         clearInterval(timer); resend.disabled = true;
         timer = setInterval(() => { resend.textContent = 'Resend in ' + sec + 's'; if (--sec < 0) { clearInterval(timer); resend.disabled = false; resend.textContent = 'Resend'; } }, 1000);
@@ -204,10 +204,10 @@
             const { res, data } = await post("{{ route('seller.login.otp.send') }}", fd);
             if (res.ok) {
                 sent = true; otpField.hidden = false; otp.focus();
-                msgs.innerHTML = SX.alert('success', SX.escape(data.message || 'Code sent on WhatsApp.'));
+                msgs.innerHTML = SX.alert('success', SX.escape(data.message || @json('Code sent ' . $otpVerb . '.')));
                 SX.loading(btn, false, 'Verify and log in'); countdown(data.retry_after || 45);
-            } else { SX.loading(btn, false, sent ? 'Verify and log in' : 'Send code on WhatsApp'); handleFail(res, data); }
-        } catch (e) { SX.loading(btn, false, 'Send code on WhatsApp'); msgs.innerHTML = SX.alert('danger', 'Could not connect. Check your internet and try again.'); }
+            } else { SX.loading(btn, false, sent ? 'Verify and log in' : @json('Send code ' . $otpVerb)); handleFail(res, data); }
+        } catch (e) { SX.loading(btn, false, @json('Send code ' . $otpVerb)); msgs.innerHTML = SX.alert('danger', 'Could not connect. Check your internet and try again.'); }
     }
     async function verify() {
         if (btn.disabled) return;

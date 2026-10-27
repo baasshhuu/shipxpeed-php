@@ -153,7 +153,7 @@ class SellerAuthController extends Controller
             'otp'               => $otp
         ]);
 
-        // WhatsApp OTP: verify the mobile number as part of sign-up (when enabled by admin)
+        // Mobile OTP (SMS or WhatsApp): verify the mobile number as part of sign-up
         $waRequired = false;
         if (WhatsAppSettings::otpEnabled()) {
             $waRes = app(WhatsAppOtpService::class)->send('signup', $waPhone, $request->name, $request->ip());
@@ -170,7 +170,7 @@ class SellerAuthController extends Controller
 
         return response()->json([
             'message' => $waRequired
-                ? 'Codes sent to your email and WhatsApp. Please verify to complete registration.'
+                ? 'Codes sent to your email and ' . (WhatsAppSettings::otpChannel() === 'sms' ? 'mobile (SMS)' : 'WhatsApp') . '. Please verify to complete registration.'
                 : 'OTP sent to your email. Please verify to complete registration.',
             'redirect_url' => route('seller.verify.otp.view')
         ]);
@@ -529,7 +529,7 @@ class SellerAuthController extends Controller
     {
         $request->validate(['phone' => 'required|string|max:20']);
         if (!WhatsAppSettings::otpEnabled()) {
-            return response()->json(['message' => 'WhatsApp login is not available right now. Please log in with email.'], 503);
+            return response()->json(['message' => 'Mobile OTP login is not available right now. Please log in with email.'], 503);
         }
         $phone = AiSensyClient::normalizePhone($request->phone);
         if (!$phone) {
