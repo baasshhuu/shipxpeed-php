@@ -11,7 +11,7 @@ class Recharge extends Model
 {
     use HasFactory, SoftDeletes, CustomScopes;
 
-    protected $fillable = ['amount', 'code', 'seller_id','type','status','debit','weight_id','weight_awb','weight_courier','weight_mentionedweight','weight_chargedweight','weight_weightmissmatched','weight_seller_name','description'];
+    protected $fillable = ['amount', 'code', 'seller_id','type','status','debit','weight_id','weight_awb','weight_courier','weight_mentionedweight','weight_chargedweight','weight_weightmissmatched','weight_seller_name','description','gateway','gateway_order_id','gateway_payment_id','gateway_status','paid_at'];
 
 
     public function seller()

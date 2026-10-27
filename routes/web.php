@@ -27,7 +27,7 @@ use App\Http\Controllers\Frontend\SellerAuthController;
 use App\Http\Controllers\selleradmin\Dashboard;
 use App\Http\Controllers\SellerAdmin\RateCardController;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\SellerAdmin\PaymentController;
+use App\Http\Controllers\selleradmin\WalletRechargeController;
 use App\Http\Controllers\selleradmin\WeightDispatchingController;
 use App\Http\Controllers\selleradmin\OrdersReportsController;
 use App\Http\Controllers\selleradmin\CashfreeController;
@@ -491,9 +491,10 @@ Route::post('/notifications/update', [ShippingNotificationController::class, 'up
 Route::middleware(['auth'])->group(function () {
     Route::get('impersonate/seller/{id}', [\App\Http\Controllers\admin\SellerImpersonateController::class, 'loginAsSeller'])->name('seller.impersonate');
 });
-Route::post('/recharge', [Dashboard::class, 'save'])->name('recharge.add');
-
-Route::get('/seller/recharge/payu/{id}', [Dashboard::class, 'redirectToPayU'])->name('seller.recharge.payu');
+// Seller wallet recharge — Cashfree Payment Gateway (PayU removed 2026-10-27)
+Route::post('/recharge', [WalletRechargeController::class, 'start'])->middleware('auth:seller')->name('recharge.add');
+Route::get('/seller/recharge/cashfree/return', [WalletRechargeController::class, 'handleReturn'])->name('seller.recharge.cashfree.return');
+Route::post('/webhooks/cashfree/pg', [WalletRechargeController::class, 'webhook'])->name('cashfree.pg.webhook');
 
 // WhatsApp Message Routes
 Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {
@@ -501,25 +502,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
    
     });
 });
-// In web.php
-// Route::get('/payu-success/{id}', [Dashboard::class, 'payuSuccess'])->name('payment.success');
-// Route::get('/payu-failure/{id}', [Dashboard::class, 'payuFailure'])->name('payment.failure');
-
-
-// Route::get('/pesa-payment-success/{id}', [Dashboard::class, 'payuSuccess_pesa'])->name('pesa.payu.success');
-// Route::get('/pesa-payment-failure/{id}', [Dashboard::class, 'payuFailure_pesa'])->name('pesa.payu.failure');
-
-
-// Route::get('/pesa-payment-success-new/{id}', [Dashboard::class, 'payuSuccess_pesa'])->name('pesa.payu.success.new');
-// Route::get('/pesa-payment-failure-new/{id}', [Dashboard::class, 'payuFailure_pesa'])->name('pesa.payu.failure.new');
-Route::match(['get', 'post'], '/pesa-payment-success-new/{id}', [Dashboard::class, 'payuSuccess_pesa'])->name('pesa.payu.success.new');
-Route::match(['get', 'post'], '/pesa-payment-failure-new/{id}', [Dashboard::class, 'payuFailure_pesa'])->name('pesa.payu.failure.new');
-
-// Route::get('pay-u-money',   [Dashboard::class,'payUMoneyView']);
-// Route::post('pay-u-response',[Dashboard::class,'payuSuccess'])
-//      ->name('payment.success');
-// Route::get('pay-u-cancel',   [Dashboard::class,'payuFailure'])
-//      ->name('payment.failure');
 
 Route::post('/get-in-touch', [FormsController::class, 'sellerstore'])->name('getintouch.store');
 Route::post('/inquiries', [FormsController::class, 'inquiries'])->name('inquiries.store');

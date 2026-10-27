@@ -14,8 +14,7 @@ class VerifyCsrfToken extends Middleware
     protected $except = [
         '/seller-register/send-otp', // ✅ Corrected
         '/seller-register/verify-otp',
-        '/pesa-payment-success-new/*',
-        '/pesa-payment-failure-new/*',
+        'webhooks/cashfree/*',
         '/api/webhook/xpressbees/',
         'webhooks/shopify/*',
     ];
