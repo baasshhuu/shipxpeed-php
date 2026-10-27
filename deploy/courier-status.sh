@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Puts the new Courier Status page live (Admin > Price Setting > Courier Status):
+# Puts the new Courier Status page live (re-runnable) (Admin > Price Setting > Courier Status):
 #  - shows only integrated couriers (Delhivery Surface/Air, Shipclues couriers, Fship couriers),
 #  - "All Sellers (default)" sets each courier's default ON/OFF for every seller (incl. new ones),
 #  - picking a seller sets that seller's own switch, with "Use default" to undo,
@@ -17,6 +17,7 @@ app/Support/RateCard.php
 app/Http/Controllers/admin/ActiveslebsController.php
 resources/views/admin/Activeslebs/index.blade.php
 database/migrations/2026_10_27_000001_create_courier_defaults_table.php
+database/migrations/2026_10_27_000002_seed_courier_defaults.php
 "
 PATCHED="routes/admin.php app/Services/DelhiveryB2CService.php app/Services/DelhiveryB2CServiceExpress.php app/Services/FshipService.php"
 
@@ -57,6 +58,10 @@ $a = "Route::post('pricesetting/status-update', 'updateStatus')->name('pricesett
 patchStr('routes/admin.php', $a,
     $a . "\n        Route::post('pricesetting/status-reset', 'resetStatus')->name('pricesetting.courier.reset')->middleware('isAllow:104,can_add');",
     'pricesetting.courier.reset');
+patchStr('routes/admin.php',
+    "Route::post('pricesetting/status-reset', 'resetStatus')->name('pricesetting.courier.reset')->middleware('isAllow:104,can_add');",
+    "Route::post('pricesetting/status-reset', 'resetStatus')->name('pricesetting.courier.reset')->middleware('isAllow:104,can_add');\n        Route::post('pricesetting/courier-remove', 'removeCourier')->name('pricesetting.courier.remove')->middleware('isAllow:104,can_add');",
+    'pricesetting.courier.remove');
 
 // 2) Delhivery Surface / Air follow the switches (own switch, else default)
 foreach (['app/Services/DelhiveryB2CService.php' => 'Delhivery', 'app/Services/DelhiveryB2CServiceExpress.php' => 'Delhivery_Air'] as $f => $k) {
@@ -83,9 +88,11 @@ for f in $COPY_FILES $PATCHED; do
 done
 
 php artisan migrate --force --path=database/migrations/2026_10_27_000001_create_courier_defaults_table.php || restore
+php artisan migrate --force --path=database/migrations/2026_10_27_000002_seed_courier_defaults.php || restore
 php artisan view:clear >/dev/null
 php artisan route:clear >/dev/null
 php artisan cache:forget courier_defaults_map >/dev/null 2>&1 || true
+php artisan cache:forget courier_removed_map >/dev/null 2>&1 || true
 php artisan cache:forget ratecard_keys_shipclues >/dev/null 2>&1 || true
 php artisan cache:forget ratecard_keys_fship >/dev/null 2>&1 || true
 

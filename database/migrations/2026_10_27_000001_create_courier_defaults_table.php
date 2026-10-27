@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-/** Default ON/OFF per courier for all sellers (Admin > Courier Status, "All Sellers (default)"). */
+/** Default ON/OFF (and permanent removal) per courier for all sellers (Admin > Courier Status, "All Sellers (default)"). */
 return new class extends Migration
 {
     public function up(): void
@@ -14,6 +14,7 @@ return new class extends Migration
                 $t->id();
                 $t->string('courier_key', 120)->unique();
                 $t->boolean('is_default')->default(true);
+                $t->boolean('is_removed')->default(false);
                 $t->timestamps();
             });
         }

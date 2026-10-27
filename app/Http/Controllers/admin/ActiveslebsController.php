@@ -39,8 +39,10 @@ class ActiveslebsController extends Controller
             ->selectRaw('LogisticProvider, COUNT(DISTINCT seller_id) as n')
             ->groupBy('LogisticProvider')->pluck('n', 'LogisticProvider')->all();
 
+        $removed = array_keys(CourierAccess::removed());
+
         return view('admin.Activeslebs.index', compact(
-            'SellerList', 'selectedSeller', 'sellerParam', 'groups', 'overrides', 'customCounts'
+            'SellerList', 'selectedSeller', 'sellerParam', 'groups', 'overrides', 'customCounts', 'removed'
         ));
     }
 
@@ -97,5 +99,24 @@ class ActiveslebsController extends Controller
             'default' => CourierAccess::isDefaultOn($request->courier),
             'message' => 'Now follows the default',
         ]);
+    }
+
+    /** Remove a courier from the panel for good (hidden everywhere, never offered), or restore it. */
+    public function removeCourier(Request $request): JsonResponse
+    {
+        $request->validate(['courier' => 'required|string|max:120', 'remove' => 'required|in:0,1']);
+        $remove = (string) $request->remove === '1';
+        $courier = $request->courier;
+
+        if ($remove && !in_array($courier, CourierAccess::keys(), true)) {
+            return response()->json(['success' => false, 'message' => 'This courier is not in the panel.'], 422);
+        }
+
+        CourierAccess::setRemoved($courier, $remove);
+        if ($remove) {
+            ActicvSleb::where('LogisticProvider', $courier)->delete();
+        }
+
+        return response()->json(['success' => true, 'message' => $remove ? 'Courier removed from the panel' : 'Courier restored']);
     }
 }

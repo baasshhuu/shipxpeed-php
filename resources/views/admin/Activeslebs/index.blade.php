@@ -24,6 +24,10 @@
     .cs-badge.off { background: var(--sx-danger-soft, rgba(240,79,95,.15)); color: var(--sx-danger, #f04f5f); }
     .cs-tag { font-size:11px; padding:1px 7px; border-radius:20px; border:1px solid var(--sx-warning, #f5a524); color: var(--sx-warning, #f5a524); margin-left:6px; }
     .cs-empty { border:1px dashed var(--line); border-radius:10px; padding:14px; font-size:13px; color: var(--sx-muted, #8592ad); }
+    .cs-remove { font-size:12px; color: var(--sx-danger, #f04f5f) !important; cursor:pointer; margin-left:8px; }
+    .cs-removed { margin-top:26px; border-top:1px solid var(--line); padding-top:14px; font-size:13px; color: var(--sx-muted, #8592ad); }
+    .cs-removed span { display:inline-block; border:1px solid var(--line); border-radius:20px; padding:3px 10px; margin:4px 6px 0 0; }
+    .cs-removed a { cursor:pointer; margin-left:6px; }
     .cs-toast { position:fixed; right:18px; bottom:18px; z-index:9999; padding:10px 16px; border-radius:10px; font-size:13px; color:#fff; background:#16a34a; box-shadow:0 8px 24px rgba(0,0,0,.35); display:none; }
     .cs-toast.err { background:#dc2626; }
 </style>
@@ -108,6 +112,7 @@
                                     <div class="cs-meta">
                                         @if($isDefault)
                                             {{ $nCustom ? $nCustom . ' seller(s) have their own switch' : 'Default for all sellers' }}
+                                            · <a class="cs-remove">Remove permanently</a>
                                         @elseif($custom)
                                             Default is {{ $c['default'] ? 'ON' : 'OFF' }} · <a class="cs-reset">Use default</a>
                                         @else
@@ -131,6 +136,17 @@
         @empty
             <div class="cs-empty">No courier integration is configured yet.</div>
         @endforelse
+
+        @if($isDefault && count($removed))
+            <div class="cs-removed">
+                Removed from the panel ({{ count($removed) }}) — never offered to any seller:
+                <div>
+                    @foreach($removed as $rk)
+                        <span data-key="{{ $rk }}">{{ trim(str_replace('_', ' ', preg_replace('/^(Shipclues|Fship)_/', '', $rk))) }}<a class="cs-restore">Restore</a></span>
+                    @endforeach
+                </div>
+            </div>
+        @endif
     </div>
 </div>
 <div class="cs-toast" id="csToast"></div>
@@ -176,6 +192,21 @@
                 if (!isDefault) { setTimeout(() => window.location.reload(), 600); }
             })
             .catch(e => { paint(item, !on); toast('Not saved: ' + e.message, true); });
+    }));
+
+    document.querySelectorAll('.cs-remove').forEach(a => a.addEventListener('click', function () {
+        const item = this.closest('.cs-item');
+        const name = item.querySelector('.cs-name').childNodes[0].textContent.trim();
+        if (!confirm('Remove ' + name + ' from the panel permanently? It will be hidden here and never offered to any seller.')) return;
+        post(@json(route('pricesetting.courier.remove')), { courier: item.dataset.key, remove: 1 })
+            .then(d => { toast(d.message); item.remove(); setTimeout(() => window.location.reload(), 700); })
+            .catch(e => toast('Not saved: ' + e.message, true));
+    }));
+    document.querySelectorAll('.cs-restore').forEach(a => a.addEventListener('click', function () {
+        const key = this.parentNode.dataset.key;
+        post(@json(route('pricesetting.courier.remove')), { courier: key, remove: 0 })
+            .then(d => { toast(d.message); setTimeout(() => window.location.reload(), 500); })
+            .catch(e => toast('Not saved: ' + e.message, true));
     }));
 
     document.querySelectorAll('.cs-reset').forEach(a => a.addEventListener('click', function () {

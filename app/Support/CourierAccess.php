@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Schema;
  *   2. Otherwise the courier's DEFAULT decides (table courier_defaults, set on the
  *      Courier Status page with "All Sellers (default)" selected).
  *   3. A courier with no default saved yet is ON (new integrations go live for everyone).
+ *   A courier marked REMOVED is never shown in the panel and never offered to any seller.
  *
  * Only couriers listed here appear on the admin Courier Status page.
  */
@@ -72,6 +73,8 @@ class CourierAccess
                 continue;
             }
 
+            $removed = self::removed();
+            $keys = array_diff_key($keys, $removed);
             asort($keys, SORT_NATURAL | SORT_FLAG_CASE);
             $couriers = [];
             foreach ($keys as $key => $label) {
@@ -113,6 +116,32 @@ class CourierAccess
         });
     }
 
+    /** key => true for every courier removed from the panel. */
+    public static function removed(): array
+    {
+        return Cache::remember('courier_removed_map', now()->addMinutes(10), function () {
+            try {
+                if (!Schema::hasTable(self::TABLE) || !Schema::hasColumn(self::TABLE, 'is_removed')) {
+                    return [];
+                }
+                return DB::table(self::TABLE)->where('is_removed', 1)->pluck('courier_key')
+                    ->mapWithKeys(fn ($k) => [$k => true])->all();
+            } catch (\Throwable $e) {
+                return [];
+            }
+        });
+    }
+
+    public static function setRemoved(string $key, bool $removed): void
+    {
+        DB::table(self::TABLE)->updateOrInsert(
+            ['courier_key' => $key],
+            ['is_removed' => $removed ? 1 : 0, 'updated_at' => now(), 'created_at' => now()]
+        );
+        Cache::forget('courier_removed_map');
+        Cache::forget('courier_defaults_map');
+    }
+
     public static function isDefaultOn(string $key): bool
     {
         return self::defaults()[$key] ?? true;
@@ -145,6 +174,9 @@ class CourierAccess
     public static function isOn(int $sellerId, string $key, ?string $aggregatorName = null): bool
     {
         try {
+            if (isset(self::removed()[$key])) {
+                return false;
+            }
             if ($sellerId > 0) {
                 // Whole aggregator switched off for this seller (older switch, still honoured).
                 if ($aggregatorName && ActicvSleb::where('seller_id', $sellerId)
