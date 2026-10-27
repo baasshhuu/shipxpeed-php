@@ -77,11 +77,15 @@ class WhatsAppSettings
         $out = [];
         foreach (config('whatsapp.events') as $key => $e) {
             $s = $saved[$key] ?? [];
+            $campaign = array_key_exists('campaign', $s) ? trim((string) $s['campaign']) : $e['campaign'];
             $out[$key] = [
                 'label'    => $e['label'],
-                'campaign' => filled($s['campaign'] ?? null) ? $s['campaign'] : $e['campaign'],
+                'campaign' => $campaign,
+                'format'   => in_array($s['format'] ?? null, ['full', 'basic'], true) ? $s['format'] : ($e['format'] ?? 'full'),
                 'rate'     => isset($s['rate']) && is_numeric($s['rate']) ? (float) $s['rate'] : (float) $e['rate'],
                 'enabled'  => (bool) ($s['enabled'] ?? true),
+                // usable = switched on AND an AiSensy campaign is set
+                'usable'   => (bool) ($s['enabled'] ?? true) && $campaign !== '',
             ];
         }
         return $out;

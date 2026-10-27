@@ -35,23 +35,25 @@ return [
     ],
 
     /*
-     | Buyer shipment alerts. Every status template uses the SAME 6 body variables:
-     |   {{1}} buyer name   {{2}} seller brand   {{3}} order number
-     |   {{4}} courier      {{5}} AWB            {{6}} link (tracking link; NDR = response link)
-     | rate = default charge (₹) to the seller per message. Admin can change the
-     | default and set per-seller rates from the backend.
+     | Buyer shipment alerts.
+     | format "full"  = new templates, 6 body variables:
+     |   {{1}} buyer name {{2}} seller brand {{3}} order no. {{4}} courier {{5}} AWB {{6}} link (NDR = response link)
+     | format "basic" = the older approved templates, 3 body variables: {{1}} buyer name {{2}} order no. {{3}} AWB
+     | campaign = AiSensy API campaign name ('' = not set up yet, nothing sent)
+     | rate = default charge (₹) to the seller per message; admin can change it and set per-seller rates.
+     | Defaults use the 4 API campaigns already live on the AiSensy account (free plan can't add new ones).
      */
     'events' => [
-        'booked'           => ['label' => 'Order shipped (AWB assigned)', 'campaign' => 'sx_order_shipped',      'rate' => 2],
-        'picked_up'        => ['label' => 'Picked up',                    'campaign' => 'sx_order_picked_up',    'rate' => 0],
-        'in_transit'       => ['label' => 'In transit',                   'campaign' => 'sx_order_in_transit',   'rate' => 2],
-        'out_for_delivery' => ['label' => 'Out for delivery',             'campaign' => 'sx_out_for_delivery',   'rate' => 2],
-        'ndr'              => ['label' => 'Delivery failed (NDR)',        'campaign' => 'sx_delivery_failed',    'rate' => 2],
-        'delivered'        => ['label' => 'Delivered',                    'campaign' => 'sx_order_delivered',    'rate' => 0],
-        'rto_initiated'    => ['label' => 'Return to origin (RTO)',       'campaign' => 'sx_rto_initiated',      'rate' => 2],
-        'rto_delivered'    => ['label' => 'RTO delivered to seller',      'campaign' => 'sx_rto_delivered',      'rate' => 2],
-        'cancelled'        => ['label' => 'Cancelled',                    'campaign' => 'sx_order_cancelled',    'rate' => 2],
-        'lost'             => ['label' => 'Shipment lost / damaged',      'campaign' => 'sx_shipment_lost',      'rate' => 2],
+        'booked'           => ['label' => 'Order shipped (AWB assigned)', 'campaign' => '',                      'format' => 'full',  'rate' => 2],
+        'picked_up'        => ['label' => 'Picked up',                    'campaign' => '',                      'format' => 'full',  'rate' => 0],
+        'in_transit'       => ['label' => 'In transit',                   'campaign' => 'intransitorder',        'format' => 'basic', 'rate' => 2],
+        'out_for_delivery' => ['label' => 'Out for delivery',             'campaign' => 'out_for_delivery_test', 'format' => 'basic', 'rate' => 2],
+        'ndr'              => ['label' => 'Delivery failed (NDR)',        'campaign' => 'ndrqorders',            'format' => 'basic', 'rate' => 2],
+        'delivered'        => ['label' => 'Delivered',                    'campaign' => 'deliveredorder',        'format' => 'basic', 'rate' => 0],
+        'rto_initiated'    => ['label' => 'Return to origin (RTO)',       'campaign' => '',                      'format' => 'full',  'rate' => 2],
+        'rto_delivered'    => ['label' => 'RTO delivered to seller',      'campaign' => '',                      'format' => 'full',  'rate' => 2],
+        'cancelled'        => ['label' => 'Cancelled',                    'campaign' => '',                      'format' => 'full',  'rate' => 2],
+        'lost'             => ['label' => 'Shipment lost / damaged',      'campaign' => '',                      'format' => 'full',  'rate' => 2],
     ],
 
     // NDR response link stays valid this many days

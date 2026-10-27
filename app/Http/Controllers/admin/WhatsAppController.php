@@ -78,6 +78,7 @@ class WhatsAppController extends Controller
             'otp_campaign'      => 'nullable|string|max:80',
             'events'            => 'required|array',
             'events.*.campaign' => 'nullable|string|max:80',
+            'events.*.format'   => 'required|in:full,basic',
             'events.*.rate'     => 'required|numeric|min:0|max:100',
             'events.*.enabled'  => 'nullable|in:1',
         ]);
@@ -87,6 +88,7 @@ class WhatsAppController extends Controller
             $e = $data['events'][$key] ?? [];
             $events[$key] = [
                 'campaign' => trim((string) ($e['campaign'] ?? '')),
+                'format'   => $e['format'] ?? 'full',
                 'rate'     => round((float) ($e['rate'] ?? 0), 2),
                 'enabled'  => !empty($e['enabled']),
             ];
@@ -155,9 +157,13 @@ class WhatsAppController extends Controller
             if (!$e) {
                 return back()->with('error', 'Unknown event.');
             }
-            $res = $client->send($e['campaign'], $phone, 'Test Buyer', [
-                'Test Buyer', 'Demo Store', 'TEST-1001', 'Delhivery', '1234567890123', config('whatsapp.public_url') . '/order-details?awb=1234567890123',
-            ]);
+            if ($e['campaign'] === '') {
+                return back()->with('error', 'No AiSensy campaign set for this status yet.');
+            }
+            $params = $e['format'] === 'basic'
+                ? ['Test Buyer', 'TEST-1001', '1234567890123']
+                : ['Test Buyer', 'Demo Store', 'TEST-1001', 'Delhivery', '1234567890123', config('whatsapp.public_url') . '/order-details?awb=1234567890123'];
+            $res = $client->send($e['campaign'], $phone, 'Test Buyer', $params);
         }
 
         return back()->with($res['ok'] ? 'success' : 'error', $res['ok']

@@ -106,10 +106,10 @@
                         <td><strong>{{ $e['label'] }}</strong></td>
                         <td class="text-muted">
                             @switch($key)
-                                @case('ndr') Delivery failed notice with a link to choose: re-attempt (with date), new address, new phone, or return. @break
+                                @case('ndr') Delivery failed notice{{ $e['format'] === 'full' ? ' with a link to choose: re-attempt (with date), new address, new phone, or return' : ' with Re-attempt / Return buttons' }}. @break
                                 @case('booked') Order shipped, courier, AWB and tracking link. @break
                                 @case('delivered') Delivery confirmation. @break
-                                @default Status update with tracking link.
+                                @default Status update{{ $e['format'] === 'full' ? ' with tracking link' : ' with order number and AWB' }}.
                             @endswitch
                         </td>
                         <td class="text-end">@if($e['seller_rate'] > 0) ₹{{ rtrim(rtrim(number_format($e['seller_rate'], 2), '0'), '.') }} @else <span class="wa-free">Free</span> @endif</td>

@@ -97,7 +97,7 @@ class OrderStatusNotifier
 
             // Couriers that jump straight to "in transit" never report "picked up":
             // the first transit scan is sent as the (free) picked-up message.
-            if ($event === 'in_transit' && !$this->alreadySent($order, 'picked_up')) {
+            if ($event === 'in_transit' && ($events['picked_up']['usable'] ?? false) && !$this->alreadySent($order, 'picked_up')) {
                 $event = 'picked_up';
             }
 
@@ -112,8 +112,9 @@ class OrderStatusNotifier
             }
 
             $cfg = $events[$event];
-            if (!$cfg['enabled'] || blank($cfg['campaign'])) {
-                return $this->log($order, $event, $dedupe, 'skipped_event_off', 'Event switched off by admin');
+            if (!$cfg['usable']) {
+                // not set up in AiSensy yet / switched off: nothing sent, nothing charged, no log noise
+                return ['status' => 'skipped_event_off'];
             }
 
             $consignee = is_array($order->consignee) ? $order->consignee : (json_decode((string) $order->consignee, true) ?: []);
@@ -128,15 +129,21 @@ class OrderStatusNotifier
                 return $this->log($order, $event, $dedupe, 'skipped_low_balance', "Wallet below ₹{$rate}", $phone);
             }
 
-            $link = $event === 'ndr' ? $this->ndrLink($order) : self::trackingLink($order);
-            $params = [
-                $consignee['name'] ?? 'Customer',
-                self::brandName($seller, $order),
-                $order->customer_order_id ?: ($order->order_number ?: $order->id),
-                CourierBrand::cleanName($order->courier_name ?: ($order->zone_courier_name ?: $order->all_courier_name)),
-                $order->awb_number ?: '-',
-                $link,
-            ];
+            $orderNo = $order->customer_order_id ?: ($order->order_number ?: $order->id);
+            if ($cfg['format'] === 'basic') {
+                // older approved templates: {{1}} name {{2}} order no. {{3}} AWB
+                $params = [$consignee['name'] ?? 'Customer', $orderNo, $order->awb_number ?: '-'];
+            } else {
+                $link = $event === 'ndr' ? $this->ndrLink($order) : self::trackingLink($order);
+                $params = [
+                    $consignee['name'] ?? 'Customer',
+                    self::brandName($seller, $order),
+                    $orderNo,
+                    CourierBrand::cleanName($order->courier_name ?: ($order->zone_courier_name ?: $order->all_courier_name)),
+                    $order->awb_number ?: '-',
+                    $link,
+                ];
+            }
 
             $res = $this->client->send($cfg['campaign'], $phone, (string) ($consignee['name'] ?? 'Customer'), $params);
 

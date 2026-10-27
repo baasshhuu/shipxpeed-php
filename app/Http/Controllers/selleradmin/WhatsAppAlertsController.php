@@ -23,7 +23,7 @@ class WhatsAppAlertsController extends Controller
 
         $events = [];
         foreach (WhatsAppSettings::events() as $key => $e) {
-            if ($e['enabled']) {
+            if ($e['usable']) {
                 $events[$key] = $e + ['seller_rate' => WhatsAppSettings::rateFor($seller, $key)];
             }
         }

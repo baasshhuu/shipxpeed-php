@@ -57,12 +57,16 @@
 
         <div class="table-responsive">
         <table class="table table-sm wa-table mb-2">
-            <thead><tr><th>Status alert</th><th>AiSensy API campaign name</th><th>Default ₹ / msg</th><th class="text-center">On</th></tr></thead>
+            <thead><tr><th>Status alert</th><th>AiSensy API campaign name</th><th>Template fields</th><th>Default ₹ / msg</th><th class="text-center">On</th></tr></thead>
             <tbody>
             @foreach($events as $key => $e)
                 <tr>
                     <td>{{ $e['label'] }}</td>
-                    <td><input name="events[{{ $key }}][campaign]" class="form-control form-control-sm wa-mono" value="{{ $e['campaign'] }}"></td>
+                    <td><input name="events[{{ $key }}][campaign]" class="form-control form-control-sm wa-mono" value="{{ $e['campaign'] }}" placeholder="not set up yet"></td>
+                    <td><select name="events[{{ $key }}][format]" class="form-select form-select-sm">
+                        <option value="basic" @selected($e['format'] === 'basic')>3: name, order, AWB</option>
+                        <option value="full" @selected($e['format'] === 'full')>6: name, brand, order, courier, AWB, link</option>
+                    </select></td>
                     <td><input name="events[{{ $key }}][rate]" type="number" step="0.01" min="0" class="form-control form-control-sm wa-rate" value="{{ $e['rate'] }}"></td>
                     <td class="text-center"><input type="checkbox" name="events[{{ $key }}][enabled]" value="1" class="form-check-input" @checked($e['enabled'])></td>
                 </tr>
@@ -70,7 +74,7 @@
             </tbody>
         </table>
         </div>
-        <p class="text-muted small mb-3">Default rate applies to every seller unless you set a custom rate for them on the right. 0 = free. Template variables for every status: @{{1}} buyer name, @{{2}} seller brand, @{{3}} order no., @{{4}} courier, @{{5}} AWB, @{{6}} link (tracking link; for delivery-failed it's the buyer's response link).</p>
+        <p class="text-muted small mb-3">Statuses with no campaign name send nothing and charge nothing. Default rate applies to every seller unless you set a custom rate for them on the right. 0 = free. For "6" templates the variables are: @{{1}} buyer name, @{{2}} seller brand, @{{3}} order no., @{{4}} courier, @{{5}} AWB, @{{6}} link (tracking link; for delivery-failed it's the buyer's response link).</p>
         <button class="btn btn-primary btn-sm">Save settings</button>
     </div>
 </form>
