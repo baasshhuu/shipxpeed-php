@@ -1,0 +1,56 @@
+/* Shipxpeed light mode. Dark stays the default; the top-bar sun/moon button sets
+   <html data-theme="light"> and this file swaps the theme's colour tokens. */
+html[data-theme="light"]{
+  --sx-bg:#f4f6fb; --sx-surface:#ffffff; --sx-raised:#f2f5fa; --sx-hover:#e9eef7;
+  --sx-line:rgba(15,23,42,.08); --sx-line-2:rgba(15,23,42,.14);
+  --sx-fg:#0f172a; --sx-fg-2:#475569; --sx-fg-3:#7a8599;
+  --sx-blue:#2563eb; --sx-blue-2:#2563eb; --sx-blue-bg:rgba(37,99,235,.10);
+  --sx-ok:#0f9f6e; --sx-ok-bg:rgba(16,185,129,.12);
+  --sx-warn:#b45309; --sx-warn-bg:rgba(245,158,11,.14);
+  --sx-bad:#dc2626; --sx-bad-bg:rgba(239,68,68,.10);
+  --sx-info:#0e7490; --sx-info-bg:rgba(6,182,212,.12);
+
+  --bs-link-hover-color:#1d4ed8; --bs-emphasis-color:#0f172a;
+  --bs-primary:#2563eb; --bs-primary-rgb:37,99,235;
+
+  --fs-bg:#f4f6fb; --fs-surface:#ffffff; --fs-surface2:#f2f5fa; --fs-line:rgba(15,23,42,.10);
+  --fs-text:#0f172a; --fs-muted:#475569; --fs-brand:#2563eb; --fs-tape:#2563eb;
+  --fs-ok:#0f9f6e; --fs-okb:rgba(16,185,129,.12); --fs-warn:#b45309; --fs-warnb:rgba(245,158,11,.14);
+  --fs-bad:#dc2626; --fs-badb:rgba(239,68,68,.10); --fs-info:#2563eb; --fs-infob:rgba(37,99,235,.10);
+  --fs-glow:radial-gradient(1200px 500px at 85% -10%,rgba(37,99,235,.06),transparent 60%);
+  --fs-shadow:0 1px 2px rgba(15,23,42,.05),0 10px 24px -18px rgba(15,23,42,.25);
+
+  color-scheme:light;
+}
+
+/* The few colours the dark theme hard-codes */
+html[data-theme="light"] body{background-image:radial-gradient(1200px 500px at 85% -10%,rgba(37,99,235,.05),transparent 60%)!important}
+html[data-theme="light"] a:hover{color:#1d4ed8}
+html[data-theme="light"] ::selection{background:rgba(37,99,235,.2)}
+html[data-theme="light"] .sx-top{background:rgba(255,255,255,.86)!important}
+html[data-theme="light"] .table,html[data-theme="light"] table{--bs-table-striped-bg:rgba(15,23,42,.025)}
+html[data-theme="light"] .modal-backdrop.show{background:#0f172a!important}
+html[data-theme="light"] .btn-warning{color:#1a1206!important}
+
+/* Softer shadows on light backgrounds */
+html[data-theme="light"] .modal-content{box-shadow:0 30px 60px -24px rgba(15,23,42,.35)!important}
+html[data-theme="light"] .dropdown-menu,
+html[data-theme="light"] .sx-suggest,
+html[data-theme="light"] .sx-dd-menu{box-shadow:0 18px 40px -16px rgba(15,23,42,.25)!important}
+html[data-theme="light"] .pc-container .shadow-sm,
+html[data-theme="light"] .pc-container .shadow-lg{box-shadow:0 10px 24px -18px rgba(15,23,42,.25)!important}
+html[data-theme="light"] .sxd-card,
+html[data-theme="light"] .sx-card,
+html[data-theme="light"] .pc-container .card{box-shadow:0 1px 2px rgba(15,23,42,.05),0 8px 20px -16px rgba(15,23,42,.2)!important}
+html[data-theme="light"] .sx-side{box-shadow:20px 0 40px rgba(15,23,42,.08)}
+html[data-theme="light"] .sx-side-backdrop{background:rgba(15,23,42,.35)}
+
+/* Native controls (date pickers, scrollbars) follow the theme */
+html[data-theme="light"] input,html[data-theme="light"] select,html[data-theme="light"] textarea{color-scheme:light!important}
+
+/* Theme button */
+#sxTheme i{font-size:18px;line-height:1}
+/* shows the mode you switch to: sun in dark mode, moon in light mode */
+#sxTheme .ti-moon{display:none}
+html[data-theme="light"] #sxTheme .ti-moon{display:inline-block}
+html[data-theme="light"] #sxTheme .ti-sun{display:none}
