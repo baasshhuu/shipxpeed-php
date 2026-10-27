@@ -38,7 +38,10 @@ if (strpos($s, $inc) !== false) { echo "already there: $v\n"; exit(0); }
 $lines = explode("\n", $s);
 foreach ($lines as $i => $line) {
     if (strpos($line, 'shipxpeed-theme.css') !== false) {
-        array_splice($lines, $i + 1, 0, [$inc]);
+        // after the end of that <link ...> tag, even if it spans lines
+        $j = $i;
+        while ($j < count($lines) - 1 && strpos(substr($lines[$j], $j === $i ? strpos($lines[$j], 'shipxpeed-theme.css') : 0), '>') === false) { $j++; }
+        array_splice($lines, $j + 1, 0, [$inc]);
         file_put_contents($v, implode("\n", $lines));
         echo "patched: $v\n";
         exit(0);
