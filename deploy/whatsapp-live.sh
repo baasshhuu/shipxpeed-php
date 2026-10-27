@@ -60,20 +60,30 @@ for f in $NEW_FILES; do mkdir -p "$(dirname "$f")"; git show "$REF:$f" > "$f" ||
 echo "Copied new files"
 
 # 2. shared files: skip ones already patched, 3-way patch the rest
-TODO=""
+TODO=""; SKIPPED_MENU=""
 for f in $SHARED; do
   if grep -qiE 'WhatsAppSettings|whatsapp\.alerts|admin\.whatsapp|OrderObserver|ndr\.respond|WhatsApp buyer alerts have moved|mobile-otp-hidden|waLogin|WhatsApp mobile number' "$f" 2>/dev/null; then echo "  already patched: $f"; else TODO="$TODO $f"; fi
 done
 if [ -n "$TODO" ]; then
-  : > /tmp/wa-apply.log
+  # Per-file 3-way merge (works even when the checkout has uncommitted local edits / a stale index)
   for c in $COMMITS; do
-    git diff "$c^" "$c" -- $TODO > /tmp/wa-shared.patch
-    [ -s /tmp/wa-shared.patch ] || continue
-    git apply --3way --whitespace=nowarn /tmp/wa-shared.patch 2>>/tmp/wa-apply.log \
-      || git apply --whitespace=nowarn -C1 /tmp/wa-shared.patch 2>>/tmp/wa-apply.log \
-      || { cat /tmp/wa-apply.log; restore; }
+    for f in $(git diff --name-only "$c^" "$c" -- $TODO); do
+      git show "$c^:$f" > /tmp/wa-base 2>/dev/null || : > /tmp/wa-base
+      git show "$c:$f"  > /tmp/wa-theirs || restore
+      cp "$f" /tmp/wa-ours.bak
+      if git merge-file -q "$f" /tmp/wa-base /tmp/wa-theirs; then
+        echo "  merged: $f"
+      else
+        case "$f" in
+          *sidebar.blade.php)
+            # menu link only: keep the server's menu, pages still open by URL
+            cp /tmp/wa-ours.bak "$f"; echo "  WARN: kept server version of $f (menu link not added)"; SKIPPED_MENU="$SKIPPED_MENU $f" ;;
+          *)
+            echo "CONFLICT: $f"; restore ;;
+        esac
+      fi
+    done
   done
-  git reset -q -- $TODO 2>/dev/null
   grep -l '^<<<<<<<' $TODO 2>/dev/null && { echo "FAIL: merge conflict markers"; restore; }
   echo "Patched shared files"
 fi
@@ -96,4 +106,5 @@ sudo -u www-data php artisan migrate --path=database/migrations/2026_10_27_00000
 sudo -u www-data php artisan optimize:clear >/dev/null
 sudo -u www-data php artisan route:list --name=whatsapp 2>&1 | tail -8
 echo "Login page: $(curl -s -o /dev/null -w '%{http_code}' -k https://shipxpeed.tech/seller-login)"
+[ -n "$SKIPPED_MENU" ] && echo "NOTE: menu links not added in:$SKIPPED_MENU (open /whatsapp and /seller/whatsapp-alerts directly)"
 echo "DEPLOY_DONE backup=$BK"
