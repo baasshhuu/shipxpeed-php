@@ -55,10 +55,13 @@ class CourierAccess
                 $keys = self::DIRECT;
             } elseif ($code === 'shipclues') {
                 $configured = class_exists(\App\Services\ShipcluesService::class)
-                    && (new \App\Services\ShipcluesService())->enabled();
+                    && (method_exists(\App\Services\ShipcluesService::class, 'enabled')
+                        ? (new \App\Services\ShipcluesService())->enabled()
+                        : (bool) env('SHIPCLUES_API_KEY'));
                 $keys = $configured ? RateCard::aggregatorKeys('shipclues') : [];
             } elseif ($code === 'fship') {
                 $configured = class_exists(\App\Services\FshipService::class)
+                    && method_exists(\App\Services\FshipService::class, 'isConfigured')
                     && (new \App\Services\FshipService())->isConfigured();
                 $keys = $configured ? RateCard::aggregatorKeys('fship') : [];
             }

@@ -19,21 +19,41 @@ resources/views/admin/Activeslebs/index.blade.php
 database/migrations/2026_10_27_000001_create_courier_defaults_table.php
 database/migrations/2026_10_27_000002_seed_courier_defaults.php
 "
+SHIPCLUES=app/Services/ShipcluesService.php
 PATCHED="routes/admin.php app/Services/DelhiveryB2CService.php app/Services/DelhiveryB2CServiceExpress.php app/Services/FshipService.php"
 
 git fetch -q origin || { echo "FAIL: git fetch"; exit 1; }
 
-EXIST=""; for f in $COPY_FILES $PATCHED; do [ -e "$f" ] && EXIST="$EXIST $f"; done
+EXIST=""; for f in $COPY_FILES $SHIPCLUES $PATCHED; do [ -e "$f" ] && EXIST="$EXIST $f"; done
 tar czf "$BK" $EXIST && echo "Backup: $BK"
 restore() {
   echo "!! restoring backup"; tar xzf "$BK"
   for f in $COPY_FILES; do tar tzf "$BK" | grep -qx "$f" || rm -f "$f"; done
+  [ "${ADDED_BRAND:-0}" = 1 ] && rm -f app/Support/CourierBrand.php
   php artisan view:clear >/dev/null 2>&1; php artisan route:clear >/dev/null 2>&1
   echo "RESTORED - nothing changed"; exit 1
 }
 
 for f in $COPY_FILES; do mkdir -p "$(dirname "$f")"; git show "$REF:$f" > "$f" || restore; done
 echo "Copied files"
+if [ ! -e app/Support/CourierBrand.php ]; then
+  git show "$REF:app/Support/CourierBrand.php" > app/Support/CourierBrand.php || restore
+  ADDED_BRAND=1; echo "Added courier logo helper"
+fi
+
+# Shipclues on/off switches need the GitHub version of the Shipclues service.
+# Replace the server copy only if it is unchanged from some GitHub version (no local edits to lose).
+if [ -e "$SHIPCLUES" ] && ! grep -q "RateCard::hiddenFor" "$SHIPCLUES"; then
+  SC_NOW=$(git hash-object "$SHIPCLUES")
+  if git log --format=%H "$REF" -- "$SHIPCLUES" | while read c; do
+       [ "$(git rev-parse "$c:$SHIPCLUES" 2>/dev/null)" = "$SC_NOW" ] && { echo match; break; }
+     done | grep -q match; then
+    git show "$REF:$SHIPCLUES" > "$SHIPCLUES" || restore
+    echo "Updated Shipclues service (on/off switches now apply to Shipclues couriers)"
+  else
+    echo "NOTE: Shipclues service on this server has local edits - left as is; Shipclues switches will not hide couriers yet"
+  fi
+fi
 
 php <<'PHP' || restore
 <?php
@@ -83,12 +103,13 @@ if (file_exists($f) && strpos(file_get_contents($f), 'CourierAccess::isOn') === 
 }
 PHP
 
-for f in $COPY_FILES $PATCHED; do
+for f in $COPY_FILES $SHIPCLUES $PATCHED; do
   case "$f" in *.php) [ -e "$f" ] && { php -l "$f" >/dev/null 2>&1 || { echo "LINT FAIL: $f"; restore; }; } ;; esac
 done
 
 php artisan migrate --force --path=database/migrations/2026_10_27_000001_create_courier_defaults_table.php || restore
 php artisan migrate --force --path=database/migrations/2026_10_27_000002_seed_courier_defaults.php || restore
+grep -q "RateCard::hiddenFor" "$SHIPCLUES" 2>/dev/null && echo "Shipclues switches: active"
 php artisan view:clear >/dev/null
 php artisan route:clear >/dev/null
 php artisan cache:forget courier_defaults_map >/dev/null 2>&1 || true

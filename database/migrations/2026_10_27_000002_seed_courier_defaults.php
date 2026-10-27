@@ -16,9 +16,13 @@ return new class extends Migration
             return;
         }
 
-        $key = fn (string $name) => class_exists(\App\Services\ShipcluesService::class)
-            ? \App\Services\ShipcluesService::rateKey($name)
-            : 'Shipclues_' . trim(preg_replace('/[^A-Za-z0-9]+/', '_', $name), '_');
+        // Same key format as the Shipclues adapter: "Shipclues_" + cleaned courier name.
+        $key = function (string $name) {
+            if (class_exists(\App\Support\CourierBrand::class) && method_exists(\App\Support\CourierBrand::class, 'cleanName')) {
+                $name = \App\Support\CourierBrand::cleanName($name);
+            }
+            return 'Shipclues_' . trim(preg_replace('/[^A-Za-z0-9]+/', '_', $name), '_');
+        };
 
         $defaults = [
             'Delhivery'                        => 1,
