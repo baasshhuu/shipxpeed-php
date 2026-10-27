@@ -23,6 +23,7 @@
     .cs-badge.on { background: var(--sx-success-soft, rgba(34,197,94,.15)); color: var(--sx-success, #22c55e); }
     .cs-badge.off { background: var(--sx-danger-soft, rgba(240,79,95,.15)); color: var(--sx-danger, #f04f5f); }
     .cs-tag { font-size:11px; padding:1px 7px; border-radius:20px; border:1px solid var(--sx-warning, #f5a524); color: var(--sx-warning, #f5a524); margin-left:6px; }
+    .cs-tag.cs-new { border-color: var(--sx-primary, #4f8cff); color: var(--sx-primary, #4f8cff); }
     .cs-empty { border:1px dashed var(--line); border-radius:10px; padding:14px; font-size:13px; color: var(--sx-muted, #8592ad); }
     .cs-remove { font-size:12px; color: var(--sx-danger, #f04f5f) !important; cursor:pointer; margin-left:8px; }
     .cs-removed { margin-top:26px; border-top:1px solid var(--line); padding-top:14px; font-size:13px; color: var(--sx-muted, #8592ad); }
@@ -71,6 +72,7 @@
             @if($isDefault)
                 <strong>Default for every seller.</strong> Couriers switched ON here are live for all sellers, including new ones.
                 Changing a switch here also resets any seller's own switch for that courier.
+                New couriers start OFF until you approve them here.
             @else
                 <strong>Only for {{ $selectedSeller->name }}.</strong> A switch you change here becomes this seller's own setting
                 (marked <span class="cs-tag" style="margin:0">Custom</span>). Use “Use default” to undo it.
@@ -108,7 +110,7 @@
                             <div class="d-flex align-items-center gap-3" style="min-width:0">
                                 <img src="{{ asset($c['logo']) }}" alt="" onerror="this.style.visibility='hidden'">
                                 <div style="min-width:0">
-                                    <div class="cs-name">{{ $c['label'] }}@if($custom)<span class="cs-tag">Custom</span>@endif</div>
+                                    <div class="cs-name">{{ $c['label'] }}@if($custom)<span class="cs-tag">Custom</span>@endif @if(!empty($c['new']))<span class="cs-tag cs-new">New – needs approval</span>@endif</div>
                                     <div class="cs-meta">
                                         @if($isDefault)
                                             {{ $nCustom ? $nCustom . ' seller(s) have their own switch' : 'Default for all sellers' }}

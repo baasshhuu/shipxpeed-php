@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\Schema;
  *   1. The seller has their own switch row in zone_price (ActicvSleb)  -> that row decides.
  *   2. Otherwise the courier's DEFAULT decides (table courier_defaults, set on the
  *      Courier Status page with "All Sellers (default)" selected).
- *   3. A courier with no default saved yet is ON (new integrations go live for everyone).
+ *   3. A courier with no default saved yet is OFF and marked NEW until the admin approves it
+ *      (switches it on or off with "All Sellers (default)" selected).
  *   A courier marked REMOVED is never shown in the panel and never offered to any seller.
  *
  * Only couriers listed here appear on the admin Courier Status page.
@@ -81,7 +82,8 @@ class CourierAccess
                 $couriers[$key] = [
                     'label'   => $label,
                     'logo'    => CourierBrand::logo($label) ?? 'brands/image.png',
-                    'default' => $defaults[$key] ?? true,
+                    'default' => $defaults[$key] ?? false,
+                    'new'     => !array_key_exists($key, $defaults),
                 ];
             }
             $out[$code] = ['title' => $title, 'configured' => $configured, 'couriers' => $couriers];
@@ -144,7 +146,7 @@ class CourierAccess
 
     public static function isDefaultOn(string $key): bool
     {
-        return self::defaults()[$key] ?? true;
+        return self::defaults()[$key] ?? false;
     }
 
     public static function setDefault(string $key, bool $on): void
