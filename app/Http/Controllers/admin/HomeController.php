@@ -46,9 +46,9 @@ public function index(Request $request): View
     $approveKyc   = SellerList::where('kyc_status', '1')->count();
 
     // Tickets
-    $openTicket    = Ticket::where('status', 'open')->count();
-    $pendingTicket = Ticket::where('status', 'pending')->count();
-    $closeTicket   = Ticket::where('status', 'closed')->count();
+    $openTicket    = Ticket::whereIn('status', ['Pending', 'In Progress'])->count();
+    $pendingTicket = Ticket::where('status', 'Pending')->count();
+    $closeTicket   = Ticket::whereIn('status', ['Resolved', 'Rejected'])->count();
     $allTicket     = Ticket::count();
 
     // Registrations

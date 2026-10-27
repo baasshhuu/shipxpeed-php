@@ -98,6 +98,11 @@ return [
     |
     */
 
+    /*
+    | Every new seller support ticket is emailed to this address.
+    */
+    'ticket_notify' => env('TICKET_NOTIFY_EMAIL', 'baasshhuu@gmail.com'),
+
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', 'Example'),

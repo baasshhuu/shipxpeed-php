@@ -125,6 +125,9 @@
                 }
             </style>
             <div class="sx-ticket-form-wrapper mb-2">
+                @if($errors->any())
+                    <div class="alert alert-danger py-2 mb-3">{{ $errors->first() }}</div>
+                @endif
                 <form action="{{ route('seller.tickets.store') }}" method="POST" autocomplete="off">
                     @csrf
                     <div class="sx-form-row sx-form-gap-fix">
@@ -138,8 +141,17 @@
                                 placeholder="Enter AWB / Order ID"
                                 required
                                 autocomplete="off"
+                                value="{{ old('order_id', request('awb')) }}"
                             >
                         </div>
+                    </div>
+                    <div style="margin:1rem 0 1rem;">
+                        <label class="sx-ticket-form-label" for="subject">Issue type</label>
+                        <select name="subject" id="subject" class="form-select sx-ticket-form-select">
+                            @foreach($subjects as $sub)
+                                <option value="{{ $sub }}" @selected(old('subject') === $sub)>{{ $sub }}</option>
+                            @endforeach
+                        </select>
                     </div>
                     <div class="sx-mb-message-desktop" style="margin-bottom:1.5rem;">
                         <label class="sx-ticket-form-label" for="message">Message <span style="color:#fc6d3c;">*</span></label>
@@ -151,7 +163,7 @@
                             placeholder="Describe your issue..."
                             required
                             style="resize: vertical; min-height: 95px;"
-                        ></textarea>
+                        >{{ old('message') }}</textarea>
                     </div>
                     <div class="mt-4">
                         <button type="submit" class="sx-ticket-form-btn">

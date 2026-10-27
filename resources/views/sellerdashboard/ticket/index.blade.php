@@ -198,11 +198,15 @@
                             }
                         }
                     </style>
+                    @if(session('success'))
+                        <div class="alert alert-success py-2 mb-2">{{ session('success') }}</div>
+                    @endif
                     <div class="sx-table-wrapper py-2 px-1 mb-2">
                         <div class="table-responsive">
                             <table class="table sx-table mb-0">
                                 <thead>
                                     <tr>
+                                        <th>Ticket</th>
                                         <th>AWB</th>
                                         <th>Message</th>
                                         <th>Status</th>
@@ -213,6 +217,10 @@
                                 <tbody>
                                     @forelse($tickets as $ticket)
                                         <tr>
+                                            <td>
+                                                <span style="font-weight:600;color:#151515;">{{ $ticket->ticket_id }}</span>
+                                                @if($ticket->subject)<div style="font-size:12px;color:#6b7280;">{{ $ticket->subject }}</div>@endif
+                                            </td>
                                             <td>
                                                 <span style="color:#151515;">
                                                     {{ $ticket->order_id }}
@@ -254,12 +262,19 @@
                                                         style="display:none;"
                                                     >{!! nl2br(e($msg)) !!}</span>
                                                 @endif
+                                                @if($ticket->admin_reply)
+                                                    <div style="margin-top:6px;font-size:13px;border-left:3px solid #22c55e;padding:4px 8px;background:#22c55e14;color:#151515;">
+                                                        <b>Shipxpeed reply:</b> {!! nl2br(e($ticket->admin_reply)) !!}
+                                                    </div>
+                                                @endif
                                             </td>
                                             <td>
                                                 @if($ticket->status === 'Pending')
                                                     <span class="sx-badge status-pending">Pending</span>
                                                 @elseif($ticket->status === 'Rejected')
                                                     <span class="sx-badge status-rejected">Rejected</span>
+                                                @elseif($ticket->status === 'In Progress')
+                                                    <span class="sx-badge" style="background:#4f8cff26;color:#2563eb;">In Progress</span>
                                                 @elseif($ticket->status === 'Resolved')
                                                     <span class="sx-badge status-resolved">Resolved</span>
                                                 @else
@@ -268,18 +283,18 @@
                                             </td>
                                             <td>
                                                 <span style="font-weight:500;color:#151515;">
-                                                    {{ $ticket->created_at->format('Y-m-d') }}
+                                                    {{ $ticket->created_at?->timezone('Asia/Kolkata')->format('d M Y, h:i A') }}
                                                 </span>
                                             </td>
                                             <td>
                                                 <span style="color:#151515;">
-                                                    {{ $ticket->updated_at->format('Y-m-d') }}
+                                                    {{ $ticket->updated_at?->timezone('Asia/Kolkata')->format('d M Y, h:i A') }}
                                                 </span>
                                             </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="5" style="text-align:center;color:#b3b3cd;">
+                                            <td colspan="6" style="text-align:center;color:#b3b3cd;">
                                                 No tickets found.
                                             </td>
                                         </tr>

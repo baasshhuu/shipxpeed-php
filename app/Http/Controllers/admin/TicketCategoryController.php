@@ -118,27 +118,59 @@ class TicketCategoryController extends Controller
 
 
 
-   public function ticketindex()
+    public function ticketindex(Request $request)
     {
-        $tickets = Ticket::all();
-        return view('ticket.ticketindex', compact('tickets'));
+        $query = Ticket::with('seller')->latest();
 
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('q')) {
+            $q = trim($request->q);
+            $query->where(function ($w) use ($q) {
+                $w->where('ticket_id', 'like', "%$q%")
+                  ->orWhere('order_id', 'like', "%$q%")
+                  ->orWhere('message', 'like', "%$q%")
+                  ->orWhereHas('seller', fn ($s) => $s->where('name', 'like', "%$q%")->orWhere('email', 'like', "%$q%"));
+            });
+        }
+
+        $tickets = $query->paginate(25)->withQueryString();
+        $counts = Ticket::selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status');
+        $statuses = Ticket::STATUSES;
+
+        return view('ticket.ticketindex', compact('tickets', 'counts', 'statuses'));
     }
 
+    public function updateStatus(Request $request, Ticket $ticket)
+    {
+        $data = $request->validate([
+            'status'      => ['required', 'in:' . implode(',', Ticket::STATUSES)],
+            'admin_reply' => ['nullable', 'string', 'max:5000'],
+        ]);
 
+        $changed = $ticket->status !== $data['status'];
+        $ticket->status = $data['status'];
+        if ($request->has('admin_reply') && trim((string) $data['admin_reply']) !== '' && trim((string) $data['admin_reply']) !== (string) $ticket->admin_reply) {
+            $ticket->admin_reply = trim($data['admin_reply']);
+            $ticket->replied_at = now();
+            $changed = true;
+        }
+        $ticket->save();
 
-public function updateStatus(Request $request, Ticket $ticket)
-{
-    $validStatuses = ['Pending', 'Rejected', 'Resolved'];
-    
-    if (!in_array($request->status, $validStatuses)) {
-        return back()->with('error', 'Invalid status selected');
+        $note = 'Ticket ' . $ticket->ticket_id . ' updated';
+        $seller = $ticket->seller;
+        if ($changed && $seller && filter_var($seller->email, FILTER_VALIDATE_EMAIL)) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($seller->email)->send(new \App\Mail\TicketUpdatedMail($ticket));
+                $note .= ' and seller emailed';
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Ticket update email failed for ' . $ticket->ticket_id . ': ' . $e->getMessage());
+                $note .= ' (seller email could not be sent)';
+            }
+        }
+
+        return back()->with('success', $note);
     }
-
-    $ticket->update(['status' => $request->status]);
-    
-    return back()->with('success', 'Status updated successfully');
-}
-
 
 }
