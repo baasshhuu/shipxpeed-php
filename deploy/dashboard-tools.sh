@@ -55,7 +55,8 @@ $s = file_get_contents($r);
 if (strpos($s, 'QuickRateController') !== false) {
     echo "already there: quick-rate route\n";
 } else {
-    if (!preg_match("/^.*Route::get\('\/dashboard',\s*\[Dashboard::class,\s*'index'\]\).*$/m", $s, $m)) {
+    // first line that is not commented out
+    if (!preg_match("/^(?![ \t]*(\/\/|#|\*)).*Route::get\(\s*'\/dashboard'\s*,\s*\[\s*Dashboard::class\s*,\s*'index'\s*\]\s*\).*$/m", $s, $m)) {
         fwrite(STDERR, "dashboard route anchor not found\n"); exit(1);
     }
     $add = $m[0] . "\n    Route::post('/quick-rate', \\App\\Http\\Controllers\\selleradmin\\QuickRateController::class)->name('seller.quick.rate');";
@@ -83,7 +84,17 @@ PHP
 
 php -l app/Http/Controllers/selleradmin/QuickRateController.php >/dev/null || restore
 php artisan route:clear >/dev/null; php artisan view:clear >/dev/null
-php artisan route:list 2>/dev/null | grep -q "seller/quick-rate" || { echo "route not registered"; restore; }
+RT=$(php artisan tinker --execute='
+try { $r = app("router")->getRoutes()->match(Illuminate\Http\Request::create("/seller/quick-rate", "POST")); echo "ROUTE " . ($r->getName() ?: "-") . " " . $r->getActionName() . PHP_EOL; }
+catch (\Throwable $e) { echo "ROUTE none " . get_class($e) . PHP_EOL; }
+echo "DASH " . (app("router")->getRoutes()->getByName("seller.dashboard")?->uri() ?? "-") . PHP_EOL;
+' 2>&1 | grep -E "^(ROUTE|DASH)|Error|Exception")
+echo "$RT"
+if ! echo "$RT" | grep -q "QuickRateController"; then
+  echo "route not registered - where the line went:"
+  grep -n "quick-rate\|Dashboard::class, 'index'" routes/web.php | head
+  restore
+fi
 
 OUT=$(php artisan tinker --execute='
 $s = App\Models\SellerList::where("status", 1)->first() ?? App\Models\SellerList::first();
