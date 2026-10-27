@@ -26,6 +26,8 @@ app/Http/Controllers/Frontend/NdrResponseController.php
 resources/views/admin/whatsapp/index.blade.php
 resources/views/sellerdashboard/whatsapp-alerts/index.blade.php
 resources/views/frontend/ndr/respond.blade.php
+routes/whatsapp_admin.php
+routes/whatsapp_web.php
 "
 SHARED="
 app/Providers/AppServiceProvider.php
@@ -62,7 +64,7 @@ echo "Copied new files"
 # 2. shared files: skip ones already patched, 3-way patch the rest
 TODO=""; SKIPPED_MENU=""
 for f in $SHARED; do
-  if grep -qiE 'WhatsAppSettings|whatsapp\.alerts|admin\.whatsapp|OrderObserver|ndr\.respond|WhatsApp buyer alerts have moved|mobile-otp-hidden|waLogin|WhatsApp mobile number' "$f" 2>/dev/null; then echo "  already patched: $f"; else TODO="$TODO $f"; fi
+  if grep -qiE 'WhatsAppSettings|whatsapp\.alerts|admin\.whatsapp|OrderObserver|ndr\.respond|WhatsApp buyer alerts have moved|mobile-otp-hidden|waLogin|WhatsApp mobile number|whatsapp_web[.]php|whatsapp_admin[.]php' "$f" 2>/dev/null; then echo "  already patched: $f"; else TODO="$TODO $f"; fi
 done
 if [ -n "$TODO" ]; then
   # Per-file 3-way merge (works even when the checkout has uncommitted local edits / a stale index)
@@ -75,6 +77,12 @@ if [ -n "$TODO" ]; then
         echo "  merged: $f"
       else
         case "$f" in
+          routes/admin.php|routes/web.php)
+            # server routes differ: keep them and load the WhatsApp routes from their own file
+            cp /tmp/wa-ours.bak "$f"
+            inc=routes/whatsapp_web.php; [ "$f" = routes/admin.php ] && inc=routes/whatsapp_admin.php
+            grep -q "$(basename $inc)" "$f" || printf "\n// WhatsApp (AiSensy)\nrequire_once __DIR__ . '/%s';\n" "$(basename $inc)" >> "$f"
+            echo "  routes: kept server $f, added require of $inc" ;;
           *sidebar.blade.php)
             # menu link only: keep the server's menu, pages still open by URL
             cp /tmp/wa-ours.bak "$f"; echo "  WARN: kept server version of $f (menu link not added)"; SKIPPED_MENU="$SKIPPED_MENU $f" ;;
@@ -83,6 +91,32 @@ if [ -n "$TODO" ]; then
         esac
       fi
     done
+  done
+cat > /tmp/wa-menu.php <<'PHPEOF'
+<?php
+// Adds a "WhatsApp Alerts" item after each Shipping Notification item in the seller sidebar.
+$f = $argv[1]; $lines = explode("\n", file_get_contents($f));
+if (strpos(implode("\n", $lines), 'seller.whatsapp.alerts') !== false) exit(0);
+$out = []; $n = 0;
+for ($i = 0; $i < count($lines); $i++) {
+    $out[] = $lines[$i];
+    if (strpos($lines[$i], "notifications.index*") === false) continue;
+    $blk = [$lines[$i]];
+    for ($j = $i + 1; $j < count($lines); $j++) { $blk[] = $lines[$j]; $out[] = $lines[$j]; if (strpos($lines[$j], '</li>') !== false) break; }
+    $c = implode("\n", $blk);
+    $c = str_replace(["notifications.index*", "route('notifications.index')", 'title="Shipping Notification"'], ["seller.whatsapp.alerts*", "route('seller.whatsapp.alerts')", 'title="WhatsApp Alerts"'], $c);
+    $c = preg_replace('/<i class="[^"]*"><\/i>/', '<i class="ti ti-brand-whatsapp"></i>', $c);
+    $c = preg_replace('/>\s*(Shipping Notifications?|Notifications?)\s*</', '>WhatsApp Alerts<', $c);
+    foreach (explode("\n", $c) as $l) $out[] = $l;
+    $n++; $i = $j;
+}
+if ($n) { file_put_contents($f, implode("\n", $out)); echo "  seller menu: WhatsApp Alerts link added ($n)\n"; }
+else { fwrite(STDERR, "  seller menu: anchor not found, link skipped\n"); exit(0); }
+PHPEOF
+  for sb in $SKIPPED_MENU; do
+    case "$sb" in *sellerdash/sidebar.blade.php)
+      php /tmp/wa-menu.php "$sb" ;;
+    esac
   done
   grep -l '^<<<<<<<' $TODO 2>/dev/null && { echo "FAIL: merge conflict markers"; restore; }
   echo "Patched shared files"
@@ -106,5 +140,4 @@ sudo -u www-data php artisan migrate --path=database/migrations/2026_10_27_00000
 sudo -u www-data php artisan optimize:clear >/dev/null
 sudo -u www-data php artisan route:list --name=whatsapp 2>&1 | tail -8
 echo "Login page: $(curl -s -o /dev/null -w '%{http_code}' -k https://shipxpeed.tech/seller-login)"
-[ -n "$SKIPPED_MENU" ] && echo "NOTE: menu links not added in:$SKIPPED_MENU (open /whatsapp and /seller/whatsapp-alerts directly)"
 echo "DEPLOY_DONE backup=$BK"
