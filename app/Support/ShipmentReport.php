@@ -52,6 +52,23 @@ class ShipmentReport
         'lost'       => 'Lost / damaged',
     ];
 
+    private static ?array $cols = null;
+
+    /** Live DB tables are partly hand-made: only touch columns that really exist. */
+    public static function has(string $col, string $table = 'orders'): bool
+    {
+        if ($table !== 'orders') {
+            return Schema::hasColumn($table, $col);
+        }
+        self::$cols ??= array_map('strtolower', Schema::getColumnListing('orders'));
+        return in_array(strtolower($col), self::$cols, true);
+    }
+
+    private static function existing(array $cols): array
+    {
+        return array_values(array_filter($cols, fn ($c) => self::has($c)));
+    }
+
     public static function filters(Request $r): array
     {
         return [
@@ -78,18 +95,24 @@ class ShipmentReport
         if ($f['to']) {
             $q->whereDate('created_at', '<=', $f['to']);
         }
-        if ($f['payment']) {
+        if ($f['payment'] && self::has('payment_type')) {
             $q->whereRaw('LOWER(payment_type) = ?', [$f['payment']]);
         }
-        if ($f['courier']) {
+        if ($f['courier'] && ($cols = self::existing(['courier_name', 'zone_courier_name', 'all_courier_name', 'courier_id']))) {
             $like = '%' . $f['courier'] . '%';
-            $q->where(fn ($w) => $w->where('courier_name', 'like', $like)->orWhere('zone_courier_name', 'like', $like)
-                ->orWhere('all_courier_name', 'like', $like)->orWhere('courier_id', 'like', $like));
+            $q->where(function ($w) use ($cols, $like) {
+                foreach ($cols as $c) {
+                    $w->orWhere($c, 'like', $like);
+                }
+            });
         }
-        if ($f['q']) {
-            $s = $f['q'];
-            $q->where(fn ($w) => $w->where('awb_number', 'like', "%{$s}%")->orWhere('order_number', 'like', "%{$s}%")
-                ->orWhere('customer_order_id', 'like', "%{$s}%")->orWhere('consignee', 'like', "%{$s}%"));
+        if ($f['q'] && ($cols = self::existing(['awb_number', 'order_number', 'customer_order_id', 'consignee']))) {
+            $like = '%' . $f['q'] . '%';
+            $q->where(function ($w) use ($cols, $like) {
+                foreach ($cols as $c) {
+                    $w->orWhere($c, 'like', $like);
+                }
+            });
         }
         if ($f['status']) {
             self::whereStatus($q, $f['status']);
@@ -101,8 +124,9 @@ class ShipmentReport
     /** SQL version of statusKey(), so filtering and counting match the labels. */
     private static function whereStatus(Builder $q, string $group): void
     {
-        $ss = "LOWER(COALESCE(shipping_status,''))";
-        $cancelled = "(LOWER(COALESCE(order_status,'')) = 'cancelled' OR {$ss} LIKE '%cancel%')";
+        $ss = self::has('shipping_status') ? "LOWER(COALESCE(shipping_status,''))" : "''";
+        $os = self::has('order_status') ? "LOWER(COALESCE(order_status,''))" : "''";
+        $cancelled = "({$os} = 'cancelled' OR {$ss} LIKE '%cancel%')";
         $rto = "({$ss} LIKE '%rto%' OR {$ss} LIKE '%return%')";
         $lost = "({$ss} LIKE '%lost%' OR {$ss} LIKE '%damage%' OR {$ss} LIKE '%destroy%')";
         $ndr = "({$ss} LIKE '%ndr%' OR {$ss} LIKE '%undeliver%' OR {$ss} LIKE '%not delivered%' OR {$ss} LIKE '%delivery fail%' OR {$ss} LIKE '%failed delivery%' OR {$ss} LIKE '%delivery attempt%')";
@@ -145,9 +169,15 @@ class ShipmentReport
         $ids = $orders->pluck('id')->all();
 
         $weight = [];
-        if ($awbs && Schema::hasColumn('recharges', 'weight_awb')) {
-            $rows = DB::table('recharges')->whereIn('weight_awb', $awbs)->whereNull('deleted_at')->where('status', 1)
-                ->selectRaw("weight_awb, SUM(CASE WHEN type = 'Debit' THEN amount ELSE -amount END) AS net")
+        if ($awbs && Schema::hasTable('recharges') && Schema::hasColumn('recharges', 'weight_awb')) {
+            $rq = DB::table('recharges')->whereIn('weight_awb', $awbs);
+            if (Schema::hasColumn('recharges', 'deleted_at')) {
+                $rq->whereNull('deleted_at');
+            }
+            if (Schema::hasColumn('recharges', 'status')) {
+                $rq->where('status', 1);
+            }
+            $rows = $rq->selectRaw("weight_awb, SUM(CASE WHEN type = 'Debit' THEN amount ELSE -amount END) AS net")
                 ->groupBy('weight_awb')->get();
             foreach ($rows as $r) {
                 $weight[(string) $r->weight_awb] = round((float) $r->net, 2);
@@ -295,9 +325,13 @@ class ShipmentReport
 
     public static function couriers(): array
     {
-        return Order::query()->whereNotNull('awb_number')
-            ->selectRaw('COALESCE(NULLIF(courier_name,\'\'), NULLIF(zone_courier_name,\'\'), NULLIF(all_courier_name,\'\'), courier_id) AS c')
-            ->distinct()->pluck('c')->filter()->sort()->values()->all();
+        $cols = self::existing(['courier_name', 'zone_courier_name', 'all_courier_name', 'courier_id']);
+        if (!$cols) {
+            return [];
+        }
+        $expr = count($cols) === 1 ? $cols[0] : 'COALESCE(' . implode(', ', array_map(fn ($c) => "NULLIF({$c}, '')", $cols)) . ')';
+        return Order::query()->whereNotNull('awb_number')->selectRaw("{$expr} AS c")
+            ->distinct()->pluck('c')->filter()->map(fn ($v) => (string) $v)->unique()->sort()->values()->all();
     }
 
     public static function sellers()
