@@ -232,10 +232,10 @@
                         <input type="hidden" name="active" value="{{ $waActive ? 1 : 0 }}">
                         <label class="small mb-1 d-block" for="nfBrand" style="color:var(--nf-fg2)">Brand name shown to buyers</label>
                         <div class="d-flex gap-2" style="max-width:520px">
-                            <input type="text" id="nfBrand" name="brand_name" maxlength="40" class="form-control form-control-sm" value="{{ $brandName }}" placeholder="e.g. {{ $seller->name }}">
+                            <input type="text" id="nfBrand" name="brand_name" maxlength="40" class="form-control form-control-sm" value="{{ $brandName }}" placeholder="{{ $seller->name }}">
                             <button class="nf-btn nf-btn-ghost nf-btn-sm" @disabled(!$waReady)>Save</button>
                         </div>
-                        <div class="small mt-1" style="color:var(--nf-fg3)">Leave blank to use your pickup location name. Also used in buyer emails.</div>
+                        <div class="small mt-1" style="color:var(--nf-fg3)">Leave blank to use your account name ({{ $seller->name }}). Used in WhatsApp, email and SMS.</div>
                     </form>
                 </div>
             </div>

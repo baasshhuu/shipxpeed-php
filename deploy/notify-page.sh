@@ -21,7 +21,7 @@ resources/views/sellerdashboard/notify/index.blade.php
 resources/views/emails/buyer-status.blade.php
 routes/notify_web.php
 "
-SHARED="routes/web.php app/Observers/OrderObserver.php"
+SHARED="routes/web.php app/Observers/OrderObserver.php app/Services/WhatsApp/OrderStatusNotifier.php resources/views/sellerdashboard/whatsapp-alerts/index.blade.php"
 
 echo "Shipxpeed Notify page installer"
 git fetch -q origin || { echo "FAIL: git fetch"; exit 1; }
@@ -72,6 +72,26 @@ if (strpos($s, 'BuyerNotifier') !== false) {
     $s = str_replace($a2, $a2 . $hook('handleOrderChange($order)'), $s);
     file_put_contents($o, $s);
     echo "patched: $o\n";
+}
+
+// 3. WhatsApp brand: default to the seller's own name, not the warehouse name/address
+$w = 'app/Services/WhatsApp/OrderStatusNotifier.php';
+$s = file_get_contents($w);
+$old = "return \$pickup['warehouse_name'] ?? \$pickup['name'] ?? (\$seller->name ?? 'our store');";
+if (strpos($s, "default: the seller's own name") !== false) {
+    echo "already there: brand default\n";
+} elseif (substr_count($s, $old) === 1) {
+    $s = str_replace($old, "// default: the seller's own name; warehouse name only if the account has none\n        return filled(\$seller->name ?? null) ? trim(\$seller->name) : (\$pickup['warehouse_name'] ?? \$pickup['name'] ?? 'our store');", $s);
+    file_put_contents($w, $s);
+    echo "patched: $w\n";
+} else {
+    echo "skipped: brand default (server copy differs)\n";
+}
+$v = 'resources/views/sellerdashboard/whatsapp-alerts/index.blade.php';
+if (is_file($v)) {
+    $s = file_get_contents($v);
+    $n = str_replace('Leave blank to use your pickup location name.', 'Leave blank to use your account name.', $s);
+    if ($n !== $s) { file_put_contents($v, $n); echo "patched: $v\n"; }
 }
 PHP
 

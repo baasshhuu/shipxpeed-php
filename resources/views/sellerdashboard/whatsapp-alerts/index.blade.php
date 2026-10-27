@@ -78,7 +78,7 @@
                             <input type="text" id="brand_name" name="brand_name" maxlength="40" class="form-control form-control-sm" value="{{ old('brand_name', $brandName) }}" placeholder="e.g. {{ $seller->name }}">
                             <button name="active" value="{{ $active ? 1 : 0 }}" class="btn btn-sm btn-outline-primary" @disabled(!$ready)>Save</button>
                         </div>
-                        <div class="form-text">Used in messages like "Your order from <em>{{ $brandName ?: 'your brand' }}</em> is out for delivery". Leave blank to use your pickup location name.</div>
+                        <div class="form-text">Used in messages like "Your order from <em>{{ $brandName ?: 'your brand' }}</em> is out for delivery". Leave blank to use your account name.</div>
                     </div>
                 </form>
             </div>

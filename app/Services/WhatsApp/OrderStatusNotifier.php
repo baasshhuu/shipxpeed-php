@@ -220,7 +220,8 @@ class OrderStatusNotifier
             return $seller->whatsapp_brand_name;
         }
         $pickup = is_array($order->pickup) ? $order->pickup : (json_decode((string) $order->pickup, true) ?: []);
-        return $pickup['warehouse_name'] ?? $pickup['name'] ?? ($seller->name ?? 'our store');
+        // default: the seller's own name; warehouse name only if the account has none
+        return filled($seller->name ?? null) ? trim($seller->name) : ($pickup['warehouse_name'] ?? $pickup['name'] ?? 'our store');
     }
 
     public static function trackingLink(Order $order): string
