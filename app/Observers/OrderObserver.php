@@ -15,6 +15,9 @@ class OrderObserver
     {
         if (filled($order->awb_number)) {
             app(OrderStatusNotifier::class)->notify($order, 'booked');
+            if (class_exists(\App\Services\Notify\BuyerNotifier::class)) {
+                app(\App\Services\Notify\BuyerNotifier::class)->notify($order, 'booked');
+            }
         }
     }
 
@@ -22,6 +25,9 @@ class OrderObserver
     {
         if ($order->wasChanged(['shipping_status', 'order_status', 'awb_number'])) {
             app(OrderStatusNotifier::class)->handleOrderChange($order);
+            if (class_exists(\App\Services\Notify\BuyerNotifier::class)) {
+                app(\App\Services\Notify\BuyerNotifier::class)->handleOrderChange($order);
+            }
         }
     }
 }

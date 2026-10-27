@@ -566,3 +566,6 @@ Route::fallback(function () {
    Route::get('/revenue-dashboard-data', [App\Http\Controllers\selleradmin\Dashboard::class, 'getRevenueDashboardData']);
 Route::get('/dashboard-data', [App\Http\Controllers\selleradmin\Dashboard::class, 'getDashboardData']);
 
+
+// Seller › Notify (keep last: replaces the old /notifications page)
+require __DIR__ . '/notify_web.php';
