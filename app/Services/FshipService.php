@@ -360,14 +360,7 @@ class FshipService implements CourierServiceInterface
 
     private function hiddenForSeller(int $sellerId, string $rateKey): bool
     {
-        try {
-            return ActicvSleb::where('seller_id', $sellerId)
-                ->whereIn('LogisticProvider', [$rateKey, 'Fship', 'fship'])
-                ->whereIn('status', [0, '0'])
-                ->exists();
-        } catch (\Throwable $e) {
-            return false;
-        }
+        return !\App\Support\CourierAccess::isOn($sellerId, $rateKey, 'Fship');
     }
 
     private function zoneFor(array $pickup, array $consignee): ?string

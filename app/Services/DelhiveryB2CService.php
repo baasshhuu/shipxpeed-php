@@ -73,11 +73,7 @@ class DelhiveryB2CService implements CourierServiceInterface
         $destinationstate = $consignee['state'];
 
         // Check if Delhivery zone pricing is configured for this seller
-        $delhiveryZoneCheck = ActicvSleb::where([
-            'seller_id' => $order->seller_id,
-            'LogisticProvider' => 'Delhivery',
-            'status' => 1
-        ])->exists();
+        $delhiveryZoneCheck = \App\Support\CourierAccess::isOn((int) $order->seller_id, 'Delhivery');
 // dd($delhiveryZoneCheck);
         if (!$delhiveryZoneCheck) {
             return [];
@@ -215,11 +211,7 @@ class DelhiveryB2CService implements CourierServiceInterface
         $destinationstate = $consignee['state'];
 
         // Check if Delhivery zone pricing is configured for this seller
-        $delhiveryZoneCheck = ActicvSleb::where([
-            'seller_id' => $order->seller_id,
-            'LogisticProvider' => 'Delhivery',
-            'status' => 1
-        ])->exists();
+        $delhiveryZoneCheck = \App\Support\CourierAccess::isOn((int) $order->seller_id, 'Delhivery');
 // dd($delhiveryZoneCheck);
         if (!$delhiveryZoneCheck) {
             return [];

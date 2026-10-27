@@ -268,6 +268,7 @@ Route::post('/SendWhatsApp-send-message', [\App\Http\Controllers\admin\SendWhats
      Route::controller(ActiveslebsController::class)->group(function () {
         Route::get('active-slebs-add', 'add')->name('active.slebs.add')->middleware('isAllow:104,can_add');
         Route::post('pricesetting/status-update', 'updateStatus')->name('pricesetting.courier.update')->middleware('isAllow:104,can_add');
+        Route::post('pricesetting/status-reset', 'resetStatus')->name('pricesetting.courier.reset')->middleware('isAllow:104,can_add');
 
 
     });

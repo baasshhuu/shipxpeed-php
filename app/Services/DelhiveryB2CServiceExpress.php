@@ -70,11 +70,7 @@ class DelhiveryB2CServiceExpress implements CourierServiceInterface
         $destinationstate = $consignee['state'];
 
         // Check if Delhivery Air zone pricing is configured for this seller
-        $delhiveryAirZoneCheck = ActicvSleb::where([
-            'seller_id' => $order->seller_id,
-            'LogisticProvider' => 'Delhivery_Air',
-            'status' => 1
-        ])->exists();
+        $delhiveryAirZoneCheck = \App\Support\CourierAccess::isOn((int) $order->seller_id, 'Delhivery_Air');
 
         if (!$delhiveryAirZoneCheck) {
             return [];
@@ -214,11 +210,7 @@ class DelhiveryB2CServiceExpress implements CourierServiceInterface
         $destinationstate = $consignee['state'];
 
         // Check if Delhivery Air zone pricing is configured for this seller
-        $delhiveryAirZoneCheck = ActicvSleb::where([
-            'seller_id' => $order->seller_id,
-            'LogisticProvider' => 'Delhivery_Air',
-            'status' => 1
-        ])->exists();
+        $delhiveryAirZoneCheck = \App\Support\CourierAccess::isOn((int) $order->seller_id, 'Delhivery_Air');
 
         if (!$delhiveryAirZoneCheck) {
             return [];

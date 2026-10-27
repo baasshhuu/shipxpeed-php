@@ -283,18 +283,10 @@ class RateCard
         return ['courierCharge' => round($freight * $gst, 2), 'freightCharges' => round($freight, 2), 'codCharge' => 0.0, 'slabs' => $slabs];
     }
 
-    /** Aggregator couriers: hidden only when switched off for this seller. */
+    /** Aggregator couriers: hidden when OFF for this seller (own switch, else the courier's default). */
     public static function hiddenFor(int $sellerId, string $key, ?string $aggregatorName = null): bool
     {
-        try {
-            $keys = array_filter([$key, $aggregatorName, $aggregatorName ? strtolower($aggregatorName) : null]);
-            return ActicvSleb::where('seller_id', $sellerId)
-                ->whereIn('LogisticProvider', $keys)
-                ->whereIn('status', [0, '0'])
-                ->exists();
-        } catch (\Throwable $e) {
-            return false;
-        }
+        return !CourierAccess::isOn($sellerId, $key, $aggregatorName);
     }
 
     public static function zoneForStates(?string $pickupState, ?string $deliveryState): ?string

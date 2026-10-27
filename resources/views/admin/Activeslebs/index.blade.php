@@ -2,26 +2,45 @@
 
 @section('css')
 <style>
-    .courier-box {
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        padding: 15px;
-        margin-bottom: 20px;
-        background-color: #f9f9f9;
-    }
+    .cs-wrap { --line: var(--sx-border, #2a3757); --card: var(--sx-surface-2, #18223a); }
+    .cs-mode { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
+    .cs-mode .form-group { min-width: 280px; flex: 1 1 280px; max-width: 420px; }
+    .cs-hint { border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin:14px 0 6px; font-size:13px; color: var(--sx-text-2, #b4bfd6); background: var(--sx-primary-soft, rgba(79,140,255,.12)); }
+    .cs-group { margin-top: 22px; }
+    .cs-group-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+    .cs-group-head h6 { margin:0; font-size:15px; }
+    .cs-group-head .cs-count { font-size:12px; color: var(--sx-muted, #8592ad); }
+    .cs-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:10px; }
+    .cs-item { display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px solid var(--line); background: var(--card); border-radius:10px; padding:12px 14px; transition: opacity .15s; }
+    .cs-item.is-off { opacity:.6; }
+    .cs-item img { width:40px; height:40px; object-fit:contain; border-radius:8px; background:#fff; padding:3px; flex:0 0 40px; }
+    .cs-name { font-weight:600; font-size:14px; line-height:1.2; }
+    .cs-meta { font-size:12px; color: var(--sx-muted, #8592ad); margin-top:3px; }
+    .cs-meta a { cursor:pointer; }
+    .cs-right { display:flex; align-items:center; gap:8px; }
+    .cs-right .form-check-input { width:2.6em; height:1.35em; cursor:pointer; margin:0; }
+    .cs-badge { font-size:11px; font-weight:700; letter-spacing:.03em; padding:3px 8px; border-radius:20px; min-width:44px; text-align:center; }
+    .cs-badge.on { background: var(--sx-success-soft, rgba(34,197,94,.15)); color: var(--sx-success, #22c55e); }
+    .cs-badge.off { background: var(--sx-danger-soft, rgba(240,79,95,.15)); color: var(--sx-danger, #f04f5f); }
+    .cs-tag { font-size:11px; padding:1px 7px; border-radius:20px; border:1px solid var(--sx-warning, #f5a524); color: var(--sx-warning, #f5a524); margin-left:6px; }
+    .cs-empty { border:1px dashed var(--line); border-radius:10px; padding:14px; font-size:13px; color: var(--sx-muted, #8592ad); }
+    .cs-toast { position:fixed; right:18px; bottom:18px; z-index:9999; padding:10px 16px; border-radius:10px; font-size:13px; color:#fff; background:#16a34a; box-shadow:0 8px 24px rgba(0,0,0,.35); display:none; }
+    .cs-toast.err { background:#dc2626; }
 </style>
 @endsection
 
-
 @section('content')
-<div class="card mb-3">
+@php $isDefault = $sellerParam === 'all'; @endphp
+<div class="card mb-3 cs-wrap">
     <div class="card-header">
         <div class="row flex-between-end">
             <div class="col-auto align-self-center">
                 <h5 class="mb-0">Price Setting :: Courier Status</h5>
             </div>
-
-            <div class="col-auto ms-auto">
+            <div class="col-auto ms-auto d-flex gap-2">
+                <a href="?seller_id={{ $sellerParam }}&refresh=1" class="btn btn-outline-secondary" title="Re-fetch the courier list from Shipclues and Fship">
+                    <i class="fa fa-sync me-1"></i> Refresh couriers
+                </a>
                 <a href="{{ route('pricesetting.add') }}" class="btn btn-outline-secondary">
                     <i class="fa fa-arrow-left me-1"></i> Go Back
                 </a>
@@ -30,270 +49,141 @@
     </div>
 
     <div class="card-body">
-
-        {{-- =============== SELLER DROPDOWN =============== --}}
-        <div class="col-lg-6 mt-2 mb-4">
-            <label class="form-label" for="seller_id">Select Seller</label>
-            <select class="form-control" id="seller_id" name="seller_id" required>
-                <option value="">-- Select Seller --</option>
-                <option value="all" {{ request('seller_id') == 'all' ? 'selected' : '' }}>All Sellers</option>
-                @foreach($SellerList as $seller)
-                    <option value="{{ $seller->id }}"
-                        {{ request('seller_id') == $seller->id ? 'selected' : '' }}>
-                        {{ $seller->name }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
-
-
-        {{-- ALWAYS SHOW COURIER LIST --}}
-        <div class="col-12 mt-2">
-            <h5>Courier Services / Partners</h5>
-
-
-            @php
-             $couriers = [
-[
-'name' => 'Delhivery',
-'logo' => 'brands/45438f4b-44ad-4c1a-bd0e-d08695b2dc16.jpeg'
-],
-[
-'name' => 'Delhivery_Air',
-'logo' => 'brands/45438f4b-44ad-4c1a-bd0e-d08695b2dc16.jpeg'
-],
-[
-'name' => 'Shadowfax',
-'logo' => 'brands/45438f4b-44ad-4c1a-bd0e-d08695b2dc16.jpeg'
-],
-[
-'name' => 'Ekart2KG_selloship',
-'logo' => 'brands/ecart.png'
-],
-[
-'name' => 'DTDC_Air',
-'logo' => 'brands/1750337596_images-removebg-preview.png'
-], 
-[
-'name' => 'DTDC_Surface_1kg',
-'logo' => 'brands/1750337596_images-removebg-preview.png'
-], 
-[
-'name' => 'DTDC_Surface_500gm',
-'logo' => 'brands/1750337596_images-removebg-preview.png'
-],
-[
-'name' => 'tekipost_Delhivery_1_KG',
-'logo' => 'brands/45438f4b-44ad-4c1a-bd0e-d08695b2dc16.jpeg'
-],
-[
-'name' => 'tekipost_Delhivery_5kg',
-'logo' => 'brands/45438f4b-44ad-4c1a-bd0e-d08695b2dc16.jpeg'
-],
-[
-'name' => 'tekipost_Delhivery_10kg',
-'logo' => 'brands/45438f4b-44ad-4c1a-bd0e-d08695b2dc16.jpeg'
-],
-[
-'name' => 'tekipost_Ekart_2_KG_Fixed',
-'logo' => 'brands/ecart.png'
-],
-[
-'name' => 'tekipost_Amazon_500_GM',
-'logo' => 'brands/1703c4f8-55a6-4923-8c94-9bcb98f39c2d.jpeg'
-],
-[
-'name' => 'tekipost_Amazon_2_kg',
-'logo' => 'brands/1703c4f8-55a6-4923-8c94-9bcb98f39c2d.jpeg'
-],
-[
-'name' => 'Parcel_X_Amazon_2KG',
-'logo' => 'brands/1703c4f8-55a6-4923-8c94-9bcb98f39c2d.jpeg'
-],
-[
-'name' => 'Parcel_X_Amazon_1KG',
-'logo' => 'brands/1703c4f8-55a6-4923-8c94-9bcb98f39c2d.jpeg'
-],
-[
-'name' => 'Parcel_X_Amazon',
-'logo' => 'brands/1703c4f8-55a6-4923-8c94-9bcb98f39c2d.jpeg'
-],
-[
-'name' => 'Parcel_X_Delhivery',
-'logo' => 'brands/45438f4b-44ad-4c1a-bd0e-d08695b2dc16.jpeg'
-],
-[
-'name' => 'Shiprocket_Bluedart',
-'logo' => 'brands/1750337705_WhatsApp_Image_2025-06-19_at_5.17.34_PM__1_-removebg-preview.png'
-],
-
-[
-'name' => 'shiprocket_bluedart_1kg',
-'logo' => 'brands/1750337705_WhatsApp_Image_2025-06-19_at_5.17.34_PM__1_-removebg-preview.png'
-],
-[
-'name' => 'Shiprocket_Delhivery',
-'logo' => 'brands/45438f4b-44ad-4c1a-bd0e-d08695b2dc16.jpeg'
-],
-[
-'name' => 'Shiprocket_Xpressbee',
-'logo' => 'brands/Xpressbee.png'
-],
-
-[
-'name' => 'Parcel_X_Delhivery_250gm',
-'logo' => 'brands/45438f4b-44ad-4c1a-bd0e-d08695b2dc16.jpeg'
-],
-
-[
-'name' => 'Ekart500gm',
-'logo' => 'brands/ecart.png'
-],
-
-[
-'name' => 'Ekart500gm_boxd',
-'logo' => 'brands/ecart.png'
-],
-
-[
-'name' => 'parcel_x_Xpressbee',
-'logo' => 'brands/Xpressbee.png'
-],
-[
-'name' => 'parcel_x_Shreemaruti',
-'logo' => 'brands/Shreemaruti.jpg'
-],
-
-];
-
-                // If seller selected, load saved status
-                if(request('seller_id') && request('seller_id') != 'all'){
-                    $dbStatus = \App\Models\ActicvSleb::where('seller_id', request('seller_id'))
-                                ->pluck('status','LogisticProvider')->toArray();
-                } elseif(request('seller_id') == 'all') {
-                    // For 'all', show status as active only if ALL sellers have it active
-                    $totalSellers = \App\Models\SellerList::count();
-                    $dbStatus = [];
-                    foreach($couriers as $courier) {
-                        $activeSellersCount = \App\Models\ActicvSleb::where('LogisticProvider', $courier['name'])
-                                            ->where('status', '1')
-                                            ->count();
-                        $dbStatus[$courier['name']] = ($activeSellersCount == $totalSellers) ? 1 : 0;
-                    }
-                } else {
-                    $dbStatus = [];
-                }
-            @endphp
-
-
-           @foreach($couriers as $c)
-    @php
-        $name = $c['name'];
-        $logo = $c['logo'];
-        $isActive = $dbStatus[$name] ?? 0;
-    @endphp
-
-    <div class="courier-box d-flex align-items-center justify-content-between">
-        <div class="d-flex align-items-center">
-            <img src="{{ $logo }}" class="me-3" style="height: 40px;">
-            <div>
-                <h6 class="mb-0">{{ $name }}</h6>
-                <small class="text-muted">Courier Service</small>
+        <div class="cs-mode">
+            <div class="form-group">
+                <label class="form-label" for="seller_id">Apply to</label>
+                <select class="form-control" id="seller_id">
+                    <option value="all" {{ $isDefault ? 'selected' : '' }}>All Sellers (default)</option>
+                    @foreach($SellerList as $seller)
+                        <option value="{{ $seller->id }}" {{ $selectedSeller && $selectedSeller->id == $seller->id ? 'selected' : '' }}>
+                            {{ $seller->name }}{{ $seller->email ? ' — ' . $seller->email : '' }}
+                        </option>
+                    @endforeach
+                </select>
             </div>
         </div>
 
-        <div class="form-check form-switch">
-            <input type="checkbox"
-                   class="form-check-input courier-toggle"
-                   data-courier="{{ $name }}"
-                   {{ $isActive ? 'checked' : '' }}>
-
-            <span class="badge {{ $isActive ? 'bg-success' : 'bg-secondary' }} ms-2">
-                {{ $isActive ? 'ACTIVE' : 'INACTIVE' }}
-            </span>
-        </div>
-    </div>
-@endforeach
-
-
+        <div class="cs-hint">
+            @if($isDefault)
+                <strong>Default for every seller.</strong> Couriers switched ON here are live for all sellers, including new ones.
+                Changing a switch here also resets any seller's own switch for that courier.
+            @else
+                <strong>Only for {{ $selectedSeller->name }}.</strong> A switch you change here becomes this seller's own setting
+                (marked <span class="cs-tag" style="margin:0">Custom</span>). Use “Use default” to undo it.
+            @endif
         </div>
 
+        @forelse($groups as $code => $group)
+            @php
+                $total = count($group['couriers']);
+                $liveCount = 0;
+                foreach ($group['couriers'] as $k => $c) {
+                    $st = (!$isDefault && array_key_exists($k, $overrides)) ? $overrides[$k] : $c['default'];
+                    $liveCount += $st ? 1 : 0;
+                }
+            @endphp
+            <div class="cs-group">
+                <div class="cs-group-head">
+                    <h6>{{ $group['title'] }}</h6>
+                    <span class="cs-count">{{ $liveCount }} of {{ $total }} live</span>
+                </div>
+
+                @if(!$total)
+                    <div class="cs-empty">
+                        Couldn't load couriers from {{ ucfirst($code) }} right now. Click “Refresh couriers” in a minute.
+                    </div>
+                @else
+                <div class="cs-grid">
+                    @foreach($group['couriers'] as $key => $c)
+                        @php
+                            $custom = !$isDefault && array_key_exists($key, $overrides);
+                            $on = $custom ? $overrides[$key] : $c['default'];
+                            $nCustom = $customCounts[$key] ?? 0;
+                        @endphp
+                        <div class="cs-item {{ $on ? '' : 'is-off' }}" data-key="{{ $key }}">
+                            <div class="d-flex align-items-center gap-3" style="min-width:0">
+                                <img src="{{ asset($c['logo']) }}" alt="" onerror="this.style.visibility='hidden'">
+                                <div style="min-width:0">
+                                    <div class="cs-name">{{ $c['label'] }}@if($custom)<span class="cs-tag">Custom</span>@endif</div>
+                                    <div class="cs-meta">
+                                        @if($isDefault)
+                                            {{ $nCustom ? $nCustom . ' seller(s) have their own switch' : 'Default for all sellers' }}
+                                        @elseif($custom)
+                                            Default is {{ $c['default'] ? 'ON' : 'OFF' }} · <a class="cs-reset">Use default</a>
+                                        @else
+                                            Following default
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="cs-right">
+                                <span class="cs-badge {{ $on ? 'on' : 'off' }}">{{ $on ? 'LIVE' : 'OFF' }}</span>
+                                <div class="form-check form-switch m-0">
+                                    <input type="checkbox" class="form-check-input cs-toggle" {{ $on ? 'checked' : '' }}
+                                           aria-label="{{ $c['label'] }}">
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+                @endif
+            </div>
+        @empty
+            <div class="cs-empty">No courier integration is configured yet.</div>
+        @endforelse
     </div>
 </div>
+<div class="cs-toast" id="csToast"></div>
 
-
-{{-- ================= AJAX SCRIPT ================= --}}
 <script>
-document.getElementById('seller_id').addEventListener('change', function () {
-    window.location.href = "?seller_id=" + this.value;
-});
+(function () {
+    const sellerSel = document.getElementById('seller_id');
+    sellerSel.addEventListener('change', () => { window.location.href = '?seller_id=' + encodeURIComponent(sellerSel.value); });
 
+    const isDefault = @json($isDefault);
+    const csrf = @json(csrf_token());
+    const toastEl = document.getElementById('csToast');
+    let toastTimer;
+    function toast(msg, err) {
+        toastEl.textContent = msg; toastEl.className = 'cs-toast' + (err ? ' err' : ''); toastEl.style.display = 'block';
+        clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.style.display = 'none', 2600);
+    }
+    function paint(item, on) {
+        item.classList.toggle('is-off', !on);
+        const b = item.querySelector('.cs-badge');
+        b.className = 'cs-badge ' + (on ? 'on' : 'off'); b.textContent = on ? 'LIVE' : 'OFF';
+        item.querySelector('.cs-toggle').checked = on;
+    }
+    function post(url, body) {
+        return fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+            body: JSON.stringify(body)
+        }).then(r => r.json().then(d => { if (!r.ok || d.success === false) throw new Error(d.message || ('HTTP ' + r.status)); return d; }));
+    }
 
-document.addEventListener('DOMContentLoaded', function () {
-    const toggles = document.querySelectorAll('.courier-toggle');
-
-    toggles.forEach(function (toggle) {
-        toggle.addEventListener('change', function () {
-
-            let status = this.checked ? 1 : 0;
-            let courier = this.getAttribute('data-courier');
-            let seller_id = document.getElementById('seller_id').value;
-            let badge = this.parentNode.querySelector('.badge');
-
-            // If seller is NOT selected, block update
-            if (seller_id === "") {
-                alert("Please select a seller first!");
-                this.checked = !this.checked; // revert toggle
-                return;
-            }
-
-            // If 'all' is selected, confirm bulk update
-            if (seller_id === "all") {
-                let confirmMsg = status ? 
-                    "Are you sure you want to ACTIVATE this courier for ALL sellers?" :
-                    "Are you sure you want to DEACTIVATE this courier for ALL sellers?";
-                
-                if (!confirm(confirmMsg)) {
-                    this.checked = !this.checked; // revert toggle
-                    return;
-                }
-            }
-
-            // Update badge UI instantly
-            if (status) {
-                badge.className = "badge bg-success ms-2";
-                badge.textContent = "ACTIVE";
-            } else {
-                badge.className = "badge bg-secondary ms-2";
-                badge.textContent = "INACTIVE";
-            }
-
-            // Send AJAX Request
-            fetch("{{ route('pricesetting.courier.update') }}", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRF-TOKEN": "{{ csrf_token() }}"
-                },
-                body: JSON.stringify({
-                    seller_id: seller_id,
-                    courier: courier,
-                    status: status
-                })
+    document.querySelectorAll('.cs-toggle').forEach(t => t.addEventListener('change', function () {
+        const item = this.closest('.cs-item');
+        const on = this.checked;
+        const name = item.querySelector('.cs-name').childNodes[0].textContent.trim();
+        if (isDefault && !confirm((on ? 'Make ' : 'Turn OFF ') + name + (on ? ' LIVE' : '') + ' for ALL sellers?')) {
+            this.checked = !on; return;
+        }
+        paint(item, on);
+        post(@json(route('pricesetting.courier.update')), { seller_id: sellerSel.value, courier: item.dataset.key, status: on ? 1 : 0 })
+            .then(d => {
+                toast(d.message || 'Saved');
+                if (!isDefault) { setTimeout(() => window.location.reload(), 600); }
             })
-            .then(res => {
-                if (!res.ok) {
-                    throw new Error(`HTTP error! status: ${res.status}`);
-                }
-                return res.json();
-            })
-            .then(data => console.log("Updated", data))
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Failed to update courier status');
-            })
-        });
-    });
-});
+            .catch(e => { paint(item, !on); toast('Not saved: ' + e.message, true); });
+    }));
+
+    document.querySelectorAll('.cs-reset').forEach(a => a.addEventListener('click', function () {
+        const item = this.closest('.cs-item');
+        post(@json(route('pricesetting.courier.reset')), { seller_id: sellerSel.value, courier: item.dataset.key })
+            .then(d => { toast(d.message); setTimeout(() => window.location.reload(), 500); })
+            .catch(e => toast('Not saved: ' + e.message, true));
+    }));
+})();
 </script>
 @endsection
