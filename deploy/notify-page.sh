@@ -85,9 +85,10 @@ composer dump-autoload -q 2>/dev/null || true
 sudo -u www-data php artisan migrate --path=$MIG --force || restore
 sudo -u www-data php artisan optimize:clear >/dev/null
 
-ACT=$(sudo -u www-data php artisan tinker --execute='echo "ACT " . app("router")->getRoutes()->getByName("notifications.index")?->getActionName() . PHP_EOL;' 2>/dev/null | grep '^ACT' | sed 's/^ACT //')
+OUT=$(sudo -u www-data php -r 'require "vendor/autoload.php"; $a = require "bootstrap/app.php"; $a->make(Illuminate\Contracts\Http\Kernel::class)->bootstrap(); $r = app("router")->getRoutes(); $r->refreshNameLookups(); $x = $r->getByName("notifications.index"); echo "ACT " . ($x ? $x->getActionName() : "") . PHP_EOL;' 2>&1)
+ACT=$(echo "$OUT" | grep '^ACT' | sed 's/^ACT //')
 echo "Notify route: ${ACT:-not found}"
-case "$ACT" in *NotifyController*) ;; *) echo "FAIL: /notifications not pointing to the new page"; restore ;; esac
+case "$ACT" in *NotifyController*) ;; *) echo "FAIL: /notifications not pointing to the new page"; echo "$OUT" | tail -15; restore ;; esac
 CODE=$(curl -s -o /dev/null -w '%{http_code}' -k https://shipxpeed.tech/notifications)
 echo "Page check (logged out, expect 302): $CODE"
 [ "$CODE" = "500" ] && restore
