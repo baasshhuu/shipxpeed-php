@@ -32,8 +32,12 @@ git fetch -q origin || { echo "FAIL: git fetch"; exit 1; }
 
 # Files copied whole must be unchanged on this server (or new), so no local edits are lost
 for f in app/Http/Controllers/selleradmin/RateCardController.php app/Http/Controllers/selleradmin/ToolsController.php resources/views/sellerdashboard/tools/newratecalculater.blade.php app/Models/ZonePriceSetting.php; do
-  # 9aa8e5f = GitHub version these files matched before this update
-  if [ -e "$f" ] && ! git diff --quiet 9aa8e5f -- "$f" 2>/dev/null; then
+  # OK when the server copy equals some GitHub version of the file (no local edits to lose)
+  if [ -e "$f" ]; then
+    NOW=$(git hash-object "$f")
+    git log --format=%H "$REF" -- "$f" | while read c; do [ "$(git rev-parse "$c:$f" 2>/dev/null)" = "$NOW" ] && { echo match; break; }; done | grep -q match && continue
+  fi
+  if [ -e "$f" ]; then
     echo "NOTE: $f has local edits on this server - stopping so nothing is lost. Send this output to Claude."; exit 1
   fi
 done
