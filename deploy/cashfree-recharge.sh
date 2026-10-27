@@ -15,6 +15,7 @@ BK=/root/pre-cashfree-$STAMP.tgz
 CF_ENV=${CF_ENV:-production}
 
 [ -n "${CF_APP_ID:-}" ] && [ -n "${CF_SECRET:-}" ] || { echo "FAIL: set CF_APP_ID and CF_SECRET"; exit 1; }
+case "$CF_APP_ID$CF_SECRET" in *" "*|*paste*|*"<"*) echo "FAIL: replace 'paste AppID' / 'paste Secret Key' with the real keys from Cashfree"; exit 1 ;; esac
 
 NEW_FILES="
 app/Services/CashfreePgService.php
@@ -52,18 +53,10 @@ mkdir -p resources/views/recharge
 for f in $NEW_FILES; do git show "$REF:$f" > "$f" || restore; done
 echo "Copied Cashfree files"
 
-# 2. shared files (skip if already done)
-if grep -q 'WalletRechargeController' routes/web.php 2>/dev/null; then
-  echo "Shared files already updated"
-else
-  git diff "$COMMIT^" "$COMMIT" -- $SHARED > /tmp/cashfree-shared.patch
-  git apply --3way --whitespace=nowarn /tmp/cashfree-shared.patch 2>/tmp/cashfree-apply.log \
-    || git apply --whitespace=nowarn -C1 /tmp/cashfree-shared.patch 2>>/tmp/cashfree-apply.log \
-    || { cat /tmp/cashfree-apply.log; restore; }
-  git reset -q -- $SHARED 2>/dev/null
-  grep -l '^<<<<<<<' $SHARED 2>/dev/null && { echo "FAIL: merge conflict markers"; restore; }
-  echo "Patched shared files"
-fi
+# 2. shared files: small targeted edits (works even when the server has local changes)
+git show "$REF:deploy/cashfree-edit.php" > /tmp/cashfree-edit.php || restore
+php /tmp/cashfree-edit.php || restore
+echo "Edited shared files"
 for f in $REMOVED; do rm -f "$f"; done
 echo "PayU files removed"
 
