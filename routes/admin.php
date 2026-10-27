@@ -270,6 +270,13 @@ Route::post('/SendWhatsApp-send-message', [\App\Http\Controllers\admin\SendWhats
         Route::post('pricesetting/status-update', 'updateStatus')->name('pricesetting.courier.update')->middleware('isAllow:104,can_add');
         Route::post('pricesetting/status-reset', 'resetStatus')->name('pricesetting.courier.reset')->middleware('isAllow:104,can_add');
         Route::post('pricesetting/courier-remove', 'removeCourier')->name('pricesetting.courier.remove')->middleware('isAllow:104,can_add');
+    });
+    // ----------------------- Rate Manager (zone rate card + Excel template) -----------------------
+    Route::controller(\App\Http\Controllers\admin\RateManagerController::class)->group(function () {
+        Route::get('rate-manager', 'index')->name('rate.manager')->middleware('isAllow:104,can_add');
+        Route::post('rate-manager/save', 'save')->name('rate.manager.save')->middleware('isAllow:104,can_add');
+        Route::get('rate-manager/template', 'template')->name('rate.manager.template')->middleware('isAllow:104,can_add');
+        Route::post('rate-manager/upload', 'upload')->name('rate.manager.upload')->middleware('isAllow:104,can_add');
 
 
     });

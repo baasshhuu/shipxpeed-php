@@ -20,6 +20,7 @@ class ZonePriceSetting extends Model
         'cod_price',
         'cod_fix_price',
         'prepaid_price',
+        'additional_price',
         'prepaid_fix_price',
         'cod_charge_parsent',
         'status',
@@ -32,6 +33,7 @@ class ZonePriceSetting extends Model
         'cod_price' => 'decimal:2',
         'cod_fix_price' => 'decimal:2',
         'prepaid_price' => 'decimal:2',
+        'additional_price' => 'decimal:2',
         'prepaid_fix_price' => 'decimal:2',
         'cod_charge_parsent' => 'decimal:2',
     ];

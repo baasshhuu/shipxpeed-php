@@ -1,78 +1,56 @@
 <?php
-   
+
 namespace App\Http\Controllers\selleradmin;
 
 use App\Http\Controllers\Controller;
+use App\Support\ShipRate;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use App\Models\PriceSetting;
 
+/**
+ * Seller rate calculator: prices come from the seller's zone rate card
+ * (their own rates, else the default rate card) — the same price they are debited when shipping.
+ */
 class RateCardController extends Controller
 {
+    public function checkRate(Request $request)
+    {
+        $seller = auth()->guard('seller')->user();
+        if (!$seller || $seller->status != 1) {
+            return redirect()->back()->withErrors(['error' => 'You must be logged in as a seller with an active account.']);
+        }
 
-public function checkRate(Request $request)
-{
-    // dd($request);
-    $seller = auth()->guard('seller')->user();
-    if (!$seller || $seller->status != 1) {
-        return redirect()->back()->withErrors(['error' => 'You must be logged in as a seller with an active account.']);
-    }
-    
-    $sellerId = Auth::guard('seller')->id();
-    $PriceSetting = PriceSetting::where('seller_id', $sellerId)->first();
-    // Seller shipping charge %; default 30 agar nahi mila
-    $sellerprice = $PriceSetting ? $PriceSetting->shipping_charge : 30;
-    
-    $validated = $request->validate([
-        'origin' => 'required|string',
-        'destination' => 'required|string',
-        'payment_type' => 'required|in:cod,prepaid',
-        'order_amount' => 'required|string',
-        'weight' => 'required|string',
-        'length' => 'required|string',
-        'breadth' => 'required|string',
-        'height' => 'required|string',
-    ]);
-
-    $token = env('XPRESSBEES_API_TOKEN');
-    // dd($token);
-
-    $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-            'Authorization' => 'Bearer ' . $token,
-        ])
-        ->withoutVerifying()
-        ->timeout(30)
-        ->post('https://shipment.xpressbees.com/api/courier/serviceability', $validated);
-
-    \Log::info('XpressBees API Response', [
-        'status' => $response->status(),
-        'body' => $response->body(),
-    ]);
-
-    if ($response->successful()) {
-        $data = $response->json()['data'] ?? [];
-
-        // Convert percentage to multiplier
-        $multiplier = 1 + ($sellerprice / 100);
-        // dd($multiplier);
-
-        // Apply seller % markup dynamically
-        $updatedData = collect($data)->map(function ($item) use ($multiplier) {
-            $item['freight_charges'] = round($item['freight_charges'] * 2);
-            $item['cod_charges'] = round($item['cod_charges'] *  2);
-            $item['total_charges'] = round($item['total_charges'] * $multiplier, 2);
-            return $item;
-        })->toArray();
-
-        return redirect()->back()->with([
-            'rate_data' => $updatedData,
-            'success' => 'Rate fetched with markup successfully!',
+        $v = $request->validate([
+            'origin' => 'required|digits:6',
+            'destination' => 'required|digits:6',
+            'payment_type' => 'required|in:cod,prepaid',
+            'order_amount' => 'required|numeric|min:0',
+            'weight' => 'required|numeric|min:1',
+            'length' => 'nullable|numeric|min:0',
+            'breadth' => 'nullable|numeric|min:0',
+            'height' => 'nullable|numeric|min:0',
         ]);
-    } else {
-        return redirect()->back()->withErrors(['error' => 'Failed to fetch rate.']);
+
+        // Same weight basis as shipping an order (package weight in grams)
+        $grams = (float) $v['weight'];
+
+        $rates = ShipRate::quote((int) $seller->id, [
+            'origin' => $v['origin'],
+            'destination' => $v['destination'],
+            'payment_type' => $v['payment_type'],
+            'order_amount' => (float) $v['order_amount'],
+            'weight_grams' => $grams,
+            'length' => $v['length'] ?? 10,
+            'breadth' => $v['breadth'] ?? 10,
+            'height' => $v['height'] ?? 10,
+        ]);
+
+        if (!$rates) {
+            return redirect()->back()->withInput()->withErrors(['error' => 'No courier is available for this route right now.']);
+        }
+
+        return redirect()->back()->withInput()->with([
+            'rate_data' => $rates,
+            'success' => 'Rates for your account (incl. 18% GST).',
+        ]);
     }
-}
-
-
 }

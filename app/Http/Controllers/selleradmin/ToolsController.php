@@ -31,9 +31,19 @@ class ToolsController extends Controller
     $totalAmount = $sellerRechargeAmount - $sellerUsedAmount;
 
         }
+        $myRateCard = ['zones' => [], 'couriers' => []];
+        try {
+            if ($seller) {
+                $myRateCard = \App\Support\ShipRate::sellerRateCard((int) $seller->id);
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Seller rate card failed: ' . $e->getMessage());
+        }
+
         return view('sellerdashboard.tools.newratecalculater', [
             'seller' => $seller,
-            'totalAmount' => $totalAmount
+            'totalAmount' => $totalAmount,
+            'myRateCard' => $myRateCard,
         ]);
     }
 

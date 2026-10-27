@@ -24,6 +24,9 @@
                         <span id="alert-message">Enter a valid 6-digit pincode to get location details</span>
                     </div>
                     
+                    @if($errors->any())
+                        <div class="alert alert-danger">{{ $errors->first() }}</div>
+                    @endif
                     <form id="rate-calculator-form" method="POST" action="{{ route('seller.check.rate') }}">
                         @csrf
                         
@@ -186,7 +189,7 @@
                                             <th><i class="ti ti-truck me-2"></i>Service Provider</th>
                                             <th class="text-center"><i class="ti ti-currency-rupee me-1"></i>Freight</th>
                                             <th class="text-center"><i class="ti ti-credit-card me-1"></i>COD</th>
-                                            <th class="text-center"><i class="ti ti-receipt me-1"></i>Total</th>
+                                            <th class="text-center"><i class="ti ti-receipt me-1"></i>Total (incl. GST)</th>
                                             <th class="text-center">Min Weight</th>
                                             <th class="text-center">Chargeable Weight</th>
                                         </tr>
@@ -274,6 +277,53 @@
                                 <i class="ti ti-info-circle me-1"></i>
                                 All prices are inclusive of GST. Choose the best option for your shipment.
                             </small>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                {{-- ===== My rate card (zone-wise, from Admin > Rate Manager) ===== --}}
+                @if(!empty($myRateCard['couriers']))
+                <div class="mt-5" id="my-rate-card">
+                    <div class="card border-0 shadow-lg rounded-4">
+                        <div class="card-header text-white rounded-top-4 py-3" style="background: linear-gradient(135deg, #8192e1 0%, #83a8eb 100%);">
+                            <h4 class="mb-0 text-center"><i class="ti ti-file-invoice me-2"></i>My Rate Card</h4>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">
+                                Freight = first 500 g + each additional 500 g. COD = higher of COD ₹ and COD % of order value.
+                                18% GST is added on top. This is exactly what is debited from your wallet when you ship.
+                            </p>
+                            @foreach($myRateCard['couriers'] as $rc)
+                                <h6 class="mt-3 mb-2 d-flex align-items-center gap-2">
+                                    <img src="{{ asset($rc['logo']) }}" alt="" style="height:26px;width:26px;object-fit:contain;border-radius:6px;background:#fff" onerror="this.style.display='none'">
+                                    {{ $rc['name'] }}
+                                </h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered align-middle text-center mb-2">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="text-start">Zone</th>
+                                                <th>First 500 g</th>
+                                                <th>Each extra 500 g</th>
+                                                <th>COD ₹</th>
+                                                <th>COD %</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($rc['zones'] as $z => $r)
+                                                <tr>
+                                                    <td class="text-start fw-semibold">Zone {{ $z }}</td>
+                                                    <td>₹{{ number_format($r['first'], 2) }}</td>
+                                                    <td>₹{{ number_format($r['additional'], 2) }}</td>
+                                                    <td>₹{{ number_format($r['cod'], 2) }}</td>
+                                                    <td>{{ rtrim(rtrim(number_format($r['cod_percent'], 2), '0'), '.') }}%</td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @endforeach
                         </div>
                     </div>
                 </div>

@@ -15,14 +15,7 @@ use Illuminate\Support\Facades\DB;
  *  - the zone list,
  *  - the rate-card maths (same formula every courier service in this panel uses).
  *
- * Rate logic (unchanged from the existing courier services):
- *   slabs = ceil(chargeable weight in grams / 500), minimum 1
- *   Prepaid:  fixed price > 0  -> fixed × slabs (final, no GST)
- *             otherwise        -> prepaid rate × slabs + 18% GST
- *   COD:      COD fixed > 0    -> COD fixed × slabs (final, no GST, no COD %)
- *             otherwise        -> (prepaid rate + COD rate) × slabs
- *                                 + COD % of order value when order value > ₹1,400
- *                                 + 18% GST on the total
+ * Rate logic: see price() — first 500 g + additional 500 g, COD (higher of ₹ / %), + 18% GST.
  *   A seller without their own row for a courier + zone uses the default rate card.
  */
 class RateCard
@@ -250,37 +243,52 @@ class RateCard
             ?? ZonePriceSetting::where(['seller_id' => self::defaultSellerId(), 'zone' => $zone, 'LogisticProvider' => $key, 'status' => 1])->first();
     }
 
-    /** Price for one shipment. $card can be a model or an array with the rate fields. */
+    /**
+     * Price for one shipment (what the seller sees and is debited).
+     *   slabs    = ceil(weight / 500 g), minimum 1
+     *   freight  = first 500 g price + (slabs - 1) × additional 500 g price
+     *              (additional price empty -> first 500 g price is used for every slab)
+     *   COD      = higher of COD charge (₹) and COD % of order value      (COD orders only)
+     *   total    = (freight + COD) + 18% GST
+     * Old rows with a fixed price (prepaid_fix_price / cod_fix_price > 0) keep their old meaning:
+     * fixed × slabs, final, no GST.
+     * $card can be a model or an array with the rate fields.
+     */
     public static function price($card, float $weightGrams, bool $cod, float $orderAmount): ?array
     {
         if (!$card) {
             return null;
         }
         $g = fn ($f) => (float) (is_array($card) ? ($card[$f] ?? 0) : ($card->{$f} ?? 0));
-        $slabs = max(1, (int) ceil($weightGrams / self::SLAB_GRAMS));
+        $slabs = max(1, (int) ceil(max(0, $weightGrams) / self::SLAB_GRAMS));
         $gst = 1 + self::GST_PERCENT / 100;
 
-        if ($cod) {
-            if ($g('cod_fix_price') > 0) {
-                $t = round($g('cod_fix_price') * $slabs, 2);
-                return ['courierCharge' => $t, 'freightCharges' => $t, 'codCharge' => 0.0, 'slabs' => $slabs];
-            }
-            $freight = ($g('cod_price') + $g('prepaid_price')) * $slabs;
-            $codCharge = $orderAmount > self::COD_PERCENT_ABOVE ? $orderAmount * $g('cod_charge_parsent') / 100 : 0;
-            return [
-                'courierCharge' => round(($freight + $codCharge) * $gst, 2),
-                'freightCharges' => round($freight, 2),
-                'codCharge' => round($codCharge, 2),
-                'slabs' => $slabs,
-            ];
+        $fixed = $cod ? $g('cod_fix_price') : $g('prepaid_fix_price');
+        if ($fixed > 0) {
+            $t = round($fixed * $slabs, 2);
+            return ['courierCharge' => $t, 'freightCharges' => $t, 'codCharge' => 0.0, 'gst' => 0.0, 'slabs' => $slabs];
         }
 
-        if ($g('prepaid_fix_price') > 0) {
-            $t = round($g('prepaid_fix_price') * $slabs, 2);
-            return ['courierCharge' => $t, 'freightCharges' => $t, 'codCharge' => 0.0, 'slabs' => $slabs];
+        $first = $g('prepaid_price');
+        if ($first <= 0) {
+            return null; // no rate set for this courier/zone
         }
-        $freight = $g('prepaid_price') * $slabs;
-        return ['courierCharge' => round($freight * $gst, 2), 'freightCharges' => round($freight, 2), 'codCharge' => 0.0, 'slabs' => $slabs];
+        $add = $g('additional_price') > 0 ? $g('additional_price') : $first;
+        $freight = $first + ($slabs - 1) * $add;
+
+        $codCharge = 0.0;
+        if ($cod) {
+            $codCharge = max($g('cod_price'), $orderAmount * $g('cod_charge_parsent') / 100);
+        }
+        $base = $freight + $codCharge;
+
+        return [
+            'courierCharge'  => round($base * $gst, 2),
+            'freightCharges' => round($freight, 2),
+            'codCharge'      => round($codCharge, 2),
+            'gst'            => round($base * ($gst - 1), 2),
+            'slabs'          => $slabs,
+        ];
     }
 
     /** Aggregator couriers: hidden when OFF for this seller (own switch, else the courier's default). */

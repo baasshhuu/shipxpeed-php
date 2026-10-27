@@ -134,6 +134,14 @@
                 </div>
             </a>
         </li>
+        <li class="menu @routeis('rate.manager') active @endrouteis">
+            <a href="{{ route('rate.manager') }}" class="dropdown-toggle">
+                <div class="">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                    <span>Rate Manager</span>
+                </div>
+            </a>
+        </li>
         <li class="menu @routeis('active.slebs') active @endrouteis">
             <a href="{{ route('active.slebs.add') }}" class="dropdown-toggle">
                 <div class="">

@@ -1419,6 +1419,17 @@ protected function prepareRequestData(Request $request)
         $logisticProvider = LogisticProvider::where('id', $courierId)->first();
         $key = 'courier.' . $logisticProvider->code;
 
+        // RATE-MANAGER-VERIFY: recompute the price on the server; never trust the amount sent by the browser
+        $__p = \App\Support\ShipRate::verifiedCharge((int) $orderId, $logisticProvider, $provider_name ?? null, $serviceability_id ?? null);
+        if ($__p === false) {
+            return redirect()->route('seller.order')->with('error', 'This courier is not available for this order at your rates any more. Please choose the courier again.');
+        }
+        if (is_array($__p)) {
+            $courierCharge = $__p['courierCharge'];
+            $freightCharges = $__p['freightCharges'];
+            $codCharges = $__p['codCharge'];
+        }
+
         if ($courierId == '2') {
 
            $params = [
@@ -1806,7 +1817,14 @@ if (
                 }
                 
                 // Update seller wallet amount
-                $order->seller_amount_walate = $courierCharge;
+                // RATE-MANAGER-VERIFY: price each order on the server
+                $__p = \App\Support\ShipRate::verifiedCharge((int) $orderId, $logisticProvider, $provider_name ?? null, $serviceability_id ?? null);
+                if ($__p === false) {
+                    $failureCount++;
+                    $results[] = "Order ID {$orderId}: Failed - courier not available for this order at your rates";
+                    continue;
+                }
+                $order->seller_amount_walate = is_array($__p) ? $__p['courierCharge'] : $courierCharge;
                 $order->save();
 
                 // Call the appropriate courier service

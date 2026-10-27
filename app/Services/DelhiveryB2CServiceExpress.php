@@ -179,6 +179,8 @@ class DelhiveryB2CServiceExpress implements CourierServiceInterface
 
 
         $charges = $calculateDelhiveryAirCharge($zonePricing);
+        // RATE-MANAGER-PRICE: first 500 g + additional 500 g, COD, + 18% GST (Admin > Rate Manager)
+        $charges = \App\Support\RateCard::price($zonePricing, (float) $weight, $paymentType === 'COD', (float) $orderAmount) ?? $charges;
         
         // Only return result if pricing exists for this service
         if ($charges === null) {
@@ -319,6 +321,8 @@ class DelhiveryB2CServiceExpress implements CourierServiceInterface
 
 
         $charges = $calculateDelhiveryAirCharge($zonePricing);
+        // RATE-MANAGER-PRICE: first 500 g + additional 500 g, COD, + 18% GST (Admin > Rate Manager)
+        $charges = \App\Support\RateCard::price($zonePricing, (float) $weight, $paymentType === 'COD', (float) $orderAmount) ?? $charges;
         
         // Only return result if pricing exists for this service
         if ($charges === null) {
@@ -328,7 +332,7 @@ class DelhiveryB2CServiceExpress implements CourierServiceInterface
         return [[
             'serviceabilityId' => $pincodeToCheck,
             'courierName'      => 'Delhivery B2C (Express)',
-            'courierCharge'    => $charges['courierCharge'] + 5,
+            'courierCharge'    => $charges['courierCharge'],
             'freightCharges'   => $charges['freightCharges'],
             'codCharge'        => $charges['codCharge'],
             'zone'             => $zone,
