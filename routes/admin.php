@@ -79,6 +79,14 @@ Route::middleware(['auth', 'permission', 'authCheck', 'verified'])->group(functi
     Route::post('fship/rate-test', [\App\Http\Controllers\admin\FshipController::class, 'rateTest'])->name('admin.fship.rate-test');
     Route::get('fship/log/{id}', [\App\Http\Controllers\admin\FshipController::class, 'logShow'])->whereNumber('id')->name('admin.fship.log');
 
+    // WhatsApp (AiSensy): OTP + buyer alerts, rates per seller, NDR queue
+    Route::get('whatsapp', [\App\Http\Controllers\admin\WhatsAppController::class, 'index'])->name('admin.whatsapp.index');
+    Route::post('whatsapp/settings', [\App\Http\Controllers\admin\WhatsAppController::class, 'saveSettings'])->name('admin.whatsapp.settings');
+    Route::post('whatsapp/seller/{id}', [\App\Http\Controllers\admin\WhatsAppController::class, 'saveSeller'])->whereNumber('id')->name('admin.whatsapp.seller');
+    Route::post('whatsapp/test', [\App\Http\Controllers\admin\WhatsAppController::class, 'test'])->name('admin.whatsapp.test');
+    Route::post('whatsapp/resend/{id}', [\App\Http\Controllers\admin\WhatsAppController::class, 'resend'])->whereNumber('id')->name('admin.whatsapp.resend');
+    Route::post('whatsapp/ndr/{id}/done', [\App\Http\Controllers\admin\WhatsAppController::class, 'ndrDone'])->whereNumber('id')->name('admin.whatsapp.ndr.done');
+
     Profile::routes();
     Route::get('dashboard', [HomeController::class, 'index'])->name('dashboard');
         Route::get('/shipment-report', [HomeController::class, 'shipment_report'])->name('shipment.report');

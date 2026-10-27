@@ -207,6 +207,10 @@
                 <p class="pb-dashboard-subtitle">Manage your Email & WhatsApp notifications for order status</p>
             </div>
         </div>
+        <div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span><i class="ti ti-brand-whatsapp"></i> WhatsApp buyer alerts have moved to their own page, with on/off, rates and message history.</span>
+            <a href="{{ route('seller.whatsapp.alerts') }}" class="btn btn-sm btn-success">Open WhatsApp alerts</a>
+        </div>
         <!-- Tabs -->
         <div class="pb-nav-tabs">
             <button class="pb-nav-tab active" id="emailTab" onclick="showTab('email')"><i class="ti ti-mail"></i> Email</button>

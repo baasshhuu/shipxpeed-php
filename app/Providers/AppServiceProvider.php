@@ -25,5 +25,8 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::useBootstrapFive();
         Schema::defaultStringLength(191);
+
+        // Buyer WhatsApp alerts on every shipment status change (AiSensy)
+        \App\Models\Order::observe(\App\Observers\OrderObserver::class);
     }
 }

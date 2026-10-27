@@ -1229,7 +1229,7 @@ public function downloadDeliveredOrdersExcel()
 //             }
 //             //   dd($phoneNumber);
 //             $payload = [
-//                 "apiKey" => "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OTMwNmIxNTk2NTBhMGMwYmEyNmM1NyIsIm5hbWUiOiJTSElQWFBFRUQgTE9HSVNUSUNTICIsImFwcE5hbWUiOiJBaVNlbnN5IiwiY2xpZW50SWQiOiI2ODkzMDZiMTU5NjUwYTBjMGJhMjZjNTIiLCJhY3RpdmVQbGFuIjoiRlJFRV9GT1JFVkVSIiwiaWF0IjoxNzU0NDY1OTY5fQ.KrQxCgEKxGJLJ6KCLk6vmNrmakhhqnM19ycdHjskf84",
+//                 "apiKey" => \App\Services\WhatsApp\WhatsAppSettings::apiKey(),
 //                 "campaignName" => $campaignData['campaign'],
 //                 "destination" => $phoneNumber,
 //                 "userName" => $customerName,
@@ -2523,6 +2523,8 @@ public function apiTrackDelhivery(Request $request)
 
    private function sendWhatsAppMessage($order, $status)
     {
+        // Buyer WhatsApp alerts now go out from App\Observers\OrderObserver (seller opt-in, AiSensy, per-seller rates).
+        return;
         try {
             // Check if WhatsApp notifications are enabled for this seller
             $whatsappNotification = ShippingNotification::where('seller_id', $order->seller_id)
@@ -2564,7 +2566,7 @@ public function apiTrackDelhivery(Request $request)
             }
 
             $payload = [
-                "apiKey" => "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OTMwNmIxNTk2NTBhMGMwYmEyNmM1NyIsIm5hbWUiOiJTSElQWFBFRUQgTE9HSVNUSUNTICIsImFwcE5hbWUiOiJBaVNlbnN5IiwiY2xpZW50SWQiOiI2ODkzMDZiMTU5NjUwYTBjMGJhMjZjNTIiLCJhY3RpdmVQbGFuIjoiRlJFRV9GT1JFVkVSIiwiaWF0IjoxNzU0NDY1OTY5fQ.KrQxCgEKxGJLJ6KCLk6vmNrmakhhqnM19ycdHjskf84",
+                "apiKey" => \App\Services\WhatsApp\WhatsAppSettings::apiKey(),
                 "campaignName" => $campaignData['campaign'],
                 "destination" => $phoneNumber,
                 "userName" => $customerName,

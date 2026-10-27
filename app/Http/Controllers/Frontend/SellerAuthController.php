@@ -18,6 +18,10 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Models\SellerBankDetail;
+use App\Services\WhatsApp\AiSensyClient;
+use App\Services\WhatsApp\WhatsAppOtpService;
+use App\Services\WhatsApp\WhatsAppSettings;
+use Illuminate\Support\Facades\Schema;
 
 class SellerAuthController extends Controller
 {
@@ -116,7 +120,14 @@ class SellerAuthController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
-// echo 'scscs';die;
+
+        $waPhone = AiSensyClient::normalizePhone($request->phone_number);
+        if (!$waPhone) {
+            return response()->json(['errors' => ['phone_number' => ['Enter a valid 10-digit Indian mobile number.']]], 422);
+        }
+        if ($this->sellersByPhone($waPhone)->isNotEmpty()) {
+            return response()->json(['errors' => ['phone_number' => ['This mobile number is already registered. Log in instead.']]], 422);
+        }
 
         $panCardPath      = $request->hasFile('pan_card')         ? Helper::saveFile($request->file('pan_card'), 'seller') : null;
         $adharFrontPath   = $request->hasFile('adhar_card_front') ? Helper::saveFile($request->file('adhar_card_front'), 'seller') : null;
@@ -142,10 +153,25 @@ class SellerAuthController extends Controller
             'otp'               => $otp
         ]);
 
+        // WhatsApp OTP: verify the mobile number as part of sign-up (when enabled by admin)
+        $waRequired = false;
+        if (WhatsAppSettings::otpEnabled()) {
+            $waRes = app(WhatsAppOtpService::class)->send('signup', $waPhone, $request->name, $request->ip());
+            if (!$waRes['ok']) {
+                Session::forget('seller_temp_data');
+                return response()->json(['errors' => ['phone_number' => [$waRes['message']]]], 422);
+            }
+            $waRequired = true;
+        }
+        Session::put('seller_temp_data.wa_phone', $waPhone);
+        Session::put('seller_temp_data.wa_required', $waRequired);
+
         Mail::to($request->email)->send(new SellerOtpMail($otp));
-    //    echo 'vicky';die;
+
         return response()->json([
-            'message' => 'OTP sent to your email. Please verify to complete registration.',
+            'message' => $waRequired
+                ? 'Codes sent to your email and WhatsApp. Please verify to complete registration.'
+                : 'OTP sent to your email. Please verify to complete registration.',
             'redirect_url' => route('seller.verify.otp.view')
         ]);
     }
@@ -159,8 +185,17 @@ class SellerAuthController extends Controller
             return redirect()->back()->with('error', 'Session expired. Please register again.');
         }
 
-        if ($enteredOtp != $sessionData['otp']) {
-            return redirect()->back()->with('error', 'Invalid OTP. Please try again.');
+        if ((string) $enteredOtp !== (string) $sessionData['otp']) {
+            return redirect()->back()->with('error', 'Wrong email code. Please try again.');
+        }
+
+        $phoneVerified = false;
+        if (!empty($sessionData['wa_required'])) {
+            $wa = app(WhatsAppOtpService::class)->verify('signup', $sessionData['wa_phone'], (string) $request->mobile_otp);
+            if (!$wa['ok']) {
+                return redirect()->back()->with('error', $wa['message']);
+            }
+            $phoneVerified = true;
         }
 
         // Save seller data
@@ -168,7 +203,7 @@ class SellerAuthController extends Controller
         $seller->user_type         = $sessionData['user_type'];
         $seller->name              = $sessionData['name'];
         $seller->email             = $sessionData['email'];
-        $seller->phone_number      = $sessionData['phone_number'];
+        $seller->phone_number      = !empty($sessionData['wa_phone']) ? substr($sessionData['wa_phone'], 3) : $sessionData['phone_number'];
         $seller->password          = $sessionData['password'];
         $seller->pan_card          = $sessionData['pan_card'];
         $seller->adhar_card_front  = $sessionData['adhar_card_front'];
@@ -178,6 +213,9 @@ class SellerAuthController extends Controller
         $seller->cancel_cheque     = $sessionData['cancel_cheque'];
         $seller->status            = 0;
         $seller->kyc_status        = 0;
+        if ($phoneVerified && Schema::hasColumn($seller->getTable(), 'phone_verified_at')) {
+            $seller->phone_verified_at = now();
+        }
         $seller->save();
 
         Session::forget('seller_temp_data');
@@ -473,6 +511,73 @@ class SellerAuthController extends Controller
         }
 
         return back()->with('error', 'Invalid email or password');
+    }
+
+    /** Resend the sign-up WhatsApp code. */
+    public function resendSignupWhatsappOtp(Request $request)
+    {
+        $data = Session::get('seller_temp_data');
+        if (!$data || empty($data['wa_phone'])) {
+            return response()->json(['message' => 'Session expired. Please register again.'], 419);
+        }
+        $res = app(WhatsAppOtpService::class)->send('signup', $data['wa_phone'], $data['name'] ?? 'Seller', $request->ip());
+        return response()->json(['message' => $res['message'], 'retry_after' => $res['retry_after'] ?? null], $res['ok'] ? 200 : 429);
+    }
+
+    /** Login with WhatsApp OTP, step 1: send the code to a registered mobile. */
+    public function sendLoginOtp(Request $request)
+    {
+        $request->validate(['phone' => 'required|string|max:20']);
+        if (!WhatsAppSettings::otpEnabled()) {
+            return response()->json(['message' => 'WhatsApp login is not available right now. Please log in with email.'], 503);
+        }
+        $phone = AiSensyClient::normalizePhone($request->phone);
+        if (!$phone) {
+            return response()->json(['errors' => ['phone' => ['Enter a valid 10-digit mobile number.']]], 422);
+        }
+        $sellers = $this->sellersByPhone($phone);
+        if ($sellers->isEmpty()) {
+            return response()->json(['errors' => ['phone' => ['No seller account uses this mobile number.']]], 422);
+        }
+        if ($sellers->count() > 1) {
+            return response()->json(['errors' => ['phone' => ['More than one account uses this number. Please log in with email.']]], 422);
+        }
+        $res = app(WhatsAppOtpService::class)->send('login', $phone, $sellers->first()->name ?? 'Seller', $request->ip());
+        return response()->json(['message' => $res['message'], 'retry_after' => $res['retry_after'] ?? null], $res['ok'] ? 200 : 429);
+    }
+
+    /** Login with WhatsApp OTP, step 2: check the code and sign in. */
+    public function verifyLoginOtp(Request $request)
+    {
+        $request->validate(['phone' => 'required|string|max:20', 'otp' => 'required|string|max:8']);
+        $phone = AiSensyClient::normalizePhone($request->phone);
+        $sellers = $phone ? $this->sellersByPhone($phone) : collect();
+        if ($sellers->count() !== 1) {
+            return response()->json(['message' => 'Account not found for this number.'], 422);
+        }
+        $res = app(WhatsAppOtpService::class)->verify('login', $phone, trim($request->otp));
+        if (!$res['ok']) {
+            return response()->json(['errors' => ['otp' => [$res['message']]]], 422);
+        }
+
+        $seller = $sellers->first();
+        if (Schema::hasColumn($seller->getTable(), 'phone_verified_at') && empty($seller->phone_verified_at)) {
+            $seller->phone_verified_at = now();
+            $seller->save();
+        }
+        Auth::guard('seller')->login($seller);
+        $request->session()->regenerate();
+
+        return response()->json(['redirect' => route('seller.dashboard')]);
+    }
+
+    /** Sellers whose stored mobile matches (stored as 10 digits, +91…, 91…, with spaces etc.). */
+    private function sellersByPhone(string $normalized)
+    {
+        $ten = substr($normalized, -10);
+        return SellerList::where('phone_number', 'like', '%' . $ten)->get()
+            ->filter(fn ($s) => AiSensyClient::normalizePhone($s->phone_number) === $normalized)
+            ->values();
     }
 
     public function logout(Request $request)

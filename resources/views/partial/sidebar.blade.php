@@ -84,6 +84,16 @@
                 </div>
             </a>
         </li>
+        @if (Route::has('admin.whatsapp.index'))
+        <li class="menu @routeis('admin.whatsapp.index') active @endrouteis">
+            <a href="{{ route('admin.whatsapp.index') }}" class="dropdown-toggle">
+                <div class="">
+                    <i class="fa-brands fa-whatsapp"></i>
+                    <span>WhatsApp (AiSensy)</span>
+                </div>
+            </a>
+        </li>
+        @endif
         @if (Route::has('admin.fship.index'))
         <li class="menu @routeis('admin.fship.index') active @endrouteis">
             <a href="{{ route('admin.fship.index') }}" class="dropdown-toggle">

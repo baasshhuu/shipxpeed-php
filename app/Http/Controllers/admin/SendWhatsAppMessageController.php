@@ -268,7 +268,7 @@ class SendWhatsAppMessageController extends Controller
 
 
             $payload = [
-                "apiKey" => "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OTMwNmIxNTk2NTBhMGMwYmEyNmM1NyIsIm5hbWUiOiJTSElQWFBFRUQgTE9HSVNUSUNTICIsImFwcE5hbWUiOiJBaVNlbnN5IiwiY2xpZW50SWQiOiI2ODkzMDZiMTU5NjUwYTBjMGJhMjZjNTIiLCJhY3RpdmVQbGFuIjoiRlJFRV9GT1JFVkVSIiwiaWF0IjoxNzU0NDY1OTY5fQ.KrQxCgEKxGJLJ6KCLk6vmNrmakhhqnM19ycdHjskf84",
+                "apiKey" => \App\Services\WhatsApp\WhatsAppSettings::apiKey(),
                 "campaignName" => "marketingfor",
                 "destination" => $phoneNumber,
                 "userName" => "Customer",

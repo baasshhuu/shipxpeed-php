@@ -337,6 +337,11 @@
                         <i class="ti ti-file-invoice"></i>
                     </a>
                 </li>
+                <li class="nav-item {{ request()->routeIs(['seller.whatsapp.alerts*']) ? 'active' : '' }}">
+                    <a href="{{ route('seller.whatsapp.alerts') }}" class="nav-link" title="WhatsApp Alerts">
+                        <i class="ti ti-brand-whatsapp"></i>
+                    </a>
+                </li>
                 <li class="nav-item {{ request()->routeIs(['seller.channel.list*']) ? 'active' : '' }}">
                     <a href="{{ route('seller.channel.list') }}" class="nav-link" title="Channel">
                         <i class="fa fa-plug"></i>
@@ -573,6 +578,12 @@
                             <li class="nav-item {{ request()->routeIs(['notifications.index*']) ? 'active' : '' }}">
                                 <a href="{{ route('notifications.index') }}" class="nav-link d-flex align-items-center">
                                     <span class="ms-2">Shipping Notification</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item {{ request()->routeIs(['seller.whatsapp.alerts*']) ? 'active' : '' }}">
+                                <a href="{{ route('seller.whatsapp.alerts') }}" class="nav-link d-flex align-items-center">
+                                    <span class="ms-2">WhatsApp Alerts</span>
                                     <div class="nav-indicator"></div>
                                 </a>
                             </li>
@@ -862,6 +873,11 @@
                             <li class="nav-item {{ request()->routeIs(['notifications.index*']) ? 'active' : '' }}">
                                 <a href="{{ route('notifications.index') }}" class="nav-link d-flex align-items-center">
                                     <span class="ms-2">Shipping Notification</span>
+                                </a>
+                            </li>
+                            <li class="nav-item {{ request()->routeIs(['seller.whatsapp.alerts*']) ? 'active' : '' }}">
+                                <a href="{{ route('seller.whatsapp.alerts') }}" class="nav-link d-flex align-items-center">
+                                    <span class="ms-2">WhatsApp Alerts</span>
                                 </a>
                             </li>
                             <li class="nav-item {{ request()->routeIs(['seller.channel.list*']) ? 'active' : '' }}">

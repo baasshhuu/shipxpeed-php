@@ -38,7 +38,7 @@
                 <div class="error error-email"></div>
             </div>
             <div class="field">
-                <label for="phone_number">Mobile number</label>
+                <label for="phone_number">WhatsApp mobile number</label>
                 <div class="control has-prefix">
                     <span class="prefix">+91</span>
                     <input type="tel" name="phone_number" id="phone_number" class="input" placeholder="10-digit number" inputmode="numeric" autocomplete="tel-national" required>

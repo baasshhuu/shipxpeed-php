@@ -213,6 +213,11 @@ Route::get('/seller/verify-otp', function () {
 
 Route::post('/seller/verify-otp', [SellerAuthController::class, 'verifyOtp'])->name('seller.verify.otp');
 
+// WhatsApp OTP (AiSensy): resend sign-up code, login with OTP
+Route::post('/seller/verify-otp/whatsapp-resend', [SellerAuthController::class, 'resendSignupWhatsappOtp'])->middleware('throttle:6,1')->name('seller.verify.otp.wa.resend');
+Route::post('/seller-login/otp/send', [SellerAuthController::class, 'sendLoginOtp'])->middleware('throttle:6,1')->name('seller.login.otp.send');
+Route::post('/seller-login/otp/verify', [SellerAuthController::class, 'verifyLoginOtp'])->middleware('throttle:10,1')->name('seller.login.otp.verify');
+
 
 // Route::get('/seller/verify-otp', function () {
 //     return view('email.verify_otp');
@@ -479,6 +484,16 @@ Route::get('/invoice/print', [InvoiceController::class, 'printableView'])->name(
 
 
 });
+// Seller › WhatsApp order alerts (paid opt-in service, AiSensy)
+Route::middleware(['auth:seller'])->group(function () {
+    Route::get('/seller/whatsapp-alerts', [\App\Http\Controllers\selleradmin\WhatsAppAlertsController::class, 'index'])->name('seller.whatsapp.alerts');
+    Route::post('/seller/whatsapp-alerts', [\App\Http\Controllers\selleradmin\WhatsAppAlertsController::class, 'update'])->name('seller.whatsapp.alerts.update');
+});
+
+// Buyer NDR response page (link sent on WhatsApp; no login, secured by a random token)
+Route::get('/ndr/{token}', [\App\Http\Controllers\Frontend\NdrResponseController::class, 'show'])->where('token', '[A-Za-z0-9]{40}')->name('ndr.respond');
+Route::post('/ndr/{token}', [\App\Http\Controllers\Frontend\NdrResponseController::class, 'store'])->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:10,1')->name('ndr.respond.store');
+
 // Notification routes
 Route::get('/notifications', [ShippingNotificationController::class, 'index'])->name('notifications.index');
 Route::post('/notifications/toggle/{id}', [ShippingNotificationController::class, 'toggle'])->name('notifications.toggle');
