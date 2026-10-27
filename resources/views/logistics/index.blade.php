@@ -14,6 +14,11 @@
                                 Shipclues Settings
                             </a>
                         @endif
+                        @if (Route::has('admin.fship.index'))
+                            <a href="{{ route('admin.fship.index') }}" class="btn btn-outline-primary me-2">
+                                <i class="fa-solid fa-plug me-1"></i> Fship Settings
+                            </a>
+                        @endif
                         @if (Helper::userCan(104, 'can_add'))
                             <a href="{{ route('logistics.add') }}" class="btn btn-outline-secondary">
                                 <i class="fa fa-plus me-1"></i>
@@ -69,6 +74,9 @@
             <td>{{ $brand->created_at->format('d-m-Y') }}</td>
             <td>
                 {{-- <a href="{{ route('logistics.edit', $brand->id) }}" class="btn btn-sm btn-info">Edit</a> --}}
+                @if (Route::has('admin.fship.index') && ($brand->code ?? null) === 'fship')
+                    <a href="{{ route('admin.fship.index') }}" class="btn btn-sm btn-primary">Settings</a>
+                @endif
                 <a href="{{ route('logistics.delete', $brand->id) }}"
             onclick="return confirm('Are you sure you want to delete this item?')"
             class="btn btn-sm btn-danger">

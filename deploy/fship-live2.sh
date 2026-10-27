@@ -76,23 +76,7 @@ done
 for f in $NEW_FILES $OPTIONAL_NEW; do case "$f" in *.php) php -l "$f" >/dev/null 2>&1 || { echo "LINT FAIL: $f"; restore; };; esac; done
 echo "Lint OK"
 
-# 2b. sidebar link (best effort)
-if [ -f "$SIDEBAR" ] && ! grep -q "admin.fship.index" "$SIDEBAR"; then
-  php -r '
-    $f = $argv[1]; $s = file_get_contents($f);
-    $li = "        @if(\\Illuminate\\Support\\Facades\\Route::has(\x27admin.fship.index\x27))\n"
-        . "        <li class=\"menu @routeis(\x27admin.fship.index\x27) active @endrouteis\">\n"
-        . "            <a href=\"{{ route(\x27admin.fship.index\x27) }}\" class=\"dropdown-toggle\">\n"
-        . "                <div class=\"\">\n                    <i class=\"fa-solid fa-plug\"></i>\n"
-        . "                    <span>Fship Integration</span>\n                </div>\n            </a>\n        </li>\n        @endif\n";
-    foreach (["@routeis(\x27pricesetting\x27)", "@routeis(\x27zone.price.index\x27)"] as $a) {
-        $p = strpos($s, $a); if ($p === false) continue;
-        $ls = strrpos(substr($s, 0, $p), "\n"); $ls = $ls === false ? 0 : $ls + 1;
-        file_put_contents($f, substr($s, 0, $ls) . $li . substr($s, $ls)); echo "Sidebar link added\n"; exit(0);
-    }
-    fwrite(STDERR, "Sidebar anchor not found - open the page at /fship\n");
-  ' "$SIDEBAR"
-fi
+# 2b. (no sidebar link: Fship opens from Admin > Logistics Partners, see deploy/fship-menu.sh)
 
 # 3. migrate + boot checks
 chown -R www-data:www-data app config routes resources database storage bootstrap/cache 2>/dev/null

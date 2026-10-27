@@ -76,7 +76,7 @@
             </a>
         </li>
         <li class="sx-menu-heading">Couriers &amp; Rates</li>
-        <li class="menu @routeis('logistics') active @endrouteis">
+        <li class="menu {{ request()->routeIs('logistics', 'admin.fship.*') ? 'active' : '' }}">
             <a href="{{ route('logistics') }}" class="dropdown-toggle">
                 <div class="">
                     <i class="fa-solid fa-warehouse"></i>
@@ -90,16 +90,6 @@
                 <div class="">
                     <i class="fa-brands fa-whatsapp"></i>
                     <span>WhatsApp (AiSensy)</span>
-                </div>
-            </a>
-        </li>
-        @endif
-        @if (Route::has('admin.fship.index'))
-        <li class="menu @routeis('admin.fship.index') active @endrouteis">
-            <a href="{{ route('admin.fship.index') }}" class="dropdown-toggle">
-                <div class="">
-                    <i class="fa-solid fa-plug"></i>
-                    <span>Fship Integration</span>
                 </div>
             </a>
         </li>
