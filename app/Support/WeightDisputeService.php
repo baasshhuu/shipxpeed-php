@@ -37,6 +37,7 @@ class WeightDisputeService
         'heightcm' => 'h', 'height' => 'h', 'courierheightcm' => 'h',
         'manualchargeoptional' => 'manual', 'manualcharge' => 'manual', 'excesscharge' => 'manual', 'manualcharge₹' => 'manual',
         'noteoptional' => 'note', 'note' => 'note', 'remarks' => 'note', 'remark' => 'note',
+        'prooflinksoptional' => 'proof', 'prooflinks' => 'proof', 'prooflink' => 'proof', 'proof' => 'proof', 'photolink' => 'proof',
     ];
 
     /** Template heading (any reasonable spelling) -> field. */
@@ -52,7 +53,7 @@ class WeightDisputeService
         foreach ([
             'awb' => 'awb', 'tracking' => 'awb', 'manual' => 'manual', 'charged' => 'charged',
             'weighttype' => 'type', 'deadorvol' => 'type', 'length' => 'l', 'breadth' => 'b', 'width' => 'b',
-            'height' => 'h', 'note' => 'note', 'remark' => 'note',
+            'height' => 'h', 'note' => 'note', 'remark' => 'note', 'proof' => 'proof',
         ] as $prefix => $field) {
             if (str_starts_with($k, $prefix) || ($prefix === 'charged' && str_contains($k, 'charged'))) {
                 return $field;
@@ -63,7 +64,7 @@ class WeightDisputeService
 
     public static function templateHeadings(): array
     {
-        return ['AWB', 'Charged Weight (kg)', 'Weight Type (Dead / Volumetric)', 'Length (cm)', 'Breadth (cm)', 'Height (cm)', 'Manual Charge (optional)', 'Note (optional)'];
+        return ['AWB', 'Charged Weight (kg)', 'Weight Type (Dead / Volumetric)', 'Length (cm)', 'Breadth (cm)', 'Height (cm)', 'Manual Charge (optional)', 'Note (optional)', 'Proof Links (optional)'];
     }
 
     /**
@@ -90,7 +91,7 @@ class WeightDisputeService
         $seen = [];
         foreach ($rows as $n => $raw) {
             $line = $n + 2;
-            $r = ['awb' => null, 'charged' => null, 'type' => null, 'l' => null, 'b' => null, 'h' => null, 'manual' => null, 'note' => null];
+            $r = ['awb' => null, 'charged' => null, 'type' => null, 'l' => null, 'b' => null, 'h' => null, 'manual' => null, 'note' => null, 'proof' => null];
             foreach ($map as $i => $f) {
                 $r[$f] = is_string($raw[$i] ?? null) ? trim($raw[$i]) : ($raw[$i] ?? null);
             }
@@ -206,7 +207,12 @@ class WeightDisputeService
                 'extra_slabs' => max(0, $extra),
                 'excess_charge' => $calc['amount'],
                 'calc_method' => $calc['method'],
-                'admin_note' => $r['note'] ? mb_substr((string) $r['note'], 0, 500) : null,
+                'admin_note' => !empty($r['note']) ? mb_substr((string) $r['note'], 0, 500) : null,
+                'source' => $r['source'] ?? 'excel',
+                'courier_proofs' => WeightDisputes::cleanLinks(array_merge(
+                    (array) ($r['courier_proofs'] ?? []),
+                    preg_split('/[\s,]+/', (string) ($r['proof'] ?? ''), -1, PREG_SPLIT_NO_EMPTY)
+                )) ?: null,
                 'dispute_status' => WeightDisputes::CHARGED,
                 'deducted_at' => $now,
                 'dispute_deadline' => $now->copy()->addHours(WeightDisputes::windowHours()),
@@ -246,9 +252,9 @@ class WeightDisputeService
     }
 
     /** Seller rejects the charge and raises a dispute (files already validated). $files = [UploadedFile] */
-    public static function raise(WeightDisputes $d, string $remark, array $files): void
+    public static function raise(WeightDisputes $d, string $remark, array $files, array $links = []): void
     {
-        DB::transaction(function () use ($d, $remark, $files) {
+        DB::transaction(function () use ($d, $remark, $files, $links) {
             $d = WeightDisputes::whereKey($d->id)->lockForUpdate()->firstOrFail();
             if (!$d->canRaise()) {
                 throw new \RuntimeException($d->lockedReason());
@@ -269,6 +275,7 @@ class WeightDisputeService
             $d->update([
                 'seller_remark' => mb_substr($remark, 0, 1000),
                 'seller_proofs' => $proofs,
+                'seller_links' => WeightDisputes::cleanLinks($links) ?: null,
                 'raised_at' => now(),
                 'dispute_status' => WeightDisputes::DISPUTED,
             ]);

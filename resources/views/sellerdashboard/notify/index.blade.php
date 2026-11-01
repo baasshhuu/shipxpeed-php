@@ -128,7 +128,8 @@
 .nf-skel{padding:40px;text-align:center;color:#6b7280;font-size:13px}
 </style>
 
-<div class="pc-container nf">
+@includeWhen(view()->exists('sellerdashboard.vas._style'), 'sellerdashboard.vas._style')
+<div class="pc-container nf vas">
 <div class="pc-content sxd">{{-- "sxd": keeps the global theme from repainting this page --}}
 
     <div class="nf-crumb"><a href="{{ url('/seller/dashboard') }}">Dashboard</a><i class="ti ti-chevron-right"></i><span>Tools</span><i class="ti ti-chevron-right"></i><span style="color:var(--nf-fg)">Notify</span></div>
@@ -137,6 +138,9 @@
     @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
 
     <div class="nf-wrap">
+        @if(Route::has('vas.show'))
+            @include('sellerdashboard.vas._nav', ['current' => 'notify'])
+        @else
         <aside class="nf-side">
             <h6>Buyer communication</h6>
             <a href="{{ route('notifications.index') }}" class="on"><i class="ti ti-bell-ringing"></i> Notify</a>
@@ -145,6 +149,7 @@
             @endif
             <a href="{{ route('notifications.index', ['tab' => 'email']) }}#nfLog" data-go="email"><i class="ti ti-mail"></i> Email activity</a>
         </aside>
+        @endif
 
         <section class="nf-main">
             <div class="nf-tabs" role="tablist">

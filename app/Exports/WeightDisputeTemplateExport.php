@@ -41,7 +41,7 @@ class WeightDisputeTemplateSheet implements FromArray, WithHeadings, WithTitle, 
 
     public function styles(Worksheet $sheet)
     {
-        $sheet->getStyle('A1:H1')->applyFromArray([
+        $sheet->getStyle('A1:I1')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1F3A68']],
         ]);
@@ -53,7 +53,7 @@ class WeightDisputeTemplateSheet implements FromArray, WithHeadings, WithTitle, 
 
     public function columnWidths(): array
     {
-        return ['A' => 22, 'B' => 20, 'C' => 30, 'D' => 13, 'E' => 13, 'F' => 13, 'G' => 22, 'H' => 34];
+        return ['A' => 22, 'B' => 20, 'C' => 30, 'D' => 13, 'E' => 13, 'F' => 13, 'G' => 22, 'H' => 34, 'I' => 40];
     }
 }
 
@@ -70,6 +70,7 @@ class WeightDisputeHelpSheet implements FromArray, WithTitle, WithColumnWidths, 
             ['Length / Breadth / Height (cm)', 'Optional. Courier-measured box size. Shown to the seller. For Volumetric with no charged weight, weight = L × B × H ÷ 5000.'],
             ['Manual Charge (optional)', 'Leave empty: the panel calculates the excess from the seller\'s rate card (extra 500 g slabs + 18% GST). Fill a ₹ amount only to override.'],
             ['Note (optional)', 'Shown to the seller with the charge.'],
+            ['Proof Links (optional)', 'Links to the courier\'s weighing photos / videos (Drive, image or video URLs). Separate several links with a space. Shown to the seller with the charge.'],
             ['', ''],
             ['What happens on upload', 'For every AWB with weight above the billed slab, the excess is debited from the seller wallet immediately.'],
             ['', 'The same AWB is never charged twice. Rows with no excess are skipped and listed in the upload result.'],

@@ -19,13 +19,20 @@ class XpeedServiceProvider extends ServiceProvider
         }
 
         if ($this->app->runningInConsole()) {
-            $this->commands([\App\Console\Commands\XpeedServices::class]);
+            $this->commands(array_filter([\App\Console\Commands\XpeedServices::class, class_exists(\App\Console\Commands\WeightAutoFetchCommand::class) ? \App\Console\Commands\WeightAutoFetchCommand::class : null]));
             $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
                 $schedule->command('xpeed:services')
                     ->hourlyAt(7)
                     ->withoutOverlapping(50)
                     ->runInBackground()
                     ->appendOutputTo(storage_path('logs/xpeed-services.log'));
+                if (class_exists(\App\Console\Commands\WeightAutoFetchCommand::class)) {
+                    $schedule->command('weight:auto-fetch')
+                        ->hourlyAt(23)
+                        ->withoutOverlapping(55)
+                        ->runInBackground()
+                        ->appendOutputTo(storage_path('logs/weight-auto-fetch.log'));
+                }
             });
         }
     }

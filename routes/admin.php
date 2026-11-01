@@ -490,6 +490,8 @@ Route::post('/SendWhatsApp-send-message', [\App\Http\Controllers\admin\SendWhats
         Route::get('weight-dispute-template', 'template')->name('weight.dispute.template')->middleware('isAllow:104,can_view');
         Route::post('weight-dispute/{id}/review', 'review')->name('weight.dispute.review')->middleware('isAllow:104,can_view');
         Route::get('weight-dispute/{id}/proof/{n}', 'proof')->name('weight.dispute.proof')->middleware('isAllow:104,can_view');
+        Route::post('weight-dispute/auto-fetch', 'autoFetch')->name('weight.dispute.autofetch')->middleware('isAllow:104,can_view');
+        Route::post('weight-dispute/{id}/proof-links', 'proofLinks')->name('weight.dispute.links')->middleware('isAllow:104,can_view');
 
     });
 

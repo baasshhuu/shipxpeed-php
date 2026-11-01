@@ -38,10 +38,13 @@ class WeightDisputes extends Model
         'extra_slabs', 'excess_charge', 'calc_method', 'admin_note', 'dispute_status', 'deducted_at',
         'dispute_deadline', 'debit_recharge_id', 'seller_remark', 'seller_proofs', 'raised_at',
         'admin_remark', 'reviewed_at', 'reviewed_by', 'refund_recharge_id', 'refunded_at', 'upload_batch',
+        'source', 'courier_proofs', 'seller_links',
     ];
 
     protected $casts = [
         'seller_proofs' => 'array',
+        'courier_proofs' => 'array',
+        'seller_links' => 'array',
         'deducted_at' => 'datetime',
         'dispute_deadline' => 'datetime',
         'raised_at' => 'datetime',
@@ -134,12 +137,13 @@ class WeightDisputes extends Model
         }
         $timeline = [];
         if ($this->deducted_at) {
-            $timeline[] = ['at' => $this->deducted_at->format('d M Y, h:i A'), 'text' => '₹' . number_format((float) $this->excess_charge, 2) . ' excess weight charge debited from wallet'];
+            $timeline[] = ['at' => $this->deducted_at->format('d M Y, h:i A'), 'text' => ($this->source === 'auto' ? 'Courier re-weighed the parcel (fetched automatically) — ' : '') . '₹' . number_format((float) $this->excess_charge, 2) . ' excess weight charge debited from wallet'];
         }
         if ($this->raised_at) {
+            $nLinks = count((array) $this->seller_links);
             $timeline[] = ['at' => $this->raised_at->format('d M Y, h:i A'), 'text' => $this->dispute_status === self::SELLER_ACCEPTED
                 ? 'Charge accepted by seller — case closed'
-                : 'Charge rejected by seller — dispute raised with ' . self::proofCount($proofs)];
+                : 'Charge rejected by seller — dispute raised with ' . self::proofCount($proofs) . ($nLinks ? ' and ' . $nLinks . ' link(s)' : '')];
         }
         if ($this->reviewed_at) {
             $timeline[] = ['at' => $this->reviewed_at->format('d M Y, h:i A'), 'text' => $this->dispute_status === self::ACCEPTED
@@ -180,7 +184,32 @@ class WeightDisputes extends Model
             'seller_remark' => $this->seller_remark,
             'admin_remark' => $this->admin_remark,
             'proofs' => $proofs,
+            'source' => $this->source ?: 'excel',
+            'courier_proofs' => self::cleanLinks((array) $this->courier_proofs),
+            'seller_links' => self::cleanLinks((array) $this->seller_links),
             'timeline' => $timeline,
         ];
+    }
+
+    /** Keep only http(s) links; each as ['url', 'kind' => image|video|link, 'label']. */
+    public static function cleanLinks(array $list): array
+    {
+        $out = [];
+        foreach ($list as $item) {
+            $url = is_array($item) ? ($item['url'] ?? '') : (string) $item;
+            $url = trim($url);
+            if (!preg_match('~^https?://~i', $url) || !filter_var($url, FILTER_VALIDATE_URL)) {
+                continue;
+            }
+            $path = strtolower((string) parse_url($url, PHP_URL_PATH));
+            $kind = preg_match('/\.(jpe?g|png|webp|gif|heic)$/', $path) ? 'image'
+                : (preg_match('/\.(mp4|mov|webm|3gp|mkv)$/', $path) ? 'video' : 'link');
+            $out[] = [
+                'url' => $url,
+                'kind' => is_array($item) && !empty($item['kind']) ? $item['kind'] : $kind,
+                'label' => is_array($item) && !empty($item['label']) ? (string) $item['label'] : (string) parse_url($url, PHP_URL_HOST),
+            ];
+        }
+        return array_slice($out, 0, 10);
     }
 }

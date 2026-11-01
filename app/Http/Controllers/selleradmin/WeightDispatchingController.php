@@ -137,6 +137,15 @@ class WeightDispatchingController extends Controller
             return $this->reply($request, false, $d->lockedReason());
         }
 
+        $links = array_values(array_unique(preg_split('/[\s,]+/', (string) $request->input('links'), -1, PREG_SPLIT_NO_EMPTY)));
+        $badLink = collect($links)->first(fn ($u) => !preg_match('~^https?://~i', $u) || !filter_var($u, FILTER_VALIDATE_URL));
+        if ($badLink) {
+            return $this->reply($request, false, 'This link is not valid: ' . mb_substr($badLink, 0, 80) . ' (it must start with https://)');
+        }
+        if (count($links) > 5) {
+            return $this->reply($request, false, 'Share at most 5 links.');
+        }
+
         $request->validate([
             'remark' => 'required|string|min:10|max:1000',
             'images' => 'nullable|array|max:' . self::MAX_IMAGES,
@@ -158,12 +167,12 @@ class WeightDispatchingController extends Controller
         if ($request->hasFile('video')) {
             $files[] = $request->file('video');
         }
-        if (!$files) {
-            return $this->reply($request, false, 'Add at least one photo or the video as proof.');
+        if (!$files && !$links) {
+            return $this->reply($request, false, 'Add at least one photo or the video as proof, or share a link to them.');
         }
 
         try {
-            WeightDisputeService::raise($d, $request->remark, $files);
+            WeightDisputeService::raise($d, $request->remark, $files, $links);
         } catch (\Throwable $e) {
             return $this->reply($request, false, $e->getMessage());
         }

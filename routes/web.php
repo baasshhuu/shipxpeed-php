@@ -575,3 +575,6 @@ Route::get('/dashboard-data', [App\Http\Controllers\selleradmin\Dashboard::class
 
 // Seller › Notify (keep last: replaces the old /notifications page)
 require __DIR__ . '/notify_web.php';
+
+// Seller › Value Added Services hub
+require __DIR__ . '/vas_web.php';

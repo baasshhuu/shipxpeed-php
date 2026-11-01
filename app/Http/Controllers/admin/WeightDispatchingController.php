@@ -73,7 +73,41 @@ class WeightDispatchingController extends Controller
             'counts' => $counts,
             'totals' => $totals,
             'windowHours' => WeightDisputes::windowHours(),
+            'auto' => class_exists(\App\Support\WeightAutoFetch::class) ? \App\Support\WeightAutoFetch::stats() : ['ready' => false],
         ]);
+    }
+
+    /** Auto-fetch: switch on/off, or run now. */
+    public function autoFetch(Request $request)
+    {
+        $data = $request->validate(['action' => 'required|in:on,off,run']);
+        if (!\App\Support\WeightAutoFetch::ready()) {
+            return back()->with('error', 'Auto-fetch is not installed yet (run the weight dispute installer).');
+        }
+        if ($data['action'] !== 'run') {
+            \App\Support\WeightAutoFetch::setEnabled($data['action'] === 'on');
+            return back()->with('success', $data['action'] === 'on'
+                ? 'Auto-fetch is ON: courier re-weighs are checked every hour and excess is debited automatically.'
+                : 'Auto-fetch is OFF. Use the Excel upload to charge weight discrepancies.');
+        }
+        @set_time_limit(300);
+        $r = \App\Support\WeightAutoFetch::run(60, true);
+        return back()->with($r['charged'] ? 'success' : 'info', 'Checked ' . $r['checked'] . ' shipment(s) with the courier: '
+            . $r['charged'] . ' charged (₹' . number_format($r['amount'], 2) . '), ' . $r['within_slab'] . ' within slab, '
+            . $r['no_data'] . ' not re-weighed yet' . ($r['errors'] ? ', ' . $r['errors'] . ' error(s)' : '') . '.');
+    }
+
+    /** Admin adds courier proof links (photos / videos) to a charge; the seller sees them. */
+    public function proofLinks(Request $request, $id)
+    {
+        $d = WeightDisputes::findOrFail($id);
+        $links = preg_split('/[\s,]+/', (string) $request->input('links'), -1, PREG_SPLIT_NO_EMPTY);
+        $clean = WeightDisputes::cleanLinks($links);
+        if (!$clean) {
+            return back()->with('error', 'Paste at least one valid link starting with https://');
+        }
+        $d->update(['courier_proofs' => WeightDisputes::cleanLinks(array_merge((array) $d->courier_proofs, $clean))]);
+        return back()->with('success', count($clean) . ' proof link(s) added to AWB ' . $d->awb . '. The seller can see them now.');
     }
 
     private function filtered(Request $request, string $tab)

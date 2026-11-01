@@ -61,6 +61,11 @@
     .wds-proofs { display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:8px; }
     .wds-proofs a, .wds-proofs video { display:block; border-radius:10px; overflow:hidden; background:#000; border:1px solid var(--line); }
     .wds-proofs img, .wds-proofs video { width:100%; height:120px; object-fit:cover; display:block; }
+    .wds-links { display:flex; flex-direction:column; gap:6px; }
+    .wds-links a { display:flex; gap:8px; align-items:center; padding:7px 10px; border:1px solid var(--line); border-radius:8px; text-decoration:none; word-break:break-all; font-size:13px; }
+    .wds-links img { width:56px; height:56px; object-fit:cover; border-radius:6px; flex:none; }
+    .wds-auto { display:inline-block; padding:1px 7px; border-radius:6px; font-size:11px; font-weight:700; background:rgba(79,140,255,.15); color:#6ea1ff; margin-left:6px; text-transform:none; letter-spacing:0; }
+    .wds-linkbox { width:100%; min-height:60px; margin-top:8px; }
     .wds-tl { list-style:none; padding:0; margin:0; }
     .wds-tl li { position:relative; padding:0 0 10px 18px; font-size:13px; }
     .wds-tl li:before { content:''; position:absolute; left:3px; top:6px; width:8px; height:8px; border-radius:50%; background:var(--pri); }
@@ -207,6 +212,9 @@
     const money = n => '₹' + Number(n || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     const size = b => b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';
     const cap = s => (s || '').replace(/^./, c => c.toUpperCase());
+    const linkList = list => '<div class="wds-links">' + list.map(l => l.kind === 'image'
+        ? `<a href="${esc(l.url)}" target="_blank" rel="noopener"><img src="${esc(l.url)}" alt="" loading="lazy"> ${esc(l.label)}</a>`
+        : `<a href="${esc(l.url)}" target="_blank" rel="noopener"><i class="fa-solid fa-${l.kind === 'video' ? 'video' : 'link'}"></i> ${esc(l.label)} — ${esc(l.url)}</a>`).join('') + '</div>';
     const ext = f => (f.name.split('.').pop() || '').toLowerCase();
     let images = [], video = null, urls = [];
 
@@ -241,12 +249,14 @@
             ${kv('Amount debited', '<b>' + money(r.excess_charge) + '</b>')}
         </div>`;
         if (r.admin_note) h += `<div class="wds-sec">Note from Shipxpeed</div><div class="wds-note admin">${esc(r.admin_note)}</div>`;
+        if (r.courier_proofs && r.courier_proofs.length) h += `<div class="wds-sec">Courier's proof${r.source === 'auto' ? '<span class="wds-auto">From courier</span>' : ''}</div>` + linkList(r.courier_proofs);
         if (r.seller_remark) h += `<div class="wds-sec">Your reason for rejecting</div><div class="wds-note">${esc(r.seller_remark)}</div>`;
         if (r.proofs && r.proofs.length) {
             h += `<div class="wds-sec">Your proof</div><div class="wds-proofs">` + r.proofs.map(p => p.type === 'video'
                 ? `<video src="${esc(p.url)}" controls preload="metadata"></video>`
                 : `<a href="${esc(p.url)}" target="_blank" rel="noopener"><img src="${esc(p.url)}" alt="${esc(p.name)}" loading="lazy"></a>`).join('') + '</div>';
         }
+        if (r.seller_links && r.seller_links.length) h += `<div class="wds-sec">Links you shared</div>` + linkList(r.seller_links);
         if (r.admin_remark) h += `<div class="wds-sec">Review note</div><div class="wds-note admin">${esc(r.admin_remark)}</div>`;
         h += `<div class="wds-sec">Timeline</div><ul class="wds-tl">` + (r.timeline || []).map(t => `<li>${esc(t.text)}<small>${esc(t.at)}</small></li>`).join('') + '</ul>';
 
@@ -281,6 +291,7 @@
                     </div>
                 </div>
                 <div class="wds-thumbs" id="wdsThumbs"></div>
+                <textarea name="links" id="wdsLinks" class="wds-linkbox" maxlength="2000" placeholder="Or share links to your photos / videos (Google Drive, YouTube, Dropbox…) — one per line, up to 5"></textarea>
                 <div class="wds-err" id="wdsErr"></div>
                 <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
                     <button type="button" class="wds-btn ghost" onclick="wdsPick(null)">Back</button>
@@ -346,7 +357,11 @@
         const remark = document.getElementById('wdsRemark').value.trim();
         const bad = images.map(f => [f, problem(f, false)]).concat(video ? [[video, problem(video, true)]] : []).find(x => x[1]);
         if (remark.length < 10) { err.textContent = 'Describe why the weight is wrong (at least 10 characters).'; document.getElementById('wdsRemark').focus(); return; }
-        if (!images.length && !video) { err.textContent = 'Add at least one photo or the video as proof.'; return; }
+        const links = document.getElementById('wdsLinks').value.split(/[\s,]+/).filter(Boolean);
+        const badLink = links.find(u => !/^https?:\/\/\S+\.\S+/i.test(u));
+        if (badLink) { err.textContent = 'This link is not valid: ' + badLink + ' (it must start with https://)'; return; }
+        if (links.length > 5) { err.textContent = 'Share at most 5 links.'; return; }
+        if (!images.length && !video && !links.length) { err.textContent = 'Add at least one photo or the video as proof, or share a link to them.'; return; }
         if (bad) { err.textContent = bad[0].name + ' is ' + bad[1] + '. Remove it to continue.'; return; }
 
         const form = e.target, fd = new FormData(form);

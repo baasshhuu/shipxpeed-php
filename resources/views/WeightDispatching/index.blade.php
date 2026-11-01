@@ -4,8 +4,13 @@
 <style>
     .wd { --line: var(--sx-border, #2a3757); --card: var(--sx-surface-2, #18223a); --muted: var(--sx-muted, #8592ad); --pri: var(--sx-primary, #4f8cff); }
     .wd .muted { color: var(--muted); font-size: 12px; }
-    .wd-steps { display:grid; grid-template-columns: 1fr 1.4fr; gap:12px; margin-bottom:16px; }
+    .wd-steps { display:grid; grid-template-columns: 1fr 1.4fr 1.4fr; gap:12px; margin-bottom:16px; }
+    @media (max-width: 1200px) { .wd-steps { grid-template-columns: 1fr 1fr; } }
     @media (max-width: 900px) { .wd-steps { grid-template-columns: 1fr; } }
+    .wd-auto-on { color:#22c55e; font-weight:700; } .wd-auto-off { color:#f59e0b; font-weight:700; }
+    .wd-links { display:flex; flex-direction:column; gap:6px; }
+    .wd-links a { display:flex; gap:8px; align-items:center; padding:7px 10px; border:1px solid var(--line); border-radius:8px; text-decoration:none; word-break:break-all; font-size:13px; }
+    .wd-src { display:inline-block; padding:1px 7px; border-radius:6px; font-size:11px; font-weight:700; background:rgba(79,140,255,.15); color:#6ea1ff; margin-left:6px; }
     .wd-step { border:1px solid var(--line); background:var(--card); border-radius:12px; padding:14px 16px; }
     .wd-step h6 { margin:0 0 4px; font-weight:700; }
     .wd-step .n { display:inline-flex; width:22px; height:22px; border-radius:50%; background:var(--pri); color:#fff; font-size:12px; align-items:center; justify-content:center; margin-right:6px; }
@@ -77,6 +82,7 @@
     <div class="card-body">
         @if(session('success'))<div class="alert alert-success py-2">{{ session('success') }}</div>@endif
         @if(session('error'))<div class="alert alert-danger py-2">{{ session('error') }}</div>@endif
+        @if(session('info'))<div class="alert alert-info py-2">{{ session('info') }}</div>@endif
         @if($errors->any())<div class="alert alert-danger py-2">{{ $errors->first() }}</div>@endif
 
         <div class="wd-steps">
@@ -93,6 +99,36 @@
                     <input class="form-control form-control-sm" type="file" name="excel_file" accept=".xlsx,.xls,.csv" required>
                     <button class="btn btn-primary btn-sm" type="submit"><i class="fa fa-upload me-1"></i> Upload &amp; charge</button>
                 </form>
+            </div>
+            <div class="wd-step">
+                <h6><span class="n">3</span>Auto-fetch from courier
+                    @if(!empty($auto['ready']))
+                        <span class="{{ $auto['enabled'] ? 'wd-auto-on' : 'wd-auto-off' }}" style="font-size:12px;margin-left:6px">{{ $auto['enabled'] ? 'ON' : 'OFF' }}</span>
+                    @endif
+                </h6>
+                @if(empty($auto['ready']))
+                    <div class="muted">Not installed yet — run the weight dispute installer on the server.</div>
+                @else
+                    <div class="muted">Every hour the panel asks the courier for its re-weighed weight ({{ $auto['shipclues'] ? 'Shipclues' : 'Shipclues: no API key' }}{{ $auto['delhivery'] ? ', Delhivery' : '' }}) and debits the excess automatically, with the courier's photos attached. Other couriers: use the Excel upload.</div>
+                    <div class="muted mt-1">
+                        {{ $auto['auto_count'] }} auto charge(s) · ₹{{ number_format($auto['auto_charged'], 2) }}
+                        @if(!empty($auto['last'])) · last run {{ \Illuminate\Support\Carbon::parse($auto['last']['at'])->diffForHumans() }} ({{ $auto['last']['checked'] }} checked, {{ $auto['last']['charged'] }} charged)@endif
+                    </div>
+                    @if(!empty($auto['needs_review']) && count($auto['needs_review']))
+                        <details class="mt-1"><summary class="muted" style="cursor:pointer;color:#f59e0b">{{ count($auto['needs_review']) }} reading(s) look wrong — not charged</summary>
+                            <ul class="muted small mb-0">@foreach($auto['needs_review'] as $nr)<li>{{ $nr->awb }}: {{ $nr->message }}</li>@endforeach</ul>
+                        </details>
+                    @endif
+                    <form method="POST" action="{{ route('weight.dispute.autofetch') }}" class="d-flex gap-2 mt-2 flex-wrap">
+                        @csrf
+                        <button name="action" value="run" class="btn btn-primary btn-sm" onclick="this.innerHTML='Checking couriers…'"><i class="fa fa-rotate me-1"></i> Fetch now</button>
+                        @if($auto['enabled'])
+                            <button name="action" value="off" class="btn btn-outline-secondary btn-sm">Turn off</button>
+                        @else
+                            <button name="action" value="on" class="btn btn-outline-success btn-sm">Turn on</button>
+                        @endif
+                    </form>
+                @endif
             </div>
         </div>
 
@@ -187,6 +223,10 @@
 (function () {
     const ROWS = @json($rows->keyBy('id'));
     const REVIEW_URL = @json(route('weight.dispute.review', ['id' => '__ID__']));
+    const LINKS_URL = @json(route('weight.dispute.links', ['id' => '__ID__']));
+    const linkList = (list) => '<div class="wd-links">' + list.map(l => l.kind === 'image'
+        ? `<a href="${esc(l.url)}" target="_blank" rel="noopener"><img src="${esc(l.url)}" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:6px"> ${esc(l.label)}</a>`
+        : `<a href="${esc(l.url)}" target="_blank" rel="noopener"><i class="fa fa-${l.kind === 'video' ? 'video' : 'link'}"></i> ${esc(l.label)} — ${esc(l.url)}</a>`).join('') + '</div>';
     const CSRF = @json(csrf_token());
     const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const kv = (k, v) => `<div class="wd-kv"><span>${esc(k)}</span><b>${v}</b></div>`;
@@ -223,6 +263,14 @@
                 ? `<video src="${esc(p.url)}" controls preload="metadata"></video>`
                 : `<a href="${esc(p.url)}" target="_blank" rel="noopener"><img src="${esc(p.url)}" alt="${esc(p.name)}" loading="lazy"></a>`).join('') + '</div>';
         }
+        if (r.seller_links && r.seller_links.length) h += `<div class="wd-sec">Seller's shared links (${r.seller_links.length})</div>` + linkList(r.seller_links);
+        h += `<div class="wd-sec">Courier's proof${r.source === 'auto' ? '<span class="wd-src">AUTO-FETCHED</span>' : ''}</div>`
+            + (r.courier_proofs && r.courier_proofs.length ? linkList(r.courier_proofs) : '<div class="muted">No courier photos yet.</div>')
+            + `<form method="POST" action="${esc(LINKS_URL.replace('__ID__', r.id))}" class="d-flex gap-2 mt-2">
+                <input type="hidden" name="_token" value="${esc(CSRF)}">
+                <input type="text" name="links" class="form-control form-control-sm" placeholder="Paste courier photo / video links (Drive, image URL…) to share with the seller">
+                <button class="btn btn-outline-primary btn-sm" type="submit">Share</button>
+            </form>`;
         if (r.admin_remark) h += `<div class="wd-sec">Admin decision note</div><div class="muted">${esc(r.admin_remark)}</div>`;
         h += `<div class="wd-sec">Timeline</div><ul class="wd-tl">` + (r.timeline || []).map(t => `<li>${esc(t.text)}<small>${esc(t.at)}</small></li>`).join('') + '</ul>';
 

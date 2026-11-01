@@ -108,8 +108,11 @@ fi
 for svc in $(systemctl list-units --type=service --no-legend 2>/dev/null | awk '{print $1}' | grep -E '^php.*fpm'); do systemctl reload "$svc" 2>/dev/null && echo "reloaded $svc"; done
 
 # Open the admin and seller pages inside the app and check they load
-OUT=$(php artisan tinker --execute='
-$k = app(Illuminate\Contracts\Http\Kernel::class);
+# (plain php, not tinker: tinker's psysh can't always write its config dir on this server)
+OUT=$(php -r '
+require "vendor/autoload.php"; $app = require "bootstrap/app.php";
+$k = $app->make(Illuminate\Contracts\Http\Kernel::class); $k->bootstrap();
+app("router")->getRoutes()->refreshNameLookups();
 $chk = function ($label, $url) use ($k) {
   $r = $k->handle(Illuminate\Http\Request::create($url));
   $c = $r->getStatusCode();
