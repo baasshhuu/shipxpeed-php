@@ -75,7 +75,7 @@
     <h3>How it works</h3>
     <div class="vas-feat">
         <div><i class="ti ti-truck-delivery"></i><b>1. Order delivered</b>Courier collects cash from your buyer.</div>
-        <div><i class="ti ti-calendar-bolt"></i><b>2. D+2 / D+3 / D+4</b>That many days after delivery, the COD amount is due to you.</div>
+        <div><i class="ti ti-calendar"></i><b>2. D+2 / D+3 / D+4</b>That many days after delivery, the COD amount is due to you.</div>
         <div><i class="ti ti-building-bank"></i><b>3. Paid to your bank</b>Minus the plan fee. See every payout under COD remittance.</div>
     </div>
 </div>

@@ -27,7 +27,7 @@
         el.removeAttribute('title');
         el.classList.remove('is-active', 'active');
         if (on) { el.classList.add(ref.classList.contains('sx-nav-link') ? 'is-active' : 'active'); el.setAttribute('aria-current', 'page'); }
-        var icon = el.querySelector('i'); if (icon) icon.className = 'ti ti-sparkles';
+        var icon = el.querySelector('i'); if (icon) icon.className = 'ti ti-layout-grid';
         var label = el.querySelector('span');
         if (label) label.textContent = 'Value added services'; else el.textContent = 'Value added services';
 
@@ -38,6 +38,9 @@
         } else {
             ref.parentNode.insertBefore(el, ref);
         }
+
+        // on a Value added services page, only this entry is highlighted
+        if (on) links.forEach(function (a) { if (a !== el) { a.classList.remove('is-active', 'active'); var l = a.closest('li'); if (l && side.contains(l)) l.classList.remove('active'); } });
 
         // hide the individual entries that now live inside Value added services
         links.forEach(function (a) {

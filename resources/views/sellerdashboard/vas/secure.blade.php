@@ -56,8 +56,8 @@
 <div class="vas-card">
     <h3>What's covered</h3>
     <div class="vas-feat">
-        <div><i class="ti ti-package-off"></i><b>Lost in transit</b>Courier loses the parcel or it never reaches the buyer.</div>
-        <div><i class="ti ti-box-off"></i><b>Damaged</b>Parcel arrives broken or crushed — add unboxing photos / video.</div>
+        <div><i class="ti ti-package"></i><b>Lost in transit</b>Courier loses the parcel or it never reaches the buyer.</div>
+        <div><i class="ti ti-box"></i><b>Damaged</b>Parcel arrives broken or crushed — add unboxing photos / video.</div>
         <div><i class="ti ti-list-check"></i><b>Missing items</b>Box delivered with items missing — weight proof helps.</div>
     </div>
 </div>

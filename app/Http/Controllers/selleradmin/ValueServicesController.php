@@ -30,7 +30,7 @@ class ValueServicesController extends Controller
         'bulk'           => ['Bulk actions', 'ti ti-stack-2'],
         'notify'         => ['Shipping notifications', 'ti ti-bell-ringing'],
         'delivery-boost' => ['Delivery Boost', 'ti ti-rocket'],
-        'brand-boost'    => ['Brand Boost', 'ti ti-sparkles'],
+        'brand-boost'    => ['Brand Boost', 'ti ti-map-pin'],
     ];
 
     /** Tabs that are full pages elsewhere: key => route name. */
