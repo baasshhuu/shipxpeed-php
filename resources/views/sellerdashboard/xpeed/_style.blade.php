@@ -36,11 +36,26 @@
         'xp.protection' => ['Protection & early COD', 'ti ti-shield-check'],
     ];
 @endphp
+@if(view()->exists('sellerdashboard.vas._nav') && \Illuminate\Support\Facades\Route::has('vas.show'))
+    {{-- Value added services: one left menu for every service + Control Center page --}}
+    @include('sellerdashboard.vas._style')
+    <style>
+        .xp { --v-bg:var(--sx-surface,#0f1626); --v-raised:var(--sx-raised,#152036); --v-line:var(--sx-line,rgba(196,206,235,.09)); --v-line2:var(--sx-line-2,rgba(196,206,235,.16)); --v-fg:var(--sx-fg,#e9ecf5); --v-fg2:var(--sx-fg-2,#a3abc2); --v-fg3:var(--sx-fg-3,#6d7690); --v-blue:var(--sx-blue,#3b7bff); --v-blue-bg:var(--sx-blue-bg,rgba(59,123,255,.14)); }
+        @media (min-width: 992px) {
+            .xp .pc-content:has(> .vas-side) { display:grid; grid-template-columns:230px minmax(0,1fr); column-gap:18px; align-items:start; }
+            .xp .pc-content:has(> .vas-side) > * { grid-column:2; min-width:0; }
+            .xp .pc-content:has(> .vas-side) > .vas-side { grid-column:1; grid-row:1 / span 60; }
+        }
+        @media (max-width: 991px) { .xp .vas-side { margin-bottom:14px; } }
+    </style>
+    @include('sellerdashboard.vas._nav')
+@else
 <div class="xp-tabs">
     @foreach($xpTabs as $r => [$label, $icon])
         <a href="{{ route($r) }}" class="{{ request()->routeIs($r . '*') ? 'on' : '' }}"><i class="{{ $icon }}"></i> {{ $label }}</a>
     @endforeach
 </div>
+@endif
 {{-- success / error flashes are shown as toasts by the seller layout footer --}}
 @if($errors->any())<div class="alert alert-danger mb-3">{{ $errors->first() }}</div>@endif
 @unless($xpReady ?? true)<div class="alert alert-warning">This section is being set up on your account. Please check back shortly.</div>@endunless

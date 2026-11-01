@@ -23,12 +23,53 @@ class ValueServicesController extends Controller
 {
     public const TABS = [
         'rto-score'      => ['RTO Score', 'ti ti-shield-x'],
+        'ndr'            => ['NDR', 'ti ti-alert-triangle'],
         'early-cod'      => ['Early COD', 'ti ti-cash'],
-        'secure'         => ['Secure Shipments', 'ti ti-shield-check'],
+        'secure'         => ['Protection', 'ti ti-shield-check'],
+        'couriers'       => ['Courier preferences', 'ti ti-truck'],
+        'bulk'           => ['Bulk actions', 'ti ti-stack-2'],
+        'notify'         => ['Shipping notifications', 'ti ti-bell-ringing'],
         'delivery-boost' => ['Delivery Boost', 'ti ti-rocket'],
         'brand-boost'    => ['Brand Boost', 'ti ti-sparkles'],
-        'notify'         => ['Notify', 'ti ti-bell-ringing'],
     ];
+
+    /** Tabs that are full pages elsewhere: key => route name. */
+    public const LINKED = [
+        'ndr' => 'xp.ndr',
+        'couriers' => 'xp.couriers',
+        'bulk' => 'xp.bulk',
+        'notify' => 'notifications.index',
+    ];
+
+    /** URL of a tab (null when that page is not installed). */
+    public static function url(string $key): ?string
+    {
+        if (isset(self::LINKED[$key])) {
+            return Route::has(self::LINKED[$key]) ? route(self::LINKED[$key]) : null;
+        }
+        return route('vas.show', $key);
+    }
+
+    /** Which tab the current request belongs to. */
+    public static function current(): string
+    {
+        foreach (self::LINKED as $key => $r) {
+            if (request()->routeIs($r . '*')) {
+                return $key;
+            }
+        }
+        if (request()->routeIs('xp.protection*')) {
+            return 'secure';
+        }
+        if (request()->routeIs('xp.tracking*')) {
+            return 'brand-boost';
+        }
+        if (request()->routeIs('xp.risk*')) {
+            return 'rto-score';
+        }
+        $t = request()->route('tab');
+        return is_string($t) ? $t : '';
+    }
 
     public function index()
     {
@@ -37,8 +78,9 @@ class ValueServicesController extends Controller
 
     public function show(Request $request, string $tab)
     {
-        if ($tab === 'notify') {
-            return redirect()->route('notifications.index');
+        if (isset(self::LINKED[$tab])) {
+            $u = self::url($tab);
+            return $u ? redirect($u) : abort(404);
         }
         abort_unless(isset(self::TABS[$tab]), 404);
         $seller = Auth::guard('seller')->user();

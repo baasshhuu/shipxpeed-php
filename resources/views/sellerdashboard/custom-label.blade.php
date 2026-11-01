@@ -5,10 +5,11 @@
     $c = $cfg ?? \App\Support\Label\LabelRenderer::DEFAULTS;
     $chk = fn($k) => !empty($c[$k]) ? 'checked' : '';
 @endphp
-<div class="container-fluid slc-wrap">
+<div class="pc-container"><div class="pc-content">
+<div class="slc-wrap">
 <style>
-    .slc-wrap{padding:80px 16px 32px 86px;}
-    @media (max-width:768px){.slc-wrap{padding:72px 12px 24px 12px;}}
+    .slc-wrap{padding:0 0 32px;}
+    @media (max-width:768px){.slc-wrap{padding:0 0 24px;}}
     .slc-title{font-weight:700;font-size:22px;margin:0;}
     .slc-sub{color:#6b7280;margin:4px 0 18px;}
     .slc-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px;}
@@ -169,4 +170,5 @@
     form.addEventListener('input', e => { if (e.target.type === 'number') refresh(); });
 })();
 </script>
+</div></div>{{-- /pc-content /pc-container --}}
 @endsection

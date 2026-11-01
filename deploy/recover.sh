@@ -50,6 +50,20 @@ for f in $CORE; do
   fi
 done
 
+# seller layout: the themed one with the top bar (sx-top) only exists on this server - take the newest backup that has it
+L=resources/views/layouts/sellerdash.blade.php
+if ! grep -q 'sx-top' "$L" 2>/dev/null; then
+  for t in $(ls -t /root/pre-*.tgz 2>/dev/null); do
+    tar tzf "$t" 2>/dev/null | grep -qxF "$L" || continue
+    rm -rf "$TMP/l"; mkdir -p "$TMP/l"; tar xzf "$t" -C "$TMP/l" "$L" 2>/dev/null || continue
+    if grep -q 'sx-top' "$TMP/l/$L" && grep -q 'sxSide' "$TMP/l/$L" && [ "$(wc -l < "$TMP/l/$L")" -gt 100 ]; then
+      mkdir -p "$KEEP/$(dirname "$L")"; cp -p "$L" "$KEEP/$L" 2>/dev/null
+      cp "$TMP/l/$L" "$L"; echo "restored  $L (themed, with top bar) <- $(basename "$t") ($(date -r "$t" '+%d %b %H:%M'))"; break
+    fi
+  done
+  grep -q 'sx-top' "$L" || echo "WARN      no backup of the themed layout with the top bar was found"
+fi
+
 # any other code file that exists in the repo but is missing here
 n=0
 while IFS= read -r f; do
@@ -57,6 +71,18 @@ while IFS= read -r f; do
   mkdir -p "$(dirname "$f")"; git show "$REF:$f" > "$f"; n=$((n+1))
 done < <(git ls-tree -r --name-only "$REF" -- app routes config resources database bootstrap/app.php bootstrap/providers.php artisan public/index.php)
 echo "restored  $n other missing file(s) from repo"
+
+# latest UI files (Value added services menu, Control Center pages, sidebar entry, custom-label layout fix)
+for f in app/Http/Controllers/selleradmin/ValueServicesController.php \
+         resources/views/sellerdashboard/vas/_nav.blade.php resources/views/sellerdashboard/vas/_style.blade.php \
+         resources/views/sellerdashboard/vas/_layout.blade.php resources/views/sellerdashboard/vas/secure.blade.php \
+         resources/views/sellerdashboard/xpeed/_style.blade.php resources/views/partials/vas-menu-link.blade.php \
+         resources/views/sellerdashboard/custom-label.blade.php routes/vas_web.php; do
+  git cat-file -e "$REF:$f" 2>/dev/null || continue
+  if [ -e "$f" ] && git show "$REF:$f" | cmp -s - "$f"; then continue; fi
+  [ -e "$f" ] && { mkdir -p "$KEEP/$(dirname "$f")"; cp -p "$f" "$KEEP/$f"; }
+  mkdir -p "$(dirname "$f")"; git show "$REF:$f" > "$f"; echo "updated   $f"
+done
 
 # re-add the hooks the installers had added (only if missing)
 php <<'PHP'
@@ -98,6 +124,12 @@ if (strpos($w, 'seller.assistant.chat') === false && ($p = strpos($w, "->name('s
 $c = file_get_contents('config/services.php');
 if (strpos($c, "'anthropic'") === false && ($p = strrpos($c, '];')) !== false) {
     file_put_contents('config/services.php', substr($c, 0, $p) . "    'anthropic' => [\n        'key' => env('ANTHROPIC_API_KEY'),\n    ],\n\n" . substr($c, $p)); echo "hook      config/services.php += anthropic\n";
+}
+
+$l = 'resources/views/layouts/sellerdash.blade.php';
+$s = file_get_contents($l);
+if (strpos($s, 'partial.sellerdash.assistant') === false && is_file('resources/views/partial/sellerdash/assistant.blade.php') && ($k = strripos($s, '</body>')) !== false) {
+    file_put_contents($l, substr($s, 0, $k) . "    @if(auth()->guard('seller')->check())\n        @include('partial.sellerdash.assistant')\n    @endif\n" . substr($s, $k)); echo "hook      $l += assistant\n";
 }
 
 foreach (glob('resources/views/layouts/*.blade.php') as $l) {
