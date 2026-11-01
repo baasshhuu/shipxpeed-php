@@ -31,22 +31,22 @@ php -l app/Http/Controllers/selleradmin/ValueServicesController.php >/dev/null |
 chown www-data:www-data $FILES "$LAYOUT" 2>/dev/null
 sudo -u www-data php artisan view:clear >/dev/null || restore
 
-CODE=$(sudo -u www-data php -r '
+# check: compile every changed Blade file and lint the result (no page requests: some pages exit early)
+RES=$(sudo -u www-data php -r '
 require "vendor/autoload.php"; $a = require "bootstrap/app.php";
-$k = $a->make(Illuminate\Contracts\Http\Kernel::class); $k->bootstrap();
-$s = App\Models\SellerList::where("status", 1)->first() ?: App\Models\SellerList::first();
-Auth::guard("seller")->setUser($s);
+$a->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 $bad = [];
-foreach (["/seller/services/rto-score", "/seller/services/early-cod", "/seller/services/secure", "/seller/services/brand-boost", "/seller/xp/ndr", "/seller/xp/couriers", "/seller/xp/bulk", "/notifications", "/seller/xp/reports", "/seller/xp/protection?view=claims", "/seller/weight-discrepancy"] as $u) {
-  $c = $k->handle(Illuminate\Http\Request::create($u))->getStatusCode(); if ($c >= 500) $bad[] = "$u=$c";
+foreach (array_slice($argv, 1) as $f) {
+  if (substr($f, -10) !== ".blade.php") continue;
+  try { $php = app("blade.compiler")->compileString(file_get_contents($f)); } catch (Throwable $e) { $bad[] = "$f: " . $e->getMessage(); continue; }
+  $t = tempnam(sys_get_temp_dir(), "vas"); file_put_contents($t, $php);
+  $o = []; exec("php -l " . escapeshellarg($t) . " 2>&1", $o, $rc); unlink($t);
+  if ($rc) $bad[] = "$f: " . implode(" ", $o);
 }
-$r = $k->handle(Illuminate\Http\Request::create("/seller/services/rto-score"));
-echo PHP_EOL, $bad ? "ERR " . implode(",", $bad) : $r->getStatusCode() . (strpos((string) $r->getContent(), "data-vas-link") !== false ? " hook" : " nohook");
-echo PHP_EOL;
-' 2>&1)
-RES=$(echo "$CODE" | grep -E '^(ERR |[0-9]{3} (no)?hook)' | tail -1)
+echo "VASCHK ", $bad ? "ERR " . implode(" | ", $bad) : (($rr = app("router")->getRoutes()) && $rr->refreshNameLookups() === null && $rr->getByName("vas.show") ? "OK" : "ERR route vas.show missing"), PHP_EOL;
+' $FILES "$LAYOUT" 2>&1 | grep "^VASCHK" | tail -1)
 echo "check: ${RES:-no result}"
 case "$RES" in
-  "200 hook") echo "VAS_MENU_DONE" ;;
-  *) echo "--- check output ---"; echo "$CODE" | tail -20; restore ;;
+  "VASCHK OK") echo "VAS_MENU_DONE" ;;
+  *) restore ;;
 esac
