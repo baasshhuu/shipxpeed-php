@@ -32,12 +32,13 @@
         @endif
     </div>
 
-    @if ($waLogin)
-    <div class="tabs" role="tablist" aria-label="Login method">
-        <button type="button" role="tab" id="tabEmail" aria-selected="true" aria-controls="loginForm">Email &amp; password</button>
+    <div class="tabs" role="tablist" aria-label="Login method" style="grid-template-columns: repeat({{ $waLogin ? 3 : 2 }}, 1fr)">
+        <button type="button" role="tab" id="tabEmail" aria-selected="true" aria-controls="loginForm">Password</button>
+        <button type="button" role="tab" id="tabEmOtp" aria-selected="false" aria-controls="emForm">Email OTP</button>
+        @if ($waLogin)
         <button type="button" role="tab" id="tabWa" aria-selected="false" aria-controls="waForm">Mobile OTP</button>
+        @endif
     </div>
-    @endif
 
     <form method="POST" id="loginForm" action="{{ route('seller.login') }}" novalidate role="tabpanel" aria-labelledby="tabEmail">
         @csrf
@@ -84,6 +85,26 @@
         <button type="submit" class="btn btn-primary" id="waBtn"><span class="spin"></span><span class="btn-text">Send code {{ $otpVerb }}</span></button>
     </form>
     @endif
+
+    <form id="emForm" novalidate hidden role="tabpanel" aria-labelledby="tabEmOtp">
+        @csrf
+        <div class="field">
+            <label for="em_email">Registered email address</label>
+            <input type="email" name="email" id="em_email" class="input" placeholder="you@business.com" autocomplete="email">
+            <div class="error error-email"></div>
+        </div>
+        <div class="field" id="emOtpField" hidden>
+            <div class="label-row">
+                <label for="em_otp">Code sent to your email</label>
+                <button type="button" class="linkbtn" id="emResend">Resend</button>
+            </div>
+            <div class="otp-row">
+                <input type="text" name="otp" id="em_otp" class="input" placeholder="••••••" inputmode="numeric" autocomplete="one-time-code" maxlength="6">
+            </div>
+            <div class="error error-otp"></div>
+        </div>
+        <button type="submit" class="btn btn-primary" id="emBtn"><span class="spin"></span><span class="btn-text">Email me a code</span></button>
+    </form>
 
     <p class="foot">New to Shipxpeed? <a href="{{ route('register.get') }}">Create an account</a></p>
 </div>
@@ -155,20 +176,88 @@
     });
 })();
 
+// Login method tabs (password / email OTP / mobile OTP)
+(function () {
+    const tabs = Array.from(document.querySelectorAll('.tabs [role=tab]'));
+    const msgs = document.getElementById('formMessages');
+    const first = { loginForm: 'email', emForm: 'em_email', waForm: 'wa_phone' };
+    function show(tab) {
+        tabs.forEach(t => {
+            const on = t === tab, pane = document.getElementById(t.getAttribute('aria-controls'));
+            t.setAttribute('aria-selected', on); if (pane) pane.hidden = !on;
+        });
+        msgs.innerHTML = '';
+        const f = document.getElementById(first[tab.getAttribute('aria-controls')]); if (f) f.focus();
+    }
+    tabs.forEach(t => t.addEventListener('click', () => show(t)));
+})();
+
+// Email OTP login
+(function () {
+    const form = document.getElementById('emForm'), btn = document.getElementById('emBtn');
+    const msgs = document.getElementById('formMessages');
+    const email = document.getElementById('em_email'), otp = document.getElementById('em_otp');
+    const otpField = document.getElementById('emOtpField'), resend = document.getElementById('emResend');
+    const csrf = form.querySelector('[name=_token]').value;
+    let sent = false, timer;
+    const pwEmail = document.getElementById('email');
+    document.getElementById('tabEmOtp').addEventListener('click', () => { if (!email.value && pwEmail && pwEmail.value) email.value = pwEmail.value; });
+
+    email.addEventListener('input', () => { if (sent) reset(); });
+    otp.addEventListener('input', () => { otp.value = otp.value.replace(/\D/g, '').slice(0, 6); if (otp.value.length === 6) verify(); });
+
+    function clearErr() { form.querySelectorAll('.error').forEach(el => el.textContent = ''); form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid')); }
+    function err(name, m) { const i = form.querySelector('[name="' + name + '"]'); if (i) i.classList.add('is-invalid'); const e = form.querySelector('.error-' + name); if (e) e.textContent = m; }
+    function reset() { sent = false; otpField.hidden = true; otp.value = ''; SX.loading(btn, false, 'Email me a code'); }
+    function countdown(sec) {
+        clearInterval(timer); resend.disabled = true;
+        timer = setInterval(() => { resend.textContent = 'Resend in ' + sec + 's'; if (--sec < 0) { clearInterval(timer); resend.disabled = false; resend.textContent = 'Resend'; } }, 1000);
+    }
+    async function post(url, body) {
+        const res = await fetch(url, { method: 'POST', credentials: 'same-origin', body,
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf } });
+        return { res, data: await res.json().catch(() => ({})) };
+    }
+    function fail(res, data) {
+        if (data.errors) { Object.keys(data.errors).forEach(k => err(k, data.errors[k][0])); return; }
+        if (res.status === 419) { msgs.innerHTML = SX.alert('danger', 'This page was open too long. Refreshing…'); setTimeout(() => location.reload(), 1500); return; }
+        if (res.status === 429 && data.retry_after) countdown(data.retry_after);
+        msgs.innerHTML = SX.alert('danger', SX.escape(data.message || 'Something went wrong. Please try again.'));
+    }
+    async function send() {
+        clearErr(); msgs.innerHTML = '';
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim())) { err('email', 'Enter a valid email address.'); email.focus(); return; }
+        SX.loading(btn, true, 'Sending code…');
+        try {
+            const fd = new FormData(); fd.append('email', email.value.trim());
+            const { res, data } = await post("{{ route('seller.login.emailotp.send') }}", fd);
+            if (res.ok) {
+                sent = true; otpField.hidden = false; otp.focus();
+                msgs.innerHTML = SX.alert('success', SX.escape(data.message || 'Code sent to your email.'));
+                SX.loading(btn, false, 'Verify and log in'); countdown(data.retry_after || 45);
+            } else { SX.loading(btn, false, sent ? 'Verify and log in' : 'Email me a code'); fail(res, data); }
+        } catch (e) { SX.loading(btn, false, 'Email me a code'); msgs.innerHTML = SX.alert('danger', 'Could not connect. Check your internet and try again.'); }
+    }
+    async function verify() {
+        if (btn.disabled) return;
+        clearErr();
+        if (!/^\d{6}$/.test(otp.value)) { err('otp', 'Enter the 6-digit code.'); otp.focus(); return; }
+        SX.loading(btn, true, 'Logging in…');
+        try {
+            const fd = new FormData(); fd.append('email', email.value.trim()); fd.append('otp', otp.value);
+            const { res, data } = await post("{{ route('seller.login.emailotp.verify') }}", fd);
+            if (res.ok) { SX.loading(btn, true, 'Success, opening dashboard…'); location.href = data.redirect || "{{ route('seller.dashboard') }}"; return; }
+            SX.loading(btn, false, 'Verify and log in'); fail(res, data); otp.select();
+        } catch (e) { SX.loading(btn, false, 'Verify and log in'); msgs.innerHTML = SX.alert('danger', 'Could not connect. Check your internet and try again.'); }
+    }
+    resend.addEventListener('click', send);
+    form.addEventListener('submit', e => { e.preventDefault(); sent ? verify() : send(); });
+})();
+
 @if ($waLogin)
 (function () {
-    const tabs = { email: document.getElementById('tabEmail'), wa: document.getElementById('tabWa') };
-    const panes = { email: document.getElementById('loginForm'), wa: document.getElementById('waForm') };
     const msgs = document.getElementById('formMessages');
-    function show(which) {
-        Object.keys(tabs).forEach(k => { tabs[k].setAttribute('aria-selected', k === which); panes[k].hidden = k !== which; });
-        msgs.innerHTML = '';
-        (which === 'wa' ? document.getElementById('wa_phone') : document.getElementById('email')).focus();
-    }
-    tabs.email.addEventListener('click', () => show('email'));
-    tabs.wa.addEventListener('click', () => show('wa'));
-
-    const form = panes.wa, btn = document.getElementById('waBtn');
+    const form = document.getElementById('waForm'), btn = document.getElementById('waBtn');
     const phone = document.getElementById('wa_phone'), otp = document.getElementById('wa_otp');
     const otpField = document.getElementById('waOtpField'), resend = document.getElementById('waResend');
     const csrf = form.querySelector('[name=_token]').value;

@@ -39,6 +39,10 @@ Route::middleware(['seller'])->prefix('seller/xp')->name('xp.')->controller(Sell
     Route::get('protection/claim/{id}/proof/{n}', 'claimProof')->whereNumber('id')->whereNumber('n')->name('protection.claim.proof');
 });
 
+// ---------------------------------------------------------------- seller login with e-mail OTP
+Route::post('/seller-login/email-otp/send', [\App\Http\Controllers\Xpeed\EmailOtpLoginController::class, 'send'])->middleware('throttle:8,1')->name('seller.login.emailotp.send');
+Route::post('/seller-login/email-otp/verify', [\App\Http\Controllers\Xpeed\EmailOtpLoginController::class, 'verify'])->middleware('throttle:15,1')->name('seller.login.emailotp.verify');
+
 // ---------------------------------------------------------------- public (buyer)
 Route::get('/t/{awb}', [PublicTrackingController::class, 'show'])->where('awb', '[A-Za-z0-9\-]{6,40}')->middleware('throttle:30,1')->name('xp.track.public');
 
