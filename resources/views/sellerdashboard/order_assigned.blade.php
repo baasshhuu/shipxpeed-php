@@ -1827,31 +1827,31 @@
 
         <div class="status-btns-container w-100">
             <a href="{{ route('seller.order') }}" class="status-btn-premium btn " data-bs-toggle="tooltip" title="View new orders">
-                <span class="status-btn-content"><i class="fas fa-list me-2"></i>New Orders</span>
+                <span class="status-btn-content"><i class="fas fa-list me-2"></i>New Orders @include('sellerdashboard.partials.status-count', ['key' => 'new', 'tone' => 'secondary'])</span>
             </a>
             <a href="{{ route('seller.courier.Assigned') }}" class="status-btn-premium btn active" data-bs-toggle="tooltip" onclick="setActive(this)" title="Orders assigned to courier">
-                <span class="status-btn-content"><i class="fas fa-truck me-2 text-success"></i>Courier Assigned</span>
+                <span class="status-btn-content"><i class="fas fa-truck me-2 text-success"></i>Courier Assigned @include('sellerdashboard.partials.status-count', ['key' => 'assigned', 'tone' => 'success'])</span>
             </a>
             <a href="{{ route('seller.courier.InTransit') }}" class="status-btn-premium btn" data-bs-toggle="tooltip" title="Orders in transit">
-                <span class="status-btn-content"><i class="fas fa-shipping-fast me-2 text-info"></i>In Transit</span>
+                <span class="status-btn-content"><i class="fas fa-shipping-fast me-2 text-info"></i>In Transit @include('sellerdashboard.partials.status-count', ['key' => 'in_transit', 'tone' => 'info'])</span>
             </a>
             <a href="{{ route('seller.courier.OutForDelivery') }}" class="status-btn-premium btn" data-bs-toggle="tooltip" title="Orders out for delivery">
-                <span class="status-btn-content"><i class="fas fa-map-marker-alt me-2 text-primary"></i>Out For Delivery</span>
+                <span class="status-btn-content"><i class="fas fa-map-marker-alt me-2 text-primary"></i>Out For Delivery @include('sellerdashboard.partials.status-count', ['key' => 'out_for_delivery', 'tone' => 'primary'])</span>
             </a>
             <a href="{{ route('seller.courier.Delivered') }}" class="status-btn-premium btn" data-bs-toggle="tooltip" title="Successfully delivered orders">
-                <span class="status-btn-content"><i class="fas fa-check-circle me-2 text-success"></i>Delivered</span>
+                <span class="status-btn-content"><i class="fas fa-check-circle me-2 text-success"></i>Delivered @include('sellerdashboard.partials.status-count', ['key' => 'delivered', 'tone' => 'success'])</span>
             </a>
             <a href="{{ route('seller.courier.Cancelled') }}" class="status-btn-premium btn" data-bs-toggle="tooltip" title="Cancelled orders">
-                <span class="status-btn-content"><i class="fas fa-times-circle me-2 text-danger"></i>Cancelled</span>
+                <span class="status-btn-content"><i class="fas fa-times-circle me-2 text-danger"></i>Cancelled @include('sellerdashboard.partials.status-count', ['key' => 'cancelled', 'tone' => 'danger'])</span>
             </a>
             <a href="{{ route('seller.courier.NDR') }}" class="status-btn-premium btn" data-bs-toggle="tooltip" title="Non-delivery report orders">
-                <span class="status-btn-content"><i class="fas fa-exclamation-triangle me-2 text-warning"></i>NDR</span>
+                <span class="status-btn-content"><i class="fas fa-exclamation-triangle me-2 text-warning"></i>NDR @include('sellerdashboard.partials.status-count', ['key' => 'ndr', 'tone' => 'warning'])</span>
             </a>
             <a href="{{ route('seller.courier.RTO') }}" class="status-btn-premium btn" data-bs-toggle="tooltip" title="Return to origin orders">
-                <span class="status-btn-content"><i class="fas fa-undo me-2 text-danger"></i>RTO</span>
+                <span class="status-btn-content"><i class="fas fa-undo me-2 text-danger"></i>RTO @include('sellerdashboard.partials.status-count', ['key' => 'rto', 'tone' => 'danger'])</span>
             </a>
             <a href="#" class="status-btn-premium btn" data-bs-toggle="tooltip" title="Other status orders">
-                <span class="status-btn-content"><i class="fas fa-ellipsis-h me-2 text-secondary"></i>Other</span>
+                <span class="status-btn-content"><i class="fas fa-ellipsis-h me-2 text-secondary"></i>Other @include('sellerdashboard.partials.status-count', ['key' => 'other', 'tone' => 'secondary'])</span>
             </a>
         </div>
         <style>

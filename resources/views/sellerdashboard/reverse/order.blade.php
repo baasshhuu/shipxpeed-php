@@ -1041,85 +1041,40 @@
             <i class="fas fa-filter me-2 text-primary"></i>Filter by Status
         </h5>
         <div class="d-flex flex-wrap gap-2 align-items-center">
-            <a href="{{ route('seller.order') }}" class="btn btn-outline-secondary position-relative" data-bs-toggle="tooltip" title="View all orders">
-                <i class="fas fa-list me-1"></i>All Orders
-                @if(isset($orderCounts['new']) && $orderCounts['new'] > 0)
-                <span class="badge bg-secondary position-absolute top-0 start-100 translate-middle">
-                    {{ $orderCounts['new'] }}
-                </span>
-                @endif
+            <a href="{{ route('seller.order') }}" class="btn btn-outline-secondary position-relative" data-bs-toggle="tooltip" title="View new orders">
+                <i class="fas fa-list me-1"></i>New Orders @include('sellerdashboard.partials.status-count', ['key' => 'new', 'tone' => 'secondary'])
             </a>
             
             <a href="{{ route('seller.courier.Assigned') }}" class="btn btn-outline-success position-relative" data-bs-toggle="tooltip" title="Orders assigned to courier">
-                <i class="fas fa-truck me-1"></i>Courier Assigned
-                @if(isset($orderCounts['assigned']) && $orderCounts['assigned'] > 0)
-                <span class="badge bg-success position-absolute top-0 start-100 translate-middle">
-                    {{ $orderCounts['assigned'] }}
-                </span>
-                @endif
+                <i class="fas fa-truck me-1"></i>Courier Assigned @include('sellerdashboard.partials.status-count', ['key' => 'assigned', 'tone' => 'success'])
             </a>
             
             <a href="{{ route('seller.courier.InTransit') }}" class="btn btn-outline-info position-relative" data-bs-toggle="tooltip" title="Orders in transit">
-                <i class="fas fa-shipping-fast me-1"></i>In Transit
-                @if(isset($orderCounts['in_transit']) && $orderCounts['in_transit'] > 0)
-                <span class="badge bg-info position-absolute top-0 start-100 translate-middle">
-                    {{ $orderCounts['in_transit'] }}
-                </span>
-                @endif
+                <i class="fas fa-shipping-fast me-1"></i>In Transit @include('sellerdashboard.partials.status-count', ['key' => 'in_transit', 'tone' => 'info'])
             </a>
             
             <a href="{{ route('seller.courier.OutForDelivery') }}" class="btn btn-outline-primary position-relative" data-bs-toggle="tooltip" title="Orders out for delivery">
-                <i class="fas fa-map-marker-alt me-1"></i>Out For Delivery
-                @if(isset($orderCounts['out_for_delivery']) && $orderCounts['out_for_delivery'] > 0)
-                <span class="badge bg-primary position-absolute top-0 start-100 translate-middle">
-                    {{ $orderCounts['out_for_delivery'] }}
-                </span>
-                @endif
+                <i class="fas fa-map-marker-alt me-1"></i>Out For Delivery @include('sellerdashboard.partials.status-count', ['key' => 'out_for_delivery', 'tone' => 'primary'])
             </a>
             
             <a href="{{ route('seller.courier.Delivered') }}" class="btn btn-outline-success position-relative" data-bs-toggle="tooltip" title="Successfully delivered orders">
-                <i class="fas fa-check-circle me-1"></i>Delivered
-                @if(isset($orderCounts['delivered']) && $orderCounts['delivered'] > 0)
-                <span class="badge bg-success position-absolute top-0 start-100 translate-middle">
-                    {{ $orderCounts['delivered'] }}
-                </span>
-                @endif
+                <i class="fas fa-check-circle me-1"></i>Delivered @include('sellerdashboard.partials.status-count', ['key' => 'delivered', 'tone' => 'success'])
             </a>
             
             <a href="{{ route('seller.courier.Cancelled') }}" class="btn btn-outline-danger position-relative" data-bs-toggle="tooltip" title="Cancelled orders">
-                <i class="fas fa-times-circle me-1"></i>Cancelled
-                @if(isset($orderCounts['cancelled']) && $orderCounts['cancelled'] > 0)
-                <span class="badge bg-danger position-absolute top-0 start-100 translate-middle">
-                    {{ $orderCounts['cancelled'] }}
-                </span>
-                @endif
+                <i class="fas fa-times-circle me-1"></i>Cancelled @include('sellerdashboard.partials.status-count', ['key' => 'cancelled', 'tone' => 'danger'])
             </a>
             
             <a href="{{ route('seller.courier.NDR') }}" class="btn btn-outline-warning position-relative" data-bs-toggle="tooltip" title="Non-delivery report orders">
-                <i class="fas fa-exclamation-triangle me-1"></i>NDR
-                @if(isset($orderCounts['ndr']) && $orderCounts['ndr'] > 0)
-                <span class="badge bg-warning position-absolute top-0 start-100 translate-middle">
-                    {{ $orderCounts['ndr'] }}
-                </span>
-                @endif
+                <i class="fas fa-exclamation-triangle me-1"></i>NDR @include('sellerdashboard.partials.status-count', ['key' => 'ndr', 'tone' => 'warning'])
             </a>
             
             <a href="{{ route('seller.courier.RTO') }}" class="btn btn-outline-danger position-relative" data-bs-toggle="tooltip" title="Return to origin orders">
-                <i class="fas fa-undo me-1"></i>RTO
-                @if(isset($orderCounts['rto']) && $orderCounts['rto'] > 0)
-                <span class="badge bg-danger position-absolute top-0 start-100 translate-middle">
-                    {{ $orderCounts['rto'] }}
-                </span>
-                @endif
+                <i class="fas fa-undo me-1"></i>RTO @include('sellerdashboard.partials.status-count', ['key' => 'rto', 'tone' => 'danger'])
             </a>
             
             <a href="#" class="btn btn-outline-secondary position-relative" data-bs-toggle="tooltip" title="Other status orders">
-                <i class="fas fa-ellipsis-h me-1"></i>Other
-                @if(isset($orderCounts['other']) && $orderCounts['other'] > 0)
-                <span class="badge bg-secondary position-absolute top-0 start-100 translate-middle">
-                    {{ $orderCounts['other'] }}
-                </span>
-                @endif
+                <i class="fas fa-ellipsis-h me-1"></i>Other @include('sellerdashboard.partials.status-count', ['key' => 'other', 'tone' => 'secondary'])
             </a>
         </div>
     </div>

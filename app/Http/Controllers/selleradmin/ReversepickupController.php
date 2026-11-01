@@ -939,21 +939,7 @@ public function reverse_order()
 
 
     
-     $orderCounts = [
-        'new' => 10,
-        'assigned' => Order::where('shipping_status', 'courier_assigned')->count(),
-        'cancelled' => Order::where('shipping_status', 'cancelled')->count(),
-        'in_transit' => Order::where('shipping_status', 'in_transit')->count(),
-        'out_for_delivery' => Order::where('shipping_status', 'out_for_delivery')->count(),
-        'delivered' => Order::where('shipping_status', 'delivered')->count(),
-        'ndr' => Order::where('shipping_status', 'ndr')->count(),
-        'rto' => Order::where('shipping_status', 'rto')->count(),
-        'all' => Order::count(),
-        'other' => Order::whereNotIn('shipping_status', [
-            'new', 'courier_assigned', 'cancelled', 'in_transit', 
-            'out_for_delivery', 'delivered', 'ndr', 'rto'
-        ])->count(),
-    ];
+     $orderCounts = \App\Support\OrderStatusCounts::forSeller($seller->id ?? null);
     return view('sellerdashboard.reverse.order', compact(
         'seller', 
         'totalAmount', 
@@ -1337,21 +1323,7 @@ public function reverse_order()
                 ->appends($request->query());
         }
 
-           $orderCounts = [
-        'new' => 10,
-        'assigned' => Order::where('shipping_status', 'courier_assigned')->count(),
-        'cancelled' => Order::where('shipping_status', 'cancelled')->count(),
-        'in_transit' => Order::where('shipping_status', 'in_transit')->count(),
-        'out_for_delivery' => Order::where('shipping_status', 'out_for_delivery')->count(),
-        'delivered' => Order::where('shipping_status', 'delivered')->count(),
-        'ndr' => Order::where('shipping_status', 'ndr')->count(),
-        'rto' => Order::where('shipping_status', 'rto')->count(),
-        'all' => Order::count(),
-        'other' => Order::whereNotIn('shipping_status', [
-            'new', 'courier_assigned', 'cancelled', 'in_transit', 
-            'out_for_delivery', 'delivered', 'ndr', 'rto'
-        ])->count(),
-    ];
+           $orderCounts = \App\Support\OrderStatusCounts::forSeller($seller->id ?? null);
 
         return view('sellerdashboard.order_assigned', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders','orderCounts', 'request'));
     }
@@ -1452,21 +1424,7 @@ public function reverse_order()
 
 
         
-           $orderCounts = [
-        'new' => 10,
-        'assigned' => Order::where('shipping_status', 'courier_assigned')->count(),
-        'cancelled' => Order::where('shipping_status', 'cancelled')->count(),
-        'in_transit' => Order::where('shipping_status', 'in_transit')->count(),
-        'out_for_delivery' => Order::where('shipping_status', 'out_for_delivery')->count(),
-        'delivered' => Order::where('shipping_status', 'delivered')->count(),
-        'ndr' => Order::where('shipping_status', 'ndr')->count(),
-        'rto' => Order::where('shipping_status', 'rto')->count(),
-        'all' => Order::count(),
-        'other' => Order::whereNotIn('shipping_status', [
-            'new', 'courier_assigned', 'cancelled', 'in_transit', 
-            'out_for_delivery', 'delivered', 'ndr', 'rto'
-        ])->count(),
-    ];
+           $orderCounts = \App\Support\OrderStatusCounts::forSeller($seller->id ?? null);
 
         return view('sellerdashboard.order_cancel', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders', 'orderCounts'));
     }
@@ -1561,21 +1519,7 @@ public function reverse_order()
 
 
         
-           $orderCounts = [
-        'new' => 10,
-        'assigned' => Order::where('shipping_status', 'courier_assigned')->count(),
-        'cancelled' => Order::where('shipping_status', 'cancelled')->count(),
-        'in_transit' => Order::where('shipping_status', 'in_transit')->count(),
-        'out_for_delivery' => Order::where('shipping_status', 'out_for_delivery')->count(),
-        'delivered' => Order::where('shipping_status', 'delivered')->count(),
-        'ndr' => Order::where('shipping_status', 'ndr')->count(),
-        'rto' => Order::where('shipping_status', 'rto')->count(),
-        'all' => Order::count(),
-        'other' => Order::whereNotIn('shipping_status', [
-            'new', 'courier_assigned', 'cancelled', 'in_transit', 
-            'out_for_delivery', 'delivered', 'ndr', 'rto'
-        ])->count(),
-    ];
+           $orderCounts = \App\Support\OrderStatusCounts::forSeller($seller->id ?? null);
 
         return view('sellerdashboard.order_cancel', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders', 'orderCounts'));
     }
@@ -1613,21 +1557,7 @@ public function reverse_order()
             $orders = Order::where(['seller_id' => $seller->id, 'shipping_status' => 'out for delivery'])->latest()->paginate(10);
         }
 
-   $orderCounts = [
-        'new' => 10,
-        'assigned' => Order::where('shipping_status', 'courier_assigned')->count(),
-        'cancelled' => Order::where('shipping_status', 'cancelled')->count(),
-        'in_transit' => Order::where('shipping_status', 'in_transit')->count(),
-        'out_for_delivery' => Order::where('shipping_status', 'out_for_delivery')->count(),
-        'delivered' => Order::where('shipping_status', 'delivered')->count(),
-        'ndr' => Order::where('shipping_status', 'ndr')->count(),
-        'rto' => Order::where('shipping_status', 'rto')->count(),
-        'all' => Order::count(),
-        'other' => Order::whereNotIn('shipping_status', [
-            'new', 'courier_assigned', 'cancelled', 'in_transit', 
-            'out_for_delivery', 'delivered', 'ndr', 'rto'
-        ])->count(),
-    ];
+   $orderCounts = \App\Support\OrderStatusCounts::forSeller($seller->id ?? null);
 
         return view('sellerdashboard.order_cancel', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders', 'orderCounts'));
     }
@@ -1665,21 +1595,7 @@ public function reverse_order()
         }
 
 
-           $orderCounts = [
-        'new' => 10,
-        'assigned' => Order::where('shipping_status', 'courier_assigned')->count(),
-        'cancelled' => Order::where('shipping_status', 'cancelled')->count(),
-        'in_transit' => Order::where('shipping_status', 'in_transit')->count(),
-        'out_for_delivery' => Order::where('shipping_status', 'out_for_delivery')->count(),
-        'delivered' => Order::where('shipping_status', 'delivered')->count(),
-        'ndr' => Order::where('shipping_status', 'ndr')->count(),
-        'rto' => Order::where('shipping_status', 'rto')->count(),
-        'all' => Order::count(),
-        'other' => Order::whereNotIn('shipping_status', [
-            'new', 'courier_assigned', 'cancelled', 'in_transit', 
-            'out_for_delivery', 'delivered', 'ndr', 'rto'
-        ])->count(),
-    ];
+           $orderCounts = \App\Support\OrderStatusCounts::forSeller($seller->id ?? null);
 
         return view('sellerdashboard.order_cancel', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders', 'orderCounts'));
     }
@@ -1783,21 +1699,7 @@ public function reverse_order()
         }
 
 
-           $orderCounts = [
-        'new' => 10,
-        'assigned' => Order::where('shipping_status', 'courier_assigned')->count(),
-        'cancelled' => Order::where('shipping_status', 'cancelled')->count(),
-        'in_transit' => Order::where('shipping_status', 'in_transit')->count(),
-        'out_for_delivery' => Order::where('shipping_status', 'out_for_delivery')->count(),
-        'delivered' => Order::where('shipping_status', 'delivered')->count(),
-        'ndr' => Order::where('shipping_status', 'ndr')->count(),
-        'rto' => Order::where('shipping_status', 'rto')->count(),
-        'all' => Order::count(),
-        'other' => Order::whereNotIn('shipping_status', [
-            'new', 'courier_assigned', 'cancelled', 'in_transit', 
-            'out_for_delivery', 'delivered', 'ndr', 'rto'
-        ])->count(),
-    ];
+           $orderCounts = \App\Support\OrderStatusCounts::forSeller($seller->id ?? null);
 
         return view('sellerdashboard.order_cancel', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders', 'orderCounts'));
     }
@@ -1839,21 +1741,7 @@ public function reverse_order()
 
 
 
-           $orderCounts = [
-        'new' => 10,
-        'assigned' => Order::where('shipping_status', 'courier_assigned')->count(),
-        'cancelled' => Order::where('shipping_status', 'cancelled')->count(),
-        'in_transit' => Order::where('shipping_status', 'in_transit')->count(),
-        'out_for_delivery' => Order::where('shipping_status', 'out_for_delivery')->count(),
-        'delivered' => Order::where('shipping_status', 'delivered')->count(),
-        'ndr' => Order::where('shipping_status', 'ndr')->count(),
-        'rto' => Order::where('shipping_status', 'rto')->count(),
-        'all' => Order::count(),
-        'other' => Order::whereNotIn('shipping_status', [
-            'new', 'courier_assigned', 'cancelled', 'in_transit', 
-            'out_for_delivery', 'delivered', 'ndr', 'rto'
-        ])->count(),
-    ];
+           $orderCounts = \App\Support\OrderStatusCounts::forSeller($seller->id ?? null);
         return view('sellerdashboard.order_cancel', compact('seller', 'totalAmount', 'rateCard', 'commonPdf', 'orders', 'orderCounts'));
     }
 
