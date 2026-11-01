@@ -785,6 +785,81 @@ class ShipcluesService implements CourierServiceInterface
      |  Tracking (used by "php artisan shipclues:track")
      * ========================================================= */
 
+    /**
+     * NDR action on a Shipclues shipment.
+     *   re-attempt / change-address / change-phone -> POST ndr-action/reattempt/ (needs Shipclues' ndr_id,
+     *       looked up by AWB in ndr-shipments/action-required/); new address / phone go in the remarks.
+     *   rto -> POST mark-rto/ {awb_number}
+     * @return array{status:bool, message:string, response:mixed}
+     */
+    public function ndrAction(Order $order, string $action, array $data = []): array
+    {
+        $info = $this->arr($order->additional_info);
+        $awbs = array_values(array_filter(array_unique([(string) $order->awb_number, (string) ($info['shipclues_awb'] ?? '')])));
+        if (!$awbs) {
+            return ['status' => false, 'message' => 'No AWB on this order.', 'response' => null];
+        }
+
+        if ($action === 'rto') {
+            $r = $this->request('POST', 'mark-rto/', ['awb_number' => $awbs[0]]);
+            $ok = $r->successful() && ($r->json('status') ?? true) !== false;
+            return ['status' => $ok, 'message' => $ok ? 'Return to origin requested with the courier' : 'Courier rejected the RTO request (HTTP ' . $r->status() . ')', 'response' => $r->json() ?? $r->body()];
+        }
+
+        // find Shipclues' NDR id for this AWB
+        $ndrId = null;
+        $url = 'ndr-shipments/action-required/';
+        for ($page = 0; $page < 6 && $url && !$ndrId; $page++) {
+            $res = str_starts_with($url, 'http')
+                ? Http::withHeaders(['Authorization' => 'Token ' . $this->apiKey()])->acceptJson()->timeout(40)->get($url)
+                : $this->request('GET', $url);
+            if (!$res->successful()) {
+                return ['status' => false, 'message' => 'Could not read NDR list from the courier (HTTP ' . $res->status() . ')', 'response' => $res->body()];
+            }
+            $json = $res->json();
+            $rows = is_array($json) && array_is_list($json) ? $json : ($json['results'] ?? $json['data'] ?? []);
+            foreach ((array) $rows as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $flat = json_encode($row);
+                foreach ($awbs as $a) {
+                    if ($a !== '' && str_contains($flat, '"' . $a . '"')) {
+                        $ndrId = $row['ndr_id'] ?? $row['id'] ?? null;
+                        break 2;
+                    }
+                }
+            }
+            $url = is_array($json) && !array_is_list($json) ? ($json['next'] ?? null) : null;
+        }
+        if (!$ndrId) {
+            return ['status' => false, 'message' => 'The courier has not listed this shipment as NDR yet, so it cannot take the action. Try again after the next tracking update.', 'response' => null];
+        }
+
+        $remarks = match ($action) {
+            'change-address' => 'Re-attempt at new address: ' . trim(($data['address'] ?? '') . ' ' . ($data['landmark'] ?? '') . ' ' . ($data['pincode'] ?? '')),
+            'change-phone' => 'Re-attempt, new phone: ' . preg_replace('/\D/', '', (string) ($data['phone'] ?? '')),
+            default => trim((string) ($data['remark'] ?? '')) ?: 'Re-attempt delivery',
+        };
+        $date = !empty($data['reattempt_date']) ? date('Y-m-d', strtotime($data['reattempt_date'])) : now()->addDay()->toDateString();
+        $payload = ['ndr_id' => $ndrId, 'remarks' => mb_substr($remarks, 0, 250), 'action_date' => $date, 'action_by' => 'seller'];
+
+        $http = Http::withHeaders(['Authorization' => 'Token ' . $this->apiKey()])->acceptJson()->timeout(40);
+        $r = $http->asForm()->post(self::BASE_URL . 'ndr-action/reattempt/', $payload);
+        if (in_array($r->status(), [400, 415], true)) {
+            $r = $http->asJson()->post(self::BASE_URL . 'ndr-action/reattempt/', $payload); // docs show both form and JSON
+        }
+        $ok = $r->successful() && ($r->json('status') ?? true) !== false;
+        if (!$ok) {
+            Log::warning('Shipclues NDR action failed', ['order' => $order->id, 'status' => $r->status(), 'body' => mb_substr($r->body(), 0, 500)]);
+        }
+        return [
+            'status' => $ok,
+            'message' => $ok ? 'Re-attempt requested with the courier for ' . date('d M', strtotime($date)) . ($action !== 're-attempt' ? ' (new details sent with it)' : '') : 'Courier rejected the request (HTTP ' . $r->status() . ')',
+            'response' => ['ndr_id' => $ndrId, 'http' => $r->status(), 'body' => $r->json() ?? $r->body()],
+        ];
+    }
+
     public function trackOrder(Order $order): ?string
     {
         $info = $this->arr($order->additional_info);

@@ -32,6 +32,11 @@ class NdrActionDispatcher
                 return $this->result((bool) ($r['status'] ?? false), $r['message'] ?? '', $r);
             }
 
+            if ($courier === 'shipclues' && class_exists(\App\Services\ShipcluesService::class) && method_exists(\App\Services\ShipcluesService::class, 'ndrAction')) {
+                $r = app(\App\Services\ShipcluesService::class)->ndrAction($order, $action, $data);
+                return $this->result((bool) ($r['status'] ?? false), $r['message'] ?? '', $r);
+            }
+
             if ($action === 'rto') {
                 return ['status' => 'needs_manual', 'message' => 'Return request: ops team to raise RTO with the courier.', 'response' => null];
             }
