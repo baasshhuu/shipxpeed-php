@@ -100,12 +100,14 @@ sudo -u www-data php artisan optimize:clear >/dev/null 2>&1
 OUT=$(sudo -u www-data php -r '
 require "vendor/autoload.php"; $a = require "bootstrap/app.php";
 $k = $a->make(Illuminate\Contracts\Http\Kernel::class); $k->bootstrap();
-$s = App\Models\SellerList::where("status", 1)->first() ?: App\Models\SellerList::first();
-Auth::guard("seller")->setUser($s);
-echo "PAGE " . $k->handle(Illuminate\Http\Request::create("/seller/xp/ndr"))->getStatusCode() . PHP_EOL;
-$r = $k->handle(Illuminate\Http\Request::create("/seller/courier/NDR"));
-echo "TAB " . $r->getStatusCode() . " " . $r->headers->get("Location") . PHP_EOL;
+try { $s = App\Models\SellerList::where("status", 1)->first() ?: App\Models\SellerList::first(); if ($s) { auth()->guard("seller")->setUser($s); } }
+catch (\Throwable $e) { echo "NOTE login skipped: " . $e->getMessage() . PHP_EOL; }
+try { $r = $k->handle(Illuminate\Http\Request::create("/seller/xp/ndr")); echo "PAGE " . $r->getStatusCode() . PHP_EOL;
+      if ($r->getStatusCode() >= 500) { echo "ERR " . mb_substr(strip_tags((string) $r->getContent()), 0, 300) . PHP_EOL; } }
+catch (\Throwable $e) { echo "PAGE 500 " . $e->getMessage() . PHP_EOL; }
+try { $r = $k->handle(Illuminate\Http\Request::create("/seller/courier/NDR")); echo "TAB " . $r->getStatusCode() . " " . $r->headers->get("Location") . PHP_EOL; }
+catch (\Throwable $e) { echo "TAB err " . $e->getMessage() . PHP_EOL; }
 ' 2>&1)
-echo "$OUT" | grep -E "^(PAGE|TAB)"
+echo "$OUT" | grep -E "^(PAGE|TAB|NOTE|ERR)"
 echo "$OUT" | grep -qE "^PAGE (200|302)" || { echo "$OUT" | tail -8; restore; }
 echo "NDR_PAGE_DONE backup=$BK"
