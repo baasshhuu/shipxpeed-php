@@ -3483,43 +3483,67 @@ public function order()
  */
 public function searchAwb(Request $request)
 {
+    // Header search: AWB, order no. / channel order id, buyer name, phone or e-mail.
     try {
-        $query = $request->input('q');
+        $query = trim((string) $request->input('q'));
         $seller = Auth::guard('seller')->user();
-        
-        if (!$seller || strlen($query) < 3) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid search query',
-                'orders' => []
-            ]);
+        if (!$seller || mb_strlen($query) < 3) {
+            return response()->json(['success' => false, 'message' => 'Type at least 3 characters', 'orders' => []]);
         }
 
-        $orders = Order::where('seller_id', $seller->id)
-            ->where(function($q) use ($query) {
-                $q->where('awb_number', 'like', '%' . $query . '%')
-                  ->orWhere('receiver_name', 'like', '%' . $query . '%')
-                  ->orWhere('receiver_phone', 'like', '%' . $query . '%');
+        $like = '%' . addcslashes($query, '%_\\') . '%';
+        $digits = preg_replace('/\D/', '', $query);
+        $hasCustomer = \Illuminate\Support\Facades\Schema::hasColumn('orders', 'customer_order_id');
+
+        $rows = Order::where('seller_id', $seller->id)
+            ->where(function ($q) use ($query, $like, $digits, $hasCustomer) {
+                $q->where('awb_number', 'like', $like)
+                  ->orWhere('order_number', 'like', $like)
+                  ->orWhere('id', ctype_digit($query) && strlen($query) <= 10 ? (int) $query : 0)
+                  ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(consignee, '$.name')) LIKE ?", [$like])
+                  ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(consignee, '$.email')) LIKE ?", [$like])
+                  ->orWhere('consignee', 'like', $like);
+                if ($hasCustomer) {
+                    $q->orWhere('customer_order_id', 'like', $like);
+                }
+                if (strlen($digits) >= 4) {
+                    $q->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(consignee, '$.phone')) LIKE ?", ['%' . $digits . '%']);
+                }
             })
-            ->select('id', 'awb_number', 'receiver_name', 'receiver_address', 'receiver_phone')
-            ->limit(10)
+            ->orderByDesc('id')
+            ->limit(15)
             ->get();
 
-        return response()->json([
-            'success' => true,
-            'orders' => $orders
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Search failed',
-            'orders' => []
-        ]);
+        $orders = $rows->map(function ($o) {
+            $c = is_string($o->consignee) ? (json_decode($o->consignee, true) ?: []) : (array) $o->consignee;
+            if (is_string($c)) { $c = json_decode($c, true) ?: []; }
+            $ref = $o->customer_order_id ?? null ?: $o->order_number;
+            $bits = array_filter([
+                $ref ? 'Order #' . $ref : null,
+                $c['phone'] ?? null,
+                trim(($c['city'] ?? '') . ' ' . ($c['pincode'] ?? '')) ?: null,
+                $o->shipping_status ? ucwords(str_replace('_', ' ', $o->shipping_status)) : null,
+            ]);
+            return [
+                'id'               => $o->id,
+                // the header opens details by this value; orders without an AWB open by order id
+                'awb_number'       => $o->awb_number ?: ('ID-' . $o->id),
+                'receiver_name'    => $c['name'] ?? '—',
+                'receiver_phone'   => $c['phone'] ?? '',
+                'receiver_email'   => $c['email'] ?? '',
+                'receiver_address' => implode(' · ', $bits),
+            ];
+        })->values();
+
+        return response()->json(['success' => true, 'orders' => $orders]);
+    } catch (\Throwable $e) {
+        Log::error('Header search failed: ' . $e->getMessage());
+        return response()->json(['success' => false, 'message' => 'Search failed', 'orders' => []]);
     }
 }
 
 /**
- * Get full order details by AWB number
+ * Get full order details by AWB number (or "ID-<order id>", order number, channel order id)
  */
 
 
@@ -3527,62 +3551,57 @@ public function getOrderDetails(Request $request, $awb)
 {
     try {
         $seller = Auth::guard('seller')->user();
-        
         if (!$seller) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized'
-            ]);
+            return response()->json(['success' => false, 'message' => 'Unauthorized']);
         }
 
-        $order = Order::where('seller_id', $seller->id)
-            ->where('awb_number', $awb)
-            ->first();
-
+        $ref = trim((string) $awb);
+        $base = Order::where('seller_id', $seller->id);
+        $order = null;
+        if (preg_match('/^ID-(\d+)$/', $ref, $m)) {
+            $order = (clone $base)->where('id', (int) $m[1])->first();
+        }
+        $order = $order ?: (clone $base)->where('awb_number', $ref)->first();
+        $order = $order ?: (clone $base)->where('order_number', $ref)->first();
+        if (!$order && \Illuminate\Support\Facades\Schema::hasColumn('orders', 'customer_order_id')) {
+            $order = (clone $base)->where('customer_order_id', $ref)->first();
+        }
         if (!$order) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Order not found'
-            ]);
+            return response()->json(['success' => false, 'message' => 'Order not found']);
         }
-   $source = is_string($order->pickup) ? json_decode($order->pickup, true) : $order->pickup;
-    $consignee = is_string($order->consignee) ? json_decode($order->consignee, true) : $order->consignee;
 
-        // Format order data for display
+        $source = is_string($order->pickup) ? (json_decode($order->pickup, true) ?: []) : (array) $order->pickup;
+        $consignee = is_string($order->consignee) ? (json_decode($order->consignee, true) ?: []) : (array) $order->consignee;
+        $addr = fn ($a) => trim(implode(', ', array_filter([$a['address'] ?? null, $a['address_2'] ?? null, $a['city'] ?? null, $a['state'] ?? null])), ', ');
+
         $orderData = [
-            'id' => $order->id,
-            'awb_number' => $order->awb_number,
-            'status' => $order->status ?? 'Pending',
-            'shipping_status' => $order->shipping_status,
-            'sender_name' => $seller->name,
-            'sender_phone' => $seller->phone_number,
-            'sender_address' => $order->sender_address,
-            'sender_pincode' => $source['pincode'],
-            'receiver_name' => $consignee['name'],
-            'receiver_phone' => $consignee['phone'],
-            'receiver_address' => $consignee['address'],
-            'receiver_pincode' => $consignee['pincode'],
-            'weight' => $order->package_weight,
-            'length' => $order->package_length,
-            'width' => $order->package_breadth,
-            'height' => $order->package_height,
-            'cod_amount' => $order->collectable_amount,
-            'shipping_cost' => $order->seller_amount_walate,
-            'payment_mode' => $order->payment_type,
-            'created_at' => $order->created_at,
-            'tracking_url' => $order->smartship_tracking_url ?? $order->tracking_url
+            'id'               => ($order->customer_order_id ?? null) ?: ($order->order_number ?: $order->id),
+            'awb_number'       => $order->awb_number ?: 'Not assigned yet',
+            'status'           => $order->shipping_status ? ucwords(str_replace('_', ' ', $order->shipping_status)) : ($order->status ?? 'Pending'),
+            'shipping_status'  => $order->shipping_status,
+            'sender_name'      => $source['warehouse_name'] ?? $source['name'] ?? $seller->name,
+            'sender_phone'     => $source['phone'] ?? $seller->phone_number,
+            'sender_address'   => $addr($source) ?: ($order->sender_address ?? ''),
+            'sender_pincode'   => $source['pincode'] ?? '',
+            'receiver_name'    => $consignee['name'] ?? '',
+            'receiver_phone'   => trim(($consignee['phone'] ?? '') . (!empty($consignee['email']) ? ' · ' . $consignee['email'] : '')),
+            'receiver_address' => $addr($consignee),
+            'receiver_pincode' => $consignee['pincode'] ?? '',
+            'weight'           => $order->package_weight,
+            'length'           => $order->package_length,
+            'width'            => $order->package_breadth,
+            'height'           => $order->package_height,
+            'cod_amount'       => strtolower((string) $order->payment_type) === 'cod' ? $order->collectable_amount : 0,
+            'shipping_cost'    => $order->seller_amount_walate ?? $order->shipping_charges,
+            'payment_mode'     => strtoupper((string) $order->payment_type),
+            'created_at'       => $order->created_at,
+            'tracking_url'     => $order->awb_number ? url('/t/' . $order->awb_number) : null,
         ];
 
-        return response()->json([
-            'success' => true,
-            'order' => $orderData
-        ]);
-    } catch (\Exception $e) {
+        return response()->json(['success' => true, 'order' => $orderData]);
+    } catch (\Throwable $e) {
         Log::error('Error fetching order details: ' . $e->getMessage());
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to fetch order details'
-        ]);
+        return response()->json(['success' => false, 'message' => 'Failed to fetch order details']);
     }
 }
 
