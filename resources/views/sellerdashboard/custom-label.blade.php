@@ -78,6 +78,7 @@
             <input type="file" name="logo" accept="image/png,image/jpeg" class="form-control" style="max-width:260px">
         </div>
         <small class="text-muted">PNG or JPG, up to 2 MB. Applies after you save.</small>
+        <label class="slc-chk mt-2"><input type="checkbox" name="show_watermark" value="1" {{ $chk('show_watermark') }}> Faint Shipxpeed logo watermark in the background</label>
     </div>
 
     <div class="slc-sec">
@@ -150,7 +151,7 @@
     const frame = document.getElementById('slcFrame');
     const open = document.getElementById('slcOpen');
     const base = @json(route('seller.custom-label.preview'));
-    const bools = ['show_logo','show_invoice_value_prepaid','show_invoice_number','show_seller_name','show_seller_address','show_seller_gst','show_return_address','show_customer_mobile','show_support_contact','show_qty','show_item_price','show_taxes','show_product_name','show_sku','multi_page'];
+    const bools = ['show_watermark','show_logo','show_invoice_value_prepaid','show_invoice_number','show_seller_name','show_seller_address','show_seller_gst','show_return_address','show_customer_mobile','show_support_contact','show_qty','show_item_price','show_taxes','show_product_name','show_sku','multi_page'];
     let t;
     function url(){
         const p = new URLSearchParams();

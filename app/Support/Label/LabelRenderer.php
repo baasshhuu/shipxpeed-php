@@ -14,6 +14,7 @@ class LabelRenderer
 {
     public const DEFAULTS = [
         'label_type'                 => 'thermal',   // thermal | standard
+        'show_watermark'             => true,        // faint Shipxpeed logo behind the label
         'show_logo'                  => true,
         'show_invoice_value_prepaid' => true,
         'show_invoice_number'        => true,
@@ -203,6 +204,18 @@ class LabelRenderer
         return mb_strlen($s) > $n ? mb_substr($s, 0, $n - 1) . '…' : $s;
     }
 
+    private static ?string $wm = null;
+
+    /** Faint Shipxpeed logo (already transparent + grey) as a data URI. */
+    public static function watermark(): ?string
+    {
+        if (self::$wm === null) {
+            $f = dirname(__DIR__, 3) . '/resources/label/watermark.png';
+            self::$wm = is_file($f) ? 'data:image/png;base64,' . base64_encode(file_get_contents($f)) : '';
+        }
+        return self::$wm ?: null;
+    }
+
     /** Full HTML document for one or more labels. */
     public static function render(array $labels, array $cfg): string
     {
@@ -219,7 +232,8 @@ class LabelRenderer
             @page { margin: ' . ($thermal ? '8pt' : '28pt') . '; }
             * { box-sizing: border-box; }
             body { margin:0; font-family: "DejaVu Sans", Arial, sans-serif; font-size: ' . $base . 'pt; color:#000; line-height:1.25; }
-            .pg { page-break-after: always; }
+            .pg { page-break-after: always; position: relative; }
+            .wm { position: absolute; left: 50%; z-index: -1; }
             .pg:last-child { page-break-after: auto; }
             table { border-collapse: collapse; width:100%; }
             td { vertical-align: top; padding:0; }
@@ -245,9 +259,13 @@ class LabelRenderer
             .c { text-align:center; }
         ';
 
+        $wm = $cfg['show_watermark'] ? self::watermark() : null;
+        $wmW = $thermal ? 215 : 300;                       // pt
+        $wmTop = $thermal ? 158 : 172;                     // below the AWB barcode
+        $wmHtml = $wm ? '<img class="wm" src="' . $wm . '" style="width:' . $wmW . 'pt; margin-left:-' . ($wmW / 2) . 'pt; top:' . $wmTop . 'pt;">' : '';
         $body = '';
         foreach ($pages as $p) {
-            $body .= '<div class="pg">' . $p . '</div>';
+            $body .= '<div class="pg">' . $wmHtml . $p . '</div>';
         }
         return '<!doctype html><html><head><meta charset="utf-8"><style>' . $css . '</style></head><body>' . $body . '</body></html>';
     }
