@@ -48,12 +48,16 @@ echo "Shipxpeed value services + weight disputes v2 installer"
 git fetch -q origin || { echo "FAIL: git fetch"; exit 1; }
 git cat-file -e "$REF:deploy/value-services.sh" || { echo "FAIL: latest code not found on $REF"; exit 1; }
 [ -f app/Providers/XpeedServiceProvider.php ] || { echo "FAIL: Control Suite not installed on this server (XpeedServiceProvider missing)"; exit 1; }
+for f in routes/web.php routes/admin.php; do
+  { [ -s "$f" ] && head -c 5 "$f" | grep -q '<?php' && [ "$(wc -l < "$f")" -gt 100 ]; } || { echo "FAIL: $f is missing or damaged - run deploy/recover.sh first"; exit 1; }
+done
 
 EXIST=""; for f in $NEW_FILES $WEIGHT_FILES $SHARED; do [ -e "$f" ] && EXIST="$EXIST $f"; done
+PRE=" $EXIST " 
 tar czf "$BK" $EXIST 2>/dev/null && echo "Backup: $BK"
 restore() {
   echo "!! restoring backup"; tar xzf "$BK"
-  for f in $NEW_FILES; do tar tzf "$BK" | grep -qxF "$f" || rm -f "$f"; done
+  for f in $NEW_FILES; do case "$PRE" in *" $f "*) ;; *) rm -f "$f" ;; esac; done
   php artisan optimize:clear >/dev/null 2>&1
   echo "RESTORED - code is back as it was (new database columns/tables, if added, are harmless)"; exit 1
 }
