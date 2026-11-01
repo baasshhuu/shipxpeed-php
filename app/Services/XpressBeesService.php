@@ -1449,7 +1449,40 @@ public function fetchNdrDatasss($params)
 //     }
 // }
 
+    /**
+     * NDR action via XpressBees /api/ndr/create.
+     * $action: re-attempt | change-address | change-phone  (RTO is raised by ops)
+     */
+    public function ndrAction(\App\Models\Order $order, string $action, array $data = []): array
+    {
+        $date = !empty($data['reattempt_date']) ? date('Y-m-d', strtotime($data['reattempt_date'])) : now()->addDay()->toDateString();
+        $row = ['awb' => (string) $order->awb_number, 'action' => 're-attempt', 'action_data' => ['re_attempt_date' => $date]];
 
+        if ($action === 'change-address') {
+            $consignee = is_string($order->consignee) ? (json_decode($order->consignee, true) ?: []) : (array) $order->consignee;
+            $row = ['awb' => (string) $order->awb_number, 'action' => 'change_address', 'action_data' => [
+                'name'      => (string) ($data['name'] ?? $consignee['name'] ?? ''),
+                'address_1' => mb_substr((string) ($data['address'] ?? ''), 0, 200),
+                'address_2' => mb_substr((string) ($data['landmark'] ?? ''), 0, 120),
+            ]];
+        } elseif ($action === 'change-phone') {
+            $row = ['awb' => (string) $order->awb_number, 'action' => 'change_phone', 'action_data' => [
+                'phone' => preg_replace('/\D/', '', (string) ($data['phone'] ?? '')),
+            ]];
+        }
 
+        $token = $this->fetchAuthToken();
+        $r = Http::withToken($token)->acceptJson()->timeout(40)
+            ->post('https://shipment.xpressbees.com/api/ndr/create', [$row]);
+        $body = $r->json();
+        $item = is_array($body) && array_is_list($body) ? ($body[0] ?? []) : (array) $body;
+        $flag = $item['status'] ?? ($body['status'] ?? null);
+        $ok = $r->successful() && !in_array($flag, [false, 'false', 0, '0'], true);
+
+        return [
+            'status'   => $ok,
+            'message'  => $ok ? 'Re-attempt requested with XpressBees for ' . date('d M', strtotime($date)) : ('XpressBees rejected it: ' . ($item['message'] ?? $body['message'] ?? 'HTTP ' . $r->status())),
+            'response' => ['sent' => $row, 'http' => $r->status(), 'body' => $body ?? $r->body()],
+        ];
+    }
 }
-

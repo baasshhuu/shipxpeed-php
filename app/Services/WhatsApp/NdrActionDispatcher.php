@@ -37,6 +37,11 @@ class NdrActionDispatcher
                 return $this->result((bool) ($r['status'] ?? false), $r['message'] ?? '', $r);
             }
 
+            if ($courier === 'xpressbees' && $action !== 'rto') {
+                $r = app(\App\Services\XpressBeesService::class)->ndrAction($order, $action, $data);
+                return $this->result((bool) ($r['status'] ?? false), $r['message'] ?? '', $r);
+            }
+
             if ($action === 'rto') {
                 return ['status' => 'needs_manual', 'message' => 'Return request: ops team to raise RTO with the courier.', 'response' => null];
             }
@@ -69,6 +74,22 @@ class NdrActionDispatcher
         }
 
         return ['status' => 'needs_manual', 'message' => 'Courier has no NDR API in the panel yet; ops team to action.', 'response' => null];
+    }
+
+    /**
+     * How a re-attempt for this courier is handled: 'api' = sent straight to the
+     * courier's NDR API, 'ops' = recorded and raised by the Shipxpeed ops team.
+     */
+    public static function channel(string $courierId): string
+    {
+        $c = strtolower(trim($courierId));
+        if (in_array($c, ['fship', 'shipclues', 'xpressbees', 'parcelx', 'delhivery 500gm', 'boxd', 'delhivery 250gms'], true)) {
+            return 'api';
+        }
+        if (str_starts_with($c, 'delhivery_b2c') && (env('DELHIVERY_B2C_TOKEN') || env('DELHIVERY_API_TOKEN'))) {
+            return 'api';
+        }
+        return 'ops';
     }
 
     /** Delhivery: details via /api/p/edit, then RE-ATTEMPT via /api/p/update. */

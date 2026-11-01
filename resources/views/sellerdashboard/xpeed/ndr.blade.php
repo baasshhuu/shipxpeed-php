@@ -26,16 +26,30 @@
     <div class="xp-card">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
             <div class="btn-group btn-group-sm">
-                <a href="{{ route('xp.ndr', ['tab' => 'action']) }}" class="btn {{ $tab === 'action' ? 'btn-xp' : 'btn-outline-secondary' }}">Action needed ({{ $pending->count() }})</a>
-                <a href="{{ route('xp.ndr', ['tab' => 'taken']) }}" class="btn {{ $tab === 'taken' ? 'btn-xp' : 'btn-outline-secondary' }}">Action taken ({{ $taken->count() }})</a>
+                <a href="{{ route('xp.ndr', array_filter(['tab' => 'action', 'courier' => $courier])) }}" class="btn {{ $tab === 'action' ? 'btn-xp' : 'btn-outline-secondary' }}">Action needed ({{ $pending->count() }})</a>
+                <a href="{{ route('xp.ndr', array_filter(['tab' => 'taken', 'courier' => $courier])) }}" class="btn {{ $tab === 'taken' ? 'btn-xp' : 'btn-outline-secondary' }}">Action taken ({{ $taken->count() }})</a>
                 <a href="{{ route('xp.ndr', ['tab' => 'history']) }}" class="btn {{ $tab === 'history' ? 'btn-xp' : 'btn-outline-secondary' }}">History</a>
             </div>
             <form class="d-flex gap-2" method="GET" action="{{ route('xp.ndr') }}">
                 <input type="hidden" name="tab" value="{{ $tab }}">
+                @if($courier)<input type="hidden" name="courier" value="{{ $courier }}">@endif
                 <input name="q" value="{{ request('q') }}" class="form-control form-control-sm" placeholder="AWB or order no." style="max-width:200px">
                 <button class="btn btn-sm btn-outline-secondary">Search</button>
             </form>
         </div>
+
+        @if($tab !== 'history' && $couriers->isNotEmpty())
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <a href="{{ route('xp.ndr', ['tab' => $tab]) }}" class="btn btn-sm {{ $courier === '' ? 'btn-xp' : 'btn-outline-secondary' }}">All couriers ({{ $couriers->sum('count') }})</a>
+                @foreach($couriers as $cr)
+                    <a href="{{ route('xp.ndr', ['tab' => $tab, 'courier' => $cr['id']]) }}" class="btn btn-sm {{ $courier === $cr['id'] ? 'btn-xp' : 'btn-outline-secondary' }}"
+                       title="{{ $cr['channel'] === 'api' ? 'Re-attempts go straight to the courier API' : 'Re-attempts are raised by Shipxpeed ops' }}">
+                        {{ $cr['label'] }} ({{ $cr['count'] }})
+                        <span class="pill {{ $cr['channel'] === 'api' ? 'ok' : 'warn' }} ms-1">{{ $cr['channel'] === 'api' ? 'API' : 'Ops' }}</span>
+                    </a>
+                @endforeach
+            </div>
+        @endif
 
         @if($tab === 'history')
             <div class="table-responsive">
@@ -69,15 +83,16 @@
                 @if($tab === 'action')
                 <form id="ndrBulk" method="POST" action="{{ route('xp.ndr.bulk') }}" class="d-flex gap-2 align-items-center flex-wrap mb-2">
                     @csrf
-                    <span class="small text-muted">With selected:</span>
-                    <button name="action" value="re-attempt" class="btn btn-sm btn-xp" onclick="return xpBulkPick()">Re-attempt tomorrow</button>
-                    <button name="action" value="rto" class="btn btn-sm btn-outline-danger" onclick="return xpBulkPick() && confirm('Return all selected shipments to you?')">Return to me (RTO)</button>
+                    <span class="small text-muted">With selected (<b id="xpSelCount">0</b>):</span>
+                    <input type="date" name="reattempt_date" class="form-control form-control-sm" style="max-width:150px" min="{{ $minDate }}" max="{{ $maxDate }}" value="{{ $minDate }}" title="Re-attempt date">
+                    <button name="action" value="re-attempt" class="btn btn-sm btn-xp" onclick="return xpBulkPick('Send a re-attempt request to the courier for')">Bulk re-attempt</button>
+                    <button name="action" value="rto" class="btn btn-sm btn-outline-danger" onclick="return xpBulkPick('Return to you (RTO)')">Return to me (RTO)</button>
                 </form>
                 @endif
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
                         <thead><tr>
-                            @if($tab === 'action')<th style="width:28px"><input type="checkbox" onclick="document.querySelectorAll('.xp-ndr-cb').forEach(c => c.checked = this.checked)"></th>@endif
+                            @if($tab === 'action')<th style="width:28px"><input type="checkbox" onclick="document.querySelectorAll('.xp-ndr-cb').forEach(c => c.checked = this.checked); xpCount()"></th>@endif
                             <th>Shipment</th><th>Buyer</th><th>Payment</th><th>Last action</th><th class="text-end">Take action</th>
                         </tr></thead>
                         <tbody>
@@ -88,10 +103,12 @@
                                 $risk = \App\Support\Xpeed\RtoRisk::score($o);
                             @endphp
                             <tr>
-                                @if($tab === 'action')<td><input type="checkbox" class="xp-ndr-cb" form="ndrBulk" name="order_ids[]" value="{{ $o->id }}"></td>@endif
+                                @if($tab === 'action')<td><input type="checkbox" class="xp-ndr-cb" form="ndrBulk" name="order_ids[]" value="{{ $o->id }}" onchange="xpCount()"></td>@endif
                                 <td>
                                     <div class="mono">{{ $o->awb_number }}</div>
-                                    <div class="small text-muted">{{ Kit::courierLabel($o) }} · #{{ Kit::ref($o) }}</div>
+                                    @php $ch = \App\Services\WhatsApp\NdrActionDispatcher::channel((string) $o->courier_id); @endphp
+                                    <div class="small text-muted">{{ Kit::courierLabel($o) }} · #{{ Kit::ref($o) }}
+                                        <span class="pill {{ $ch === 'api' ? 'ok' : 'warn' }}" title="{{ $ch === 'api' ? 'Sent straight to the courier API' : 'Raised by Shipxpeed ops' }}">{{ $ch === 'api' ? 'API' : 'Ops' }}</span></div>
                                     <div class="small text-muted">Updated {{ optional($o->updated_at)->diffForHumans() }}</div>
                                 </td>
                                 <td>
@@ -115,8 +132,17 @@
                                     @endif
                                 </td>
                                 <td class="text-end" style="min-width:290px">
-                                    <details>
-                                        <summary class="btn btn-sm btn-outline-primary">Choose action</summary>
+                                    @if($tab === 'action')
+                                    <form method="POST" action="{{ route('xp.ndr.action') }}" class="d-inline" onsubmit="this.querySelector('button').disabled=true">
+                                        @csrf
+                                        <input type="hidden" name="order_id" value="{{ $o->id }}">
+                                        <input type="hidden" name="action" value="re-attempt">
+                                        <input type="hidden" name="reattempt_date" value="{{ $minDate }}">
+                                        <button class="btn btn-sm btn-xp mb-1" title="Re-attempt tomorrow">Re-attempt</button>
+                                    </form>
+                                    @endif
+                                    <details class="d-inline-block">
+                                        <summary class="btn btn-sm btn-outline-primary">More actions</summary>
                                         <form method="POST" action="{{ route('xp.ndr.action') }}" class="text-start mt-2 p-2 rounded" style="border:1px solid rgba(120,130,150,.25)">
                                             @csrf
                                             <input type="hidden" name="order_id" value="{{ $o->id }}">
@@ -154,9 +180,14 @@ function xpNdrToggle(sel) {
     f.querySelector('[name=address]').required = v === 'change-address';
     f.querySelector('[name=phone]').required = v === 'change-phone';
 }
-function xpBulkPick() {
-    if (!document.querySelector('.xp-ndr-cb:checked')) { alert('Select at least one shipment.'); return false; }
-    return true;
+function xpCount() {
+    var el = document.getElementById('xpSelCount');
+    if (el) el.textContent = document.querySelectorAll('.xp-ndr-cb:checked').length;
+}
+function xpBulkPick(what) {
+    var n = document.querySelectorAll('.xp-ndr-cb:checked').length;
+    if (!n) { alert('Select at least one shipment.'); return false; }
+    return confirm(what + ' ' + n + ' shipment(s)?');
 }
 </script>
 @endsection

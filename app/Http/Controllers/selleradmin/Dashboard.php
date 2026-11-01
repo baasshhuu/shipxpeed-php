@@ -3294,6 +3294,12 @@ public function order()
     
     public function NDR(Request $request)
     {
+        // The NDR tab opens the dedicated NDR page (NDR orders only, courier-wise
+        // re-attempt / bulk re-attempt sent straight to the courier's API).
+        if (\Illuminate\Support\Facades\Route::has('xp.ndr')) {
+            return redirect()->route('xp.ndr', array_filter(['q' => $request->get('search'), 'courier' => $request->get('courier')]));
+        }
+
         $seller = Auth::guard('seller')->user();
 
         $totalAmount = 0;

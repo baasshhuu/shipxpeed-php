@@ -69,10 +69,23 @@ class SellerSuiteController extends Controller
         });
         $taken = $orders->diff($pending);
 
+        // courier-wise grouping (filter chips) + whether each courier takes re-attempts by API
+        $courierOf = fn ($o) => strtolower((string) $o->courier_id);
+        $base = $tab === 'taken' ? $taken : $pending;
+        $couriers = $base->groupBy($courierOf)->map(fn ($g, $id) => [
+            'id' => $id, 'label' => Kit::courierLabel($g->first()), 'count' => $g->count(),
+            'channel' => NdrActionDispatcher::channel((string) $id),
+        ])->sortByDesc('count')->values();
+        $courier = strtolower(trim((string) $request->get('courier')));
+        if ($courier !== '') {
+            $pending = $pending->filter(fn ($o) => $courierOf($o) === $courier)->values();
+            $taken = $taken->filter(fn ($o) => $courierOf($o) === $courier)->values();
+        }
+
         $history = $hasNdr ? DB::table('ndr_responses')->where('seller_id', $seller->id)->whereNotNull('action')->orderByDesc('id')->limit(100)->get() : collect();
         $awbOf = Order::whereIn('id', $history->pluck('order_id')->unique())->pluck('awb_number', 'id');
 
-        return $this->page('ndr', compact('tab', 'orders', 'pending', 'taken', 'actions', 'history', 'awbOf', 'hasNdr'));
+        return $this->page('ndr', compact('tab', 'orders', 'pending', 'taken', 'actions', 'history', 'awbOf', 'hasNdr', 'couriers', 'courier'));
     }
 
     public function ndrAction(Request $request, NdrActionDispatcher $dispatcher)
@@ -100,13 +113,29 @@ class SellerSuiteController extends Controller
     public function ndrBulk(Request $request, NdrActionDispatcher $dispatcher)
     {
         $seller = $this->seller();
-        $data = $request->validate(['order_ids' => 'required|array|max:100', 'order_ids.*' => 'integer', 'action' => 'required|in:re-attempt,rto']);
+        $min = now()->addDay()->toDateString();
+        $max = now()->addDays(5)->toDateString();
+        $data = $request->validate([
+            'order_ids' => 'required|array|max:300', 'order_ids.*' => 'integer',
+            'action' => 'required|in:re-attempt,rto',
+            'reattempt_date' => "nullable|date|after_or_equal:{$min}|before_or_equal:{$max}",
+        ]);
+        @set_time_limit(600);
+        $date = $data['reattempt_date'] ?? $min;
         $done = ['sent_to_courier' => 0, 'needs_manual' => 0, 'failed' => 0];
+        $failed = [];
         foreach (Order::where('seller_id', $seller->id)->whereIn('id', $data['order_ids'])->get() as $o) {
-            $r = $this->dispatchNdr($dispatcher, $o, ['action' => $data['action'], 'reattempt_date' => now()->addDay()->toDateString(), 'remark' => 'Bulk action by seller'], 'seller');
+            $r = $this->dispatchNdr($dispatcher, $o, ['action' => $data['action'], 'reattempt_date' => $date, 'remark' => 'Bulk action by seller'], 'seller');
             $done[$r['status']] = ($done[$r['status']] ?? 0) + 1;
+            if ($r['status'] === 'failed' && count($failed) < 10) {
+                $failed[] = $o->awb_number . ' (' . mb_strimwidth((string) $r['message'], 0, 60, '…') . ')';
+            }
         }
-        return back()->with('success', "Done: {$done['sent_to_courier']} sent to courier, {$done['needs_manual']} passed to Shipxpeed ops, {$done['failed']} rejected by courier.");
+        $msg = "Done: {$done['sent_to_courier']} sent to courier, {$done['needs_manual']} passed to Shipxpeed ops, {$done['failed']} rejected by courier.";
+        if ($failed) {
+            $msg .= ' Rejected: ' . implode(', ', $failed);
+        }
+        return back()->with($done['failed'] && !$done['sent_to_courier'] && !$done['needs_manual'] ? 'error' : 'success', $msg);
     }
 
     private function dispatchNdr(NdrActionDispatcher $dispatcher, Order $order, array $data, string $source): array
