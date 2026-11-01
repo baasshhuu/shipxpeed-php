@@ -75,7 +75,7 @@ echo "restored  $n other missing file(s) from repo"
 # latest UI files (Value added services menu, Control Center pages, sidebar entry, custom-label layout fix)
 for f in app/Http/Controllers/selleradmin/ValueServicesController.php \
          resources/views/sellerdashboard/vas/_nav.blade.php resources/views/sellerdashboard/vas/_style.blade.php \
-         resources/views/sellerdashboard/vas/_layout.blade.php resources/views/sellerdashboard/vas/secure.blade.php \
+         resources/views/sellerdashboard/vas/_layout.blade.php resources/views/sellerdashboard/vas/secure.blade.php resources/views/sellerdashboard/vas/early-cod.blade.php \
          resources/views/sellerdashboard/xpeed/_style.blade.php resources/views/partials/vas-menu-link.blade.php \
          resources/views/sellerdashboard/custom-label.blade.php routes/vas_web.php; do
   git cat-file -e "$REF:$f" 2>/dev/null || continue
