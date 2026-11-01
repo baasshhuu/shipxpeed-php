@@ -957,5 +957,6 @@
     @if(auth()->guard('seller')->check())
         @include('partial.sellerdash.assistant')
     @endif
+@includeIf('partials.vas-menu-link')
 </body>
 </html>
