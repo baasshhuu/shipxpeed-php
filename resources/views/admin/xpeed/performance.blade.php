@@ -9,11 +9,11 @@
 <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div><h5 class="mb-0">Courier performance</h5><div class="small text-muted">From shipments booked in the panel (cancelled excluded). Delivery % and RTO % are of closed shipments (delivered + RTO).</div></div>
-        <form class="d-flex gap-2 flex-wrap">
-            <select name="days" class="form-select form-select-sm" onchange="this.form.submit()">
+        <form class="d-flex gap-2 flex-wrap align-items-center">
+            <select name="days" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
                 @foreach([7, 30, 90, 180] as $d)<option value="{{ $d }}" @selected($days === $d)>Last {{ $d }} days</option>@endforeach
             </select>
-            <select name="seller_id" class="form-select form-select-sm" onchange="this.form.submit()" style="max-width:220px">
+            <select name="seller_id" class="form-select form-select-sm" onchange="this.form.submit()" style="width:auto;max-width:220px">
                 <option value="0">All sellers</option>
                 @foreach($sellers as $id => $n)<option value="{{ $id }}" @selected($sellerId === (int) $id)>{{ $n }}</option>@endforeach
             </select>

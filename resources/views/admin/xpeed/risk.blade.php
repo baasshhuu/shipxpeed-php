@@ -9,7 +9,7 @@
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div><h5 class="mb-0">Risky COD orders not yet shipped</h5><div class="small text-muted">All sellers, last 7 days. Score uses buyer history, pincode RTO rate, address quality and value.</div></div>
-                <form><select name="min" class="form-select form-select-sm" onchange="this.form.submit()">
+                <form><select name="min" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
                     @foreach([0 => 'All scores', 35 => 'Medium and high', 60 => 'High only'] as $v => $l)<option value="{{ $v }}" @selected($min === $v)>{{ $l }}</option>@endforeach
                 </select></form>
             </div>

@@ -26,7 +26,7 @@
                     <a href="{{ route('admin.xp.ndr', ['status' => $k]) }}" class="btn {{ $status === $k ? 'btn-primary' : 'btn-outline-secondary' }}">{{ $l }}</a>
                 @endforeach
             </div>
-            <form class="d-flex gap-2"><input type="hidden" name="status" value="{{ $status }}"><input name="q" value="{{ request('q') }}" class="form-control form-control-sm" placeholder="AWB"><button class="btn btn-sm btn-outline-secondary">Search</button></form>
+            <form class="d-flex gap-2 align-items-center"><input type="hidden" name="status" value="{{ $status }}"><input name="q" value="{{ request('q') }}" class="form-control form-control-sm" placeholder="AWB" style="width:180px"><button class="btn btn-sm btn-outline-secondary text-nowrap">Search</button></form>
         </div>
         <div class="table-responsive">
             <table class="table table-sm mb-0">
