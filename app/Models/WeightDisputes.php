@@ -9,8 +9,9 @@ use Illuminate\Database\Eloquent\Model;
  * One weight discrepancy on one AWB.
  *
  * dispute_status:
- *   charged   excess debited from the seller wallet; seller can raise a dispute until dispute_deadline
- *   disputed  seller raised a dispute with proof; waiting for admin review
+ *   charged          excess debited; seller must Accept it or Reject it with proof before dispute_deadline
+ *   seller_accepted  seller accepted the charge; closed (raised_at = when the seller acted)
+ *   disputed         seller rejected the charge with proof; waiting for admin review
  *   accepted  admin accepted; excess refunded to the wallet
  *   rejected  admin rejected; closed, charge stays
  *   closed    dispute window passed without a dispute (charge final)   [also: old charged rows]
@@ -24,6 +25,7 @@ class WeightDisputes extends Model
 
     public const CHARGED = 'charged';
     public const DISPUTED = 'disputed';
+    public const SELLER_ACCEPTED = 'seller_accepted';
     public const ACCEPTED = 'accepted';
     public const REJECTED = 'rejected';
     public const CLOSED = 'closed';
@@ -50,7 +52,7 @@ class WeightDisputes extends Model
     /** Hours after the deduction during which the seller can raise a dispute. */
     public static function windowHours(): int
     {
-        return max(1, (int) env('WEIGHT_DISPUTE_WINDOW_HOURS', 48));
+        return max(1, (int) env('WEIGHT_DISPUTE_WINDOW_HOURS', 24));
     }
 
     /** Status as it stands right now (a 'charged' row past its deadline reads as 'closed'). */
@@ -70,16 +72,40 @@ class WeightDisputes extends Model
             && $this->dispute_deadline->isFuture();
     }
 
-    public static function statusLabel(string $s): string
+    /** Why the seller can no longer respond (for error messages). */
+    public function lockedReason(): string
+    {
+        if ($this->liveStatus() === self::CLOSED) {
+            return 'The ' . self::windowHours() . '-hour window to respond to this charge has ended, so the charge is final.';
+        }
+        return 'You have already responded to this charge (' . self::statusLabel($this->liveStatus()) . ').';
+    }
+
+    public static function statusLabel(string $s, bool $forAdmin = false): string
     {
         return [
-            self::CHARGED => 'Charged',
+            self::CHARGED => $forAdmin ? 'Awaiting seller' : 'Action needed',
+            self::SELLER_ACCEPTED => $forAdmin ? 'Seller accepted' : 'You accepted · Closed',
             self::DISPUTED => 'Under review',
-            self::ACCEPTED => 'Accepted · Refunded',
-            self::REJECTED => 'Rejected · Closed',
+            self::ACCEPTED => $forAdmin ? 'Accepted · Refunded' : 'Dispute won · Refunded',
+            self::REJECTED => $forAdmin ? 'Rejected · Closed' : 'Dispute rejected · Closed',
             self::CLOSED => 'Closed',
             self::VOID => 'Not charged',
         ][$s] ?? ucfirst($s);
+    }
+
+    private static function proofCount(array $proofs): string
+    {
+        $v = count(array_filter($proofs, fn ($p) => ($p['type'] ?? '') === 'video'));
+        $i = count($proofs) - $v;
+        $parts = [];
+        if ($i) {
+            $parts[] = $i . ' photo' . ($i > 1 ? 's' : '');
+        }
+        if ($v) {
+            $parts[] = $v . ' video';
+        }
+        return $parts ? implode(' + ', $parts) : 'no files';
     }
 
     public function order()
@@ -111,7 +137,9 @@ class WeightDisputes extends Model
             $timeline[] = ['at' => $this->deducted_at->format('d M Y, h:i A'), 'text' => '₹' . number_format((float) $this->excess_charge, 2) . ' excess weight charge debited from wallet'];
         }
         if ($this->raised_at) {
-            $timeline[] = ['at' => $this->raised_at->format('d M Y, h:i A'), 'text' => 'Dispute raised by seller with ' . count($proofs) . ' proof file(s)'];
+            $timeline[] = ['at' => $this->raised_at->format('d M Y, h:i A'), 'text' => $this->dispute_status === self::SELLER_ACCEPTED
+                ? 'Charge accepted by seller — case closed'
+                : 'Charge rejected by seller — dispute raised with ' . self::proofCount($proofs)];
         }
         if ($this->reviewed_at) {
             $timeline[] = ['at' => $this->reviewed_at->format('d M Y, h:i A'), 'text' => $this->dispute_status === self::ACCEPTED
@@ -133,7 +161,7 @@ class WeightDisputes extends Model
             'order_number' => $this->order_number,
             'courier' => $this->courier ?: '—',
             'status' => $s,
-            'status_label' => self::statusLabel($s),
+            'status_label' => self::statusLabel($s, $forAdmin),
             'applied_kg' => $legacy ? $num($this->Mentionedweight) : $kg($this->applied_weight),
             'applied_dead_kg' => $kg($this->applied_dead_weight),
             'applied_vol_kg' => $kg($this->applied_vol_weight),

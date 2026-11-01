@@ -7,7 +7,8 @@
 #   - review seller disputes with their photos / videos -> Accept (auto refund to wallet) or Reject (closed)
 #  Seller > Weight Discrepancy
 #   - every charge with full weight details + timeline
-#   - "Raise dispute" only within 48 hours of the charge (WEIGHT_DISPUTE_WINDOW_HOURS in .env), up to 5 photos/videos, 10 MB each
+#   - within 24 hours of the charge (WEIGHT_DISPUTE_WINDOW_HOURS in .env) the seller either Accepts it (closed)
+#     or Rejects it with proof: up to 5 photos + 1 video, 10 MB each (upload with progress bar)
 #  Raises PHP / nginx upload limits so 10 MB videos go through.
 # Backs up every touched file first and restores automatically if any check fails.
 # Usage:  git fetch origin && git show origin/main:deploy/weight-disputes.sh | bash
@@ -65,6 +66,10 @@ addAfter('routes/web.php',
     "seller.weight.dispute.raise",
     "    Route::post('/weight/discrepancy/{id}/raise', [WeightDispatchingController::class, 'raise'])->name('seller.weight.dispute.raise');\n" .
     "    Route::get('/weight/discrepancy/{id}/proof/{n}', [WeightDispatchingController::class, 'proof'])->name('seller.weight.dispute.proof');");
+addAfter('routes/web.php',
+    "/^.*->name\('seller\.weight\.dispute\.raise'\).*$/m",
+    "seller.weight.dispute.accept",
+    "    Route::post('/weight/discrepancy/{id}/accept', [WeightDispatchingController::class, 'accept'])->name('seller.weight.dispute.accept');");
 PHP
 
 for f in $COPY_FILES routes/admin.php routes/web.php; do
@@ -77,7 +82,7 @@ php artisan config:clear >/dev/null 2>&1
 php artisan view:clear >/dev/null
 php artisan route:clear >/dev/null
 
-# --- upload limits: 5 files x 10 MB per dispute ---
+# --- upload limits: 5 photos + 1 video, 10 MB each, per dispute ---
 # PHP-FPM reads public/.user.ini; mod_php reads php_value in public/.htaccess
 touch public/.user.ini
 for kv in "upload_max_filesize=12M" "post_max_size=64M" "max_file_uploads=20"; do
@@ -115,13 +120,19 @@ $chk("admin-weight", route("weight.dispatching.index"));
 $chk("admin-template", route("weight.dispute.template"));
 $s = App\Models\SellerList::first();
 if ($s) { Auth::guard("seller")->setUser($s); $chk("seller-weight", route("seller.weight.discrepancy")); }
+echo "ROUTE " . (Route::has("seller.weight.dispute.accept") ? "ok" : "missing") . PHP_EOL;
 echo "COLS " . (Schema::hasColumn("weight_disputes", "dispute_status") && Schema::hasColumn("weight_disputes", "seller_proofs") ? "ok" : "missing") . PHP_EOL;
-' 2>&1 | grep -E "^(CHK|COLS)|Error|Exception" )
+' 2>&1 | grep -E "^(CHK|COLS|ROUTE)|Error|Exception" )
 echo "$OUT"
 echo "$OUT" | grep -q "^COLS ok" || { echo "weight_disputes columns missing"; restore; }
+echo "$OUT" | grep -q "^ROUTE ok" || { echo "seller accept route missing"; restore; }
 echo "$OUT" | grep -qE "^CHK admin-weight (200|302)" || { echo "admin weight page check failed"; restore; }
 echo "$OUT" | grep -qE "^CHK .* 5[0-9][0-9]" && { echo "a page returned a server error"; restore; }
 
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
 echo "DONE. Backup kept at $BK"
-echo "Dispute window: ${WEIGHT_DISPUTE_WINDOW_HOURS:-48} hours (set WEIGHT_DISPUTE_WINDOW_HOURS in .env to change, then php artisan config:clear)"
+# 24-hour window: drop any older WEIGHT_DISPUTE_WINDOW_HOURS override so the 24 h default applies
+if grep -qE '^WEIGHT_DISPUTE_WINDOW_HOURS=' .env 2>/dev/null; then
+  sed -i -E 's/^WEIGHT_DISPUTE_WINDOW_HOURS=.*/WEIGHT_DISPUTE_WINDOW_HOURS=24/' .env && php artisan config:clear >/dev/null 2>&1
+fi
+echo "Seller response window: 24 hours for new charges (charges already open keep the deadline they were given)"

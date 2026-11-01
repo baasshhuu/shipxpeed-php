@@ -371,6 +371,7 @@ Route::post('/seller/orders/import', [Dashboard::class, 'importOrders'])->name('
     Route::get('/weight/discrepancy/excel', [WeightDispatchingController::class, 'downloadExcel'])->name('seller.weight.discrepancy.excel');
     Route::post('/weight/discrepancy/submit', [WeightDispatchingController::class, 'submit'])->name('seller.weight.discrepancy.submit');
     Route::post('/weight/discrepancy/{id}/raise', [WeightDispatchingController::class, 'raise'])->name('seller.weight.dispute.raise');
+    Route::post('/weight/discrepancy/{id}/accept', [WeightDispatchingController::class, 'accept'])->name('seller.weight.dispute.accept');
     Route::get('/weight/discrepancy/{id}/proof/{n}', [WeightDispatchingController::class, 'proof'])->name('seller.weight.dispute.proof');
 
     Route::get('/courier/In-Transit', [Dashboard::class, 'InTransit'])->name('seller.courier.InTransit');

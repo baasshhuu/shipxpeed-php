@@ -22,7 +22,8 @@ class WeightDispatchingController extends Controller
     private const TABS = [
         'all' => 'All',
         'disputed' => 'Needs review',
-        'charged' => 'Open (seller can dispute)',
+        'charged' => 'Awaiting seller',
+        'seller_accepted' => 'Seller accepted',
         'accepted' => 'Accepted · refunded',
         'rejected' => 'Rejected',
         'closed' => 'Closed',
@@ -51,6 +52,7 @@ class WeightDispatchingController extends Controller
             'all' => (clone $base)->count(),
             'disputed' => (clone $base)->where('dispute_status', WeightDisputes::DISPUTED)->count(),
             'charged' => (clone $base)->where('dispute_status', WeightDisputes::CHARGED)->where('dispute_deadline', '>', $now)->count(),
+            'seller_accepted' => (clone $base)->where('dispute_status', WeightDisputes::SELLER_ACCEPTED)->count(),
             'accepted' => (clone $base)->where('dispute_status', WeightDisputes::ACCEPTED)->count(),
             'rejected' => (clone $base)->where('dispute_status', WeightDisputes::REJECTED)->count(),
             'closed' => (clone $base)->where(function ($q) use ($now) {
@@ -80,6 +82,7 @@ class WeightDispatchingController extends Controller
         $q = WeightDisputes::query()->where('dispute_status', '!=', WeightDisputes::VOID);
         switch ($tab) {
             case 'disputed':
+            case 'seller_accepted':
             case 'accepted':
             case 'rejected':
                 $q->where('dispute_status', $tab);

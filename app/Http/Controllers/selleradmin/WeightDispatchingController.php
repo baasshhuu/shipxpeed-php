@@ -14,13 +14,16 @@ use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Seller > Weight Discrepancy
- *  every charge with full details, raise a dispute with photo/video proof inside the dispute window,
- *  follow the review until refund or closure.
+ *  every charge with full details; inside the dispute window (24 h) the seller either
+ *  Accepts the charge (closed) or Rejects it with proof (up to 5 photos + 1 video) for admin review.
  */
 class WeightDispatchingController extends Controller
 {
-    public const MAX_FILES = 5;
+    public const MAX_IMAGES = 5;
+    public const MAX_VIDEOS = 1;
     public const MAX_KB = 10240; // 10 MB per file
+    public const IMAGE_TYPES = 'jpg,jpeg,png,webp,heic,heif';
+    public const VIDEO_TYPES = 'mp4,mov,webm,3gp,mkv';
 
     private function sellerId(): int
     {
@@ -34,6 +37,9 @@ class WeightDispatchingController extends Controller
             ->where('dispute_status', '!=', WeightDisputes::VOID);
 
         switch ($request->get('status')) {
+            case 'seller_accepted':
+                $q->where('dispute_status', WeightDisputes::SELLER_ACCEPTED);
+                break;
             case 'open':
                 $q->where('dispute_status', WeightDisputes::CHARGED)->where('dispute_deadline', '>', $now);
                 break;
@@ -87,6 +93,7 @@ class WeightDispatchingController extends Controller
             'total' => (clone $base)->count(),
             'open' => (clone $base)->where('dispute_status', WeightDisputes::CHARGED)->where('dispute_deadline', '>', $now)->count(),
             'review' => (clone $base)->where('dispute_status', WeightDisputes::DISPUTED)->count(),
+            'seller_accepted' => (clone $base)->where('dispute_status', WeightDisputes::SELLER_ACCEPTED)->count(),
             'accepted' => (clone $base)->where('dispute_status', WeightDisputes::ACCEPTED)->count(),
             'rejected' => (clone $base)->where('dispute_status', WeightDisputes::REJECTED)->count(),
             'charged_amount' => (float) (clone $base)->whereNotNull('deducted_at')->sum('excess_charge'),
@@ -100,40 +107,79 @@ class WeightDispatchingController extends Controller
             'seller' => $seller,
             'totalAmount' => $totalAmount,
             'windowHours' => WeightDisputes::windowHours(),
-            'maxFiles' => self::MAX_FILES,
+            'maxImages' => self::MAX_IMAGES,
+            'maxVideos' => self::MAX_VIDEOS,
+            'imageTypes' => self::IMAGE_TYPES,
+            'videoTypes' => self::VIDEO_TYPES,
             'maxMb' => (int) (self::MAX_KB / 1024),
             // kept for any old partial that still reads it
             'totalDiscrepancies' => $stats['total'],
         ]);
     }
 
+    /** Seller agrees with the courier weight. */
+    public function accept($id)
+    {
+        $d = WeightDisputes::where('seller_id', $this->sellerId())->findOrFail($id);
+        try {
+            WeightDisputeService::acceptCharge($d);
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        return back()->with('success', 'You accepted the weight charge for AWB ' . $d->awb . '. This case is closed.');
+    }
+
+    /** Seller rejects the charge and sends proof (max 5 photos + 1 video). */
     public function raise(Request $request, $id)
     {
         $d = WeightDisputes::where('seller_id', $this->sellerId())->findOrFail($id);
         if (!$d->canRaise()) {
-            return back()->with('error', 'You can raise a dispute only within ' . WeightDisputes::windowHours() . ' hours of the charge. This one is ' . strtolower(WeightDisputes::statusLabel($d->liveStatus())) . '.');
+            return $this->reply($request, false, $d->lockedReason());
         }
 
         $request->validate([
             'remark' => 'required|string|min:10|max:1000',
-            'proofs' => 'required|array|min:1|max:' . self::MAX_FILES,
-            'proofs.*' => 'file|max:' . self::MAX_KB . '|mimes:jpg,jpeg,png,webp,heic,mp4,mov,webm,3gp,mkv',
+            'images' => 'nullable|array|max:' . self::MAX_IMAGES,
+            'images.*' => 'file|max:' . self::MAX_KB . '|mimes:' . self::IMAGE_TYPES,
+            'video' => 'nullable|file|max:' . self::MAX_KB . '|mimes:' . self::VIDEO_TYPES,
         ], [
             'remark.required' => 'Tell us why the courier weight is wrong.',
             'remark.min' => 'Please describe the issue in a little more detail (at least 10 characters).',
-            'proofs.required' => 'Add at least one photo or video as proof.',
-            'proofs.max' => 'You can upload at most ' . self::MAX_FILES . ' files.',
-            'proofs.*.max' => 'Each file must be 10 MB or smaller.',
-            'proofs.*.mimes' => 'Only photos (JPG, PNG, WEBP, HEIC) and videos (MP4, MOV, WEBM, 3GP, MKV) are allowed.',
-            'proofs.*.file' => 'A file did not upload completely. Please try again.',
+            'images.max' => 'You can upload at most ' . self::MAX_IMAGES . ' photos.',
+            'images.*.max' => 'Each photo must be 10 MB or smaller.',
+            'images.*.mimes' => 'Photos must be JPG, PNG, WEBP or HEIC.',
+            'images.*.file' => 'A photo did not upload completely. Please try again.',
+            'video.max' => 'The video must be 10 MB or smaller.',
+            'video.mimes' => 'The video must be MP4, MOV, WEBM, 3GP or MKV.',
+            'video.file' => 'The video did not upload completely. Please try again.',
         ]);
 
-        try {
-            WeightDisputeService::raise($d, $request->remark, $request->file('proofs', []));
-        } catch (\Throwable $e) {
-            return back()->with('error', $e->getMessage());
+        $files = array_values(array_filter((array) $request->file('images', [])));
+        if ($request->hasFile('video')) {
+            $files[] = $request->file('video');
         }
-        return back()->with('success', 'Dispute raised for AWB ' . $d->awb . '. Our team will review your proof; if accepted, ₹' . number_format((float) $d->excess_charge, 2) . ' is refunded to your wallet automatically.');
+        if (!$files) {
+            return $this->reply($request, false, 'Add at least one photo or the video as proof.');
+        }
+
+        try {
+            WeightDisputeService::raise($d, $request->remark, $files);
+        } catch (\Throwable $e) {
+            return $this->reply($request, false, $e->getMessage());
+        }
+        return $this->reply($request, true, 'Charge rejected and dispute raised for AWB ' . $d->awb . '. Our team will review your proof; if accepted, ₹' . number_format((float) $d->excess_charge, 2) . ' is refunded to your wallet automatically.');
+    }
+
+    /** Page upload (JSON, with progress bar) or plain form post. */
+    private function reply(Request $request, bool $ok, string $message)
+    {
+        if ($request->expectsJson()) {
+            if ($ok) {
+                session()->flash('success', $message); // shown when the page reloads
+            }
+            return response()->json(['ok' => $ok, 'message' => $message], $ok ? 200 : 422);
+        }
+        return back()->with($ok ? 'success' : 'error', $message);
     }
 
     public function proof($id, $n)

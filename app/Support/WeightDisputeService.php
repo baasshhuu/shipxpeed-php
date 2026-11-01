@@ -233,13 +233,25 @@ class WeightDisputeService
         });
     }
 
-    /** Seller raises a dispute (files already validated). $files = [UploadedFile] */
+    /** Seller agrees with the courier weight: charge stays, case closed. */
+    public static function acceptCharge(WeightDisputes $d): void
+    {
+        DB::transaction(function () use ($d) {
+            $d = WeightDisputes::whereKey($d->id)->lockForUpdate()->firstOrFail();
+            if (!$d->canRaise()) {
+                throw new \RuntimeException($d->lockedReason());
+            }
+            $d->update(['dispute_status' => WeightDisputes::SELLER_ACCEPTED, 'raised_at' => now()]);
+        });
+    }
+
+    /** Seller rejects the charge and raises a dispute (files already validated). $files = [UploadedFile] */
     public static function raise(WeightDisputes $d, string $remark, array $files): void
     {
         DB::transaction(function () use ($d, $remark, $files) {
             $d = WeightDisputes::whereKey($d->id)->lockForUpdate()->firstOrFail();
             if (!$d->canRaise()) {
-                throw new \RuntimeException('The dispute window for this AWB has closed or a dispute was already raised.');
+                throw new \RuntimeException($d->lockedReason());
             }
             $proofs = [];
             foreach ($files as $f) {
@@ -249,7 +261,7 @@ class WeightDisputeService
                 $proofs[] = [
                     'path' => $path,
                     'name' => mb_substr($f->getClientOriginalName(), 0, 120),
-                    'type' => str_starts_with($mime, 'video') ? 'video' : 'image',
+                    'type' => (str_starts_with($mime, 'video') || in_array($ext, ['mp4', 'mov', 'webm', '3gp', 'mkv'], true)) ? 'video' : 'image',
                     'mime' => $mime,
                     'size' => $f->getSize(),
                 ];
@@ -269,7 +281,7 @@ class WeightDisputeService
         return DB::transaction(function () use ($id, $accept, $remark, $adminId) {
             $d = WeightDisputes::whereKey($id)->lockForUpdate()->firstOrFail();
             if ($d->dispute_status !== WeightDisputes::DISPUTED) {
-                throw new \RuntimeException('This dispute is not waiting for review (status: ' . WeightDisputes::statusLabel($d->liveStatus()) . ').');
+                throw new \RuntimeException('This dispute is not waiting for review (status: ' . WeightDisputes::statusLabel($d->liveStatus(), true) . ').');
             }
             $upd = [
                 'admin_remark' => $remark ? mb_substr($remark, 0, 1000) : null,

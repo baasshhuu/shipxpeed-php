@@ -33,6 +33,7 @@
     .st-disputed { background: rgba(245,165,36,.16); color:#f5a524; }
     .st-accepted { background: rgba(34,197,94,.15); color:#22c55e; }
     .st-rejected { background: rgba(240,79,95,.15); color:#f04f5f; }
+    .st-seller_accepted { background: rgba(133,146,173,.16); color:var(--muted); }
     .st-closed { background: rgba(133,146,173,.16); color:var(--muted); }
     .wd-empty { border:1px dashed var(--line); border-radius:10px; padding:28px; text-align:center; color:var(--muted); }
     .wd-result { border:1px solid var(--line); border-radius:10px; margin-bottom:16px; overflow:hidden; }
@@ -69,7 +70,7 @@
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
             <h5 class="mb-0">Weight Disputes</h5>
-            <div class="muted">Upload courier-charged weights → excess debited from seller wallet → seller can dispute within {{ $windowHours }} hours → accept (auto refund) or reject.</div>
+            <div class="muted">Upload courier-charged weights → excess debited from seller wallet → seller accepts or rejects with proof within {{ $windowHours }} hours → you accept the dispute (auto refund) or reject it.</div>
         </div>
         <a href="{{ route('weight.dispatching.download', request()->query()) }}" class="btn btn-outline-success btn-sm"><i class="fa fa-download me-1"></i> Export list</a>
     </div>
@@ -154,7 +155,7 @@
                             <td><b>₹{{ number_format($r['excess_charge'], 2) }}</b></td>
                             <td>
                                 <span class="wd-badge st-{{ $r['status'] }}">{{ $r['status_label'] }}</span>
-                                @if($r['status'] === 'charged')<div class="muted">dispute until {{ $r['deadline'] }}</div>@endif
+                                @if($r['status'] === 'charged')<div class="muted">seller can respond until {{ $r['deadline'] }}</div>@endif
                             </td>
                             <td class="text-end">
                                 <button type="button" class="btn btn-sm {{ $r['status'] === 'disputed' ? 'btn-warning' : 'btn-outline-secondary' }}" onclick="wdOpen({{ $r['id'] }})">
