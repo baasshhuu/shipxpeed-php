@@ -84,6 +84,22 @@ foreach ([
     }
 }
 
+// labels + Xpeed assistant routes (deploy/labels-ai.sh)
+$w = file_get_contents('routes/web.php');
+if (strpos($w, 'seller.assistant.chat') === false && ($p = strpos($w, "->name('seller.custom-label.store');")) !== false) {
+    $p += strlen("->name('seller.custom-label.store');");
+    $add = "\nRoute::get('/custom-label/preview', [\\App\\Http\\Controllers\\selleradmin\\Dashboard::class, 'previewLabel'])->name('seller.custom-label.preview');"
+         . "\n// Xpeed Assistant (AI helper)"
+         . "\nRoute::post('/assistant/chat', [\\App\\Http\\Controllers\\selleradmin\\AssistantController::class, 'chat'])->middleware('throttle:30,1')->name('seller.assistant.chat');"
+         . "\nRoute::post('/assistant/confirm', [\\App\\Http\\Controllers\\selleradmin\\AssistantController::class, 'confirm'])->middleware('throttle:20,1')->name('seller.assistant.confirm');"
+         . "\nRoute::post('/assistant/reset', [\\App\\Http\\Controllers\\selleradmin\\AssistantController::class, 'reset'])->name('seller.assistant.reset');";
+    file_put_contents('routes/web.php', substr($w, 0, $p) . $add . substr($w, $p)); echo "hook      routes/web.php += label preview + assistant routes\n";
+}
+$c = file_get_contents('config/services.php');
+if (strpos($c, "'anthropic'") === false && ($p = strrpos($c, '];')) !== false) {
+    file_put_contents('config/services.php', substr($c, 0, $p) . "    'anthropic' => [\n        'key' => env('ANTHROPIC_API_KEY'),\n    ],\n\n" . substr($c, $p)); echo "hook      config/services.php += anthropic\n";
+}
+
 foreach (glob('resources/views/layouts/*.blade.php') as $l) {
     $s = file_get_contents($l);
     if (preg_match('/sxSide|sx-side/', $s) && strpos($s, 'vas-menu-link') === false && ($k = strripos($s, '</body>')) !== false) {
@@ -96,6 +112,23 @@ for f in routes/*.php app/Providers/*.php; do php -l "$f" >/dev/null 2>&1 || ech
 chown -R www-data:www-data app routes config resources database bootstrap storage 2>/dev/null
 sudo -u www-data php artisan optimize:clear >/dev/null 2>&1 || php artisan optimize:clear 2>&1 | tail -3
 rm -rf "$TMP"
+
+for m in database/migrations/2026_11_01_000001_label_settings_config.php database/migrations/2026_11_01_000002_courier_booking_failures.php database/migrations/2026_11_01_000001_weight_dispute_v2.php; do
+  [ -f "$m" ] && sudo -u www-data php artisan migrate --force --path="$m" 2>&1 | grep -E "DONE|ERROR|Nothing" | head -2
+done
+
+# render the main seller pages as a real logged-in seller and show the exact error, if any
+sudo -u www-data php -r '
+require "vendor/autoload.php"; $a = require "bootstrap/app.php";
+$k = $a->make(Illuminate\Contracts\Http\Kernel::class); $k->bootstrap();
+$s = App\Models\SellerList::where("status", 1)->first() ?: App\Models\SellerList::first();
+if (!$s) { echo "no seller to test with\n"; exit; }
+Auth::guard("seller")->setUser($s);
+foreach (["/seller/dashboard", "/notifications", "/seller/services/rto-score", "/seller/weight-discrepancy", "/seller/xp/couriers", "/seller/order"] as $u) {
+  try { $r = $k->handle(Illuminate\Http\Request::create($u)); $c = $r->getStatusCode(); $e = $r->exception ?? null; }
+  catch (Throwable $x) { $c = "EXC"; $e = $x; }
+  echo "seller $c  $u" . ($e && $c >= 500 ? "  ERR " . mb_substr($e->getMessage(), 0, 220) . " @ " . basename($e->getFile()) . ":" . $e->getLine() : "") . "\n";
+}' 2>&1 | grep -E "^seller|no seller" | head -12
 
 for u in / /seller-login /seller/dashboard /notifications /seller/services/rto-score /seller/weight-discrepancy /admin/login; do
   echo "page $(curl -s -o /dev/null -w '%{http_code}' "https://shipxpeed.tech$u")  $u"
