@@ -5,6 +5,7 @@
     use App\Support\Xpeed\Kit;
     $claimSt = ['pending' => ['Under review', 'warn'], 'approved' => ['Approved', 'ok'], 'rejected' => ['Rejected', 'bad']];
     $ecSt = ['requested' => ['Request under review', 'warn'], 'active' => ['Active', 'ok'], 'rejected' => ['Not approved', 'bad'], 'stopped' => ['Stopped', 'muted']];
+    $claimsOnly = request('view') === 'claims';
     $planName = fn ($k) => 'D+' . ($plans[$k]['days'] ?? '?');
 @endphp
 <div class="pc-container xp">
@@ -12,11 +13,17 @@
 @include('sellerdashboard.xpeed._style')
     <div class="xp-head">
         <div>
+            @if($claimsOnly)
+            <h1><i class="ti ti-file-alert"></i> Claims</h1>
+            <p>File a claim for a lost or damaged shipment and track its status.</p>
+            @else
             <h1><i class="ti ti-shield-check"></i> Protection &amp; early COD</h1>
             <p>Protect high-value shipments against loss and damage, file claims, and get your COD money faster.</p>
+            @endif
         </div>
     </div>
 
+    @unless($claimsOnly)
     <div class="row">
         <div class="col-lg-6">
             <div class="xp-card">
@@ -76,6 +83,8 @@
             </div>
         </div>
     </div>
+
+    @endunless
 
     <div class="row">
         <div class="col-lg-5">

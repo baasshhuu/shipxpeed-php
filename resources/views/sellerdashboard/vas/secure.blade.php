@@ -20,7 +20,7 @@
         @else
         <form method="POST" action="{{ $action }}" class="vas-btns">
             @csrf
-            @if(Route::has('xp.protection'))<a href="{{ route('xp.protection') }}#claim" class="vas-btn vas-btn-ghost">File a claim</a>@endif
+            @if(Route::has('xp.protection'))<a href="{{ route('xp.protection', ['view' => 'claims']) }}" class="vas-btn vas-btn-ghost">File a claim</a>@endif
             @if($on)
                 <button type="button" class="vas-btn vas-btn-go" style="cursor:default"><i class="ti ti-circle-check"></i> Activated</button>
                 <button name="on" value="0" class="vas-link" onclick="return confirm('Turn off protection? Shipments already protected stay covered.')">Turn off</button>

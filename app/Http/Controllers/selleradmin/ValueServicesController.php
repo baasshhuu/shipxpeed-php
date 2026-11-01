@@ -29,7 +29,6 @@ class ValueServicesController extends Controller
         'couriers'       => ['Courier preferences', 'ti ti-truck'],
         'bulk'           => ['Bulk actions', 'ti ti-stack-2'],
         'notify'         => ['Shipping notifications', 'ti ti-bell-ringing'],
-        'delivery-boost' => ['Delivery Boost', 'ti ti-rocket'],
         'brand-boost'    => ['Brand Boost', 'ti ti-map-pin'],
     ];
 
