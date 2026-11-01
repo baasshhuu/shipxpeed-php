@@ -9,8 +9,9 @@ cd "$APP" || { echo "FAIL: $APP not found"; exit 1; }
 REF=origin/main
 BK=/root/pre-vas-menu-$(date +%Y%m%d-%H%M%S).tgz
 FILES="resources/views/partials/vas-menu-link.blade.php resources/views/sellerdashboard/vas/_nav.blade.php resources/views/sellerdashboard/vas/secure.blade.php resources/views/sellerdashboard/xpeed/protection.blade.php app/Http/Controllers/selleradmin/ValueServicesController.php"
-LAYOUT=$(grep -rlE 'sxSide|sx-side' resources/views/layouts 2>/dev/null | head -1)
-[ -n "$LAYOUT" ] || LAYOUT=resources/views/layouts/sellerdash.blade.php
+LAYOUT=resources/views/layouts/sellerdash.blade.php
+[ -f "$LAYOUT" ] || LAYOUT=$(grep -rlE --include='*.blade.php' 'sxSide|sx-side' resources/views/layouts 2>/dev/null | head -1)
+[ -f "$LAYOUT" ] || { echo "FAIL: seller layout not found"; exit 1; }
 
 git fetch -q origin || { echo "FAIL: git fetch"; exit 1; }
 [ -f routes/vas_web.php ] || { echo "FAIL: Value added services not installed - run deploy/value-services.sh first"; exit 1; }
@@ -40,7 +41,12 @@ foreach (["/seller/services/rto-score", "/seller/services/early-cod", "/seller/s
   $c = $k->handle(Illuminate\Http\Request::create($u))->getStatusCode(); if ($c >= 500) $bad[] = "$u=$c";
 }
 $r = $k->handle(Illuminate\Http\Request::create("/seller/services/rto-score"));
-echo $bad ? "ERR " . implode(",", $bad) : $r->getStatusCode() . (strpos((string) $r->getContent(), "data-vas-link") !== false ? " hook" : " nohook");
-' 2>&1 | tail -1)
-echo "check: $CODE"
-case "$CODE" in "200 hook") echo "VAS_MENU_DONE" ;; *) restore ;; esac
+echo PHP_EOL, $bad ? "ERR " . implode(",", $bad) : $r->getStatusCode() . (strpos((string) $r->getContent(), "data-vas-link") !== false ? " hook" : " nohook");
+echo PHP_EOL;
+' 2>&1)
+RES=$(echo "$CODE" | grep -E '^(ERR |[0-9]{3} (no)?hook)' | tail -1)
+echo "check: ${RES:-no result}"
+case "$RES" in
+  "200 hook") echo "VAS_MENU_DONE" ;;
+  *) echo "--- check output ---"; echo "$CODE" | tail -20; restore ;;
+esac
