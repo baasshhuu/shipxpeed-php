@@ -138,3 +138,30 @@
 })();
 </script>
 @endif
+{{-- Menu icons: the server's icon font is an older Tabler version, so some icon names draw nothing.
+     Swap any blank menu icon for one the font has (falls back to a dot). --}}
+@if(Auth::guard('seller')->check())
+<script>
+(function () {
+    var SWAP = {
+        'layout-dashboard': 'dashboard', 'webhook': 'link', 'help-circle': 'help', 'api': 'code',
+        'plug-connected': 'plug', 'arrows-exchange': 'refresh', 'sparkles': 'star', 'truck-return': 'truck',
+        'file-spreadsheet': 'file-text', 'receipt-2': 'receipt', 'message-2': 'message', 'world-pin': 'world'
+    };
+    function blank(i) { var c = getComputedStyle(i, '::before').content; return !c || c === 'none' || c === 'normal'; }
+    function fix() {
+        document.querySelectorAll('#sxSide a i.ti, .sx-side a i.ti, .pc-sidebar a i.ti, #mobileSidebarOffcanvas a i.ti, .vas-side a i.ti').forEach(function (i) {
+            if (!blank(i)) return;
+            var m = (i.className.match(/\bti-([a-z0-9-]+)/) || [])[1];
+            var alt = m && SWAP[m];
+            if (alt) { i.classList.remove('ti-' + m); i.classList.add('ti-' + alt); }
+            if (blank(i)) { i.className = i.className.replace(/\bti-[a-z0-9-]+/g, '').trim() + ' ti-point'; }
+        });
+    }
+    function run() { fix(); setTimeout(fix, 300); }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fix);
+    document.addEventListener('show.bs.offcanvas', function () { setTimeout(fix, 50); });
+})();
+</script>
+@endif
