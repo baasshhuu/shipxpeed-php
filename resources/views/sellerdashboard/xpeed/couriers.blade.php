@@ -6,7 +6,6 @@
     $edit = null;
     if (request('edit')) { $edit = $rules->firstWhere('id', (int) request('edit')); }
 @endphp
-@include('sellerdashboard.xpeed._style')
 <style>
     .xp .brand-row { display:flex; align-items:center; gap:8px; padding:7px 10px; border:1px solid rgba(120,130,150,.22); border-radius:8px; margin-bottom:6px; }
     .xp .brand-row .pos { width:22px; text-align:center; font-weight:700; opacity:.7; }
@@ -17,6 +16,7 @@
 </style>
 <div class="pc-container xp">
 <div class="pc-content">
+@include('sellerdashboard.xpeed._style')
     <div class="xp-head">
         <div>
             <h1><i class="ti ti-truck"></i> Courier preferences</h1>

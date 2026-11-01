@@ -2,9 +2,9 @@
 
 @section('content')
 @php use App\Support\Xpeed\Kit; @endphp
-@include('sellerdashboard.xpeed._style')
 <div class="pc-container xp">
 <div class="pc-content">
+@include('sellerdashboard.xpeed._style')
     <div class="xp-head">
         <div>
             <h1><i class="ti ti-stack-2"></i> Bulk actions</h1>

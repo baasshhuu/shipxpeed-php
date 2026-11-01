@@ -9,9 +9,9 @@
     $list = $tab === 'taken' ? $taken : $pending;
     $minDate = now()->addDay()->toDateString(); $maxDate = now()->addDays(5)->toDateString();
 @endphp
-@include('sellerdashboard.xpeed._style')
 <div class="pc-container xp">
 <div class="pc-content">
+@include('sellerdashboard.xpeed._style')
     <div class="xp-head">
         <div>
             <h1><i class="ti ti-alert-triangle"></i> NDR — failed deliveries</h1>

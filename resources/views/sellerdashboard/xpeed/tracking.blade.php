@@ -5,9 +5,9 @@
     $color = old('color', $brand->color ?? '#4f8cff');
     $name = old('brand_name', $brand->brand_name ?? ($seller->name ?? ''));
 @endphp
-@include('sellerdashboard.xpeed._style')
 <div class="pc-container xp">
 <div class="pc-content">
+@include('sellerdashboard.xpeed._style')
     <div class="xp-head">
         <div>
             <h1><i class="ti ti-map-pin"></i> Branded tracking page</h1>
