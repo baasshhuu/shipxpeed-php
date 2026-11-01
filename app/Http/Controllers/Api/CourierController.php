@@ -467,6 +467,39 @@ private function resolveCourierKey(?string $courier, \App\Models\Order $order): 
 
 
 
+// Bulk cancel: runs the single-AWB cancel for each selected order (same courier call + refund rules).
+public function cancelAwb_bulk(Request $request)
+{
+    $ids = array_values(array_filter(array_map('intval', (array) $request->input('order_ids', []))));
+    $seller = \Illuminate\Support\Facades\Auth::guard('seller')->user();
+    if (!$ids || !$seller) {
+        return redirect()->back()->with('error', 'Please select at least one order to cancel.');
+    }
+    $orders = \App\Models\Order::where('seller_id', $seller->id)->whereIn('id', $ids)->get();
+    $ok = 0; $fail = [];
+    foreach ($orders as $o) {
+        if (empty($o->awb_number)) {
+            $o->shipping_status = 'cancelled';
+            $o->order_status = 'cancelled';
+            $o->save();
+            $ok++;
+            continue;
+        }
+        session()->forget(['error', 'success']);
+        try {
+            $sub = Request::create('/couriers/cancel', 'POST', ['awb' => $o->awb_number, 'order_id' => $o->id, 'courier' => $o->courier_id]);
+            $this->cancelAwb($sub);
+            $err = session('error');
+            $err ? $fail[] = 'AWB ' . $o->awb_number . ': ' . $err : $ok++;
+        } catch (\Throwable $e) {
+            $fail[] = 'AWB ' . $o->awb_number . ': ' . mb_substr($e->getMessage(), 0, 120);
+        }
+    }
+    session()->forget(['error', 'success']);
+    $msg = "{$ok} cancelled" . ($fail ? ', ' . count($fail) . ' failed - ' . implode(' | ', array_slice($fail, 0, 3)) : '');
+    return redirect()->back()->with($fail && !$ok ? 'error' : 'success', $msg);
+}
+
 // public function cancelAwb_bulk(Request $request)
 // {
 //     $data = $request->validate([

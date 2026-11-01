@@ -954,5 +954,8 @@
             window.showOrderDetails = showOrderDetails;
         });
     </script>
+    @if(auth()->guard('seller')->check())
+        @include('partial.sellerdash.assistant')
+    @endif
 </body>
 </html>

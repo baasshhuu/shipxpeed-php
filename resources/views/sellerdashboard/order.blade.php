@@ -1785,6 +1785,14 @@
                                         "
                                     >{{ $order->shipping_status ?? 'Pending' }}</span>
                                 </div>
+                                @if(!empty($order->booking_error))
+                                <div class="booking-error-note" title="{{ $order->booking_error }}"
+                                     style="margin-top:6px;max-width:260px;background:#fff1f1;border:1px solid #f5c2c2;color:#a61b1b;border-radius:8px;padding:5px 8px;font-size:11.5px;line-height:1.35;white-space:normal;">
+                                    <strong>Booking failed</strong>
+                                    @if($order->booking_error_at)<span style="color:#9a6b6b"> &middot; {{ \Carbon\Carbon::parse($order->booking_error_at)->timezone('Asia/Kolkata')->format('d M, h:i A') }}</span>@endif
+                                    <br>{{ \Illuminate\Support\Str::limit($order->booking_error, 220) }}
+                                </div>
+                                @endif
                             </td>
                             <td class="align-middle" style="min-width:110px;max-width:170px;">
                                 @php

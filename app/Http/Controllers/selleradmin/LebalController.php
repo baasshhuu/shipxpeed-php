@@ -46,73 +46,72 @@ class LebalController extends Controller
         $sellerId = auth()->guard('seller')->id();
         $settings = LabelSetting::where('seller_id', $sellerId)->first();
 
-        return view('sellerdashboard.custom-label', compact('settings', 'totalAmount', 'seller'));
+        $cfg = \App\Support\Label\LabelRenderer::config($settings);
+
+        return view('sellerdashboard.custom-label', compact('settings', 'cfg', 'totalAmount', 'seller'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'logo' => 'nullable|image|mimes:png,jpg,jpeg,svg|max:2048',
-            'label_type' => 'required|in:standard,thermal',
+            'logo'              => 'nullable|image|mimes:png,jpg,jpeg|max:2048',
+            'label_type'        => 'required|in:standard,thermal',
+            'product_name_trim' => 'nullable|integer|min:10|max:250',
+            'sku_trim'          => 'nullable|integer|min:4|max:64',
+            'max_products'      => 'nullable|integer|min:1|max:20',
+            'tax_rate'          => 'nullable|numeric|min:0|max:28',
         ]);
 
         $sellerId = auth()->guard('seller')->id();
-        
-        // Find existing settings or create new
-        $settings = LabelSetting::where('seller_id', $sellerId)->first();
-        if (!$settings) {
-            $settings = new LabelSetting();
-            $settings->seller_id = $sellerId;
-        }
+        $settings = LabelSetting::firstOrNew(['seller_id' => $sellerId]);
 
-        // Handle logo upload
         if ($request->hasFile('logo')) {
-            // Create seller-logos directory in public folder if it doesn't exist
             $uploadPath = public_path('seller-logos');
-            if (!file_exists($uploadPath)) {
+            if (!is_dir($uploadPath)) {
                 mkdir($uploadPath, 0755, true);
             }
-
-            // Delete old logo if exists
-            if ($settings->logo_path && file_exists(public_path($settings->logo_path))) {
-                unlink(public_path($settings->logo_path));
+            if ($settings->logo_path && is_file(public_path($settings->logo_path))) {
+                @unlink(public_path($settings->logo_path));
             }
-            
-            // Generate unique filename
             $file = $request->file('logo');
-            $fileName = time() . '_' . $sellerId . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-            
-            // Move file to public/seller-logos directory
+            $fileName = time() . '_' . $sellerId . '_' . uniqid() . '.' . strtolower($file->getClientOriginalExtension());
             $file->move($uploadPath, $fileName);
-            
-            // Save relative path (without public_path)
             $settings->logo_path = 'seller-logos/' . $fileName;
         }
+        if ($request->boolean('remove_logo') && $settings->logo_path) {
+            @unlink(public_path($settings->logo_path));
+            $settings->logo_path = null;
+        }
 
-        // Update boolean fields (checkboxes)
-        $settings->show_logo = $request->has('show_logo') ? 1 : 0;
-        $settings->show_support_contact = $request->has('show_support_contact') ? 1 : 0;
-        $settings->hide_prepaid_amount = $request->has('hide_prepaid_amount') ? 1 : 0;
-        $settings->hide_customer_mobile = $request->has('hide_customer_mobile') ? 1 : 0;
-        $settings->hide_gst_number = $request->has('hide_gst_number') ? 1 : 0;
-        $settings->hide_return_address_line_1 = $request->has('hide_return_address_line_1') ? 1 : 0;
-        $settings->hide_return_address_line_2 = $request->has('hide_return_address_line_2') ? 1 : 0;
-        $settings->hide_return_city_state_pincode = $request->has('hide_return_city_state_pincode') ? 1 : 0;
-        $settings->hide_return_mobile_number = $request->has('hide_return_mobile_number') ? 1 : 0;
-        $settings->hide_return_contact_name = $request->has('hide_return_contact_name') ? 1 : 0;
-        $settings->hide_sku = $request->has('hide_sku') ? 1 : 0;
-        $settings->hide_product = $request->has('hide_product') ? 1 : 0;
-        $settings->hide_discount = $request->has('hide_discount') ? 1 : 0;
-        $settings->hide_qty = $request->has('hide_qty') ? 1 : 0;
-        $settings->hide_amount = $request->has('hide_amount') ? 1 : 0;
-        
-        // Update label type and size
-        $settings->label_type = $request->label_type;
-        $settings->label_size = $request->label_type == 'thermal' ? '4x6' : '8x11';
+        $cfg = [];
+        foreach (\App\Support\Label\LabelRenderer::DEFAULTS as $k => $default) {
+            if (is_bool($default)) {
+                $cfg[$k] = $request->boolean($k);
+            } elseif ($request->filled($k)) {
+                $cfg[$k] = is_int($default) ? (int) $request->input($k) : $request->input($k);
+            } else {
+                $cfg[$k] = $default;
+            }
+        }
+        $cfg['label_type'] = $request->label_type;
+        $cfg = \App\Support\Label\LabelRenderer::config(['config' => $cfg]);
 
+        // keep legacy columns in sync
+        $settings->label_type           = $cfg['label_type'];
+        $settings->label_size           = $cfg['label_type'] === 'thermal' ? '4x6' : '8x11';
+        $settings->show_logo            = $cfg['show_logo'] ? 1 : 0;
+        $settings->hide_customer_mobile = $cfg['show_customer_mobile'] ? 0 : 1;
+        $settings->hide_prepaid_amount  = $cfg['show_invoice_value_prepaid'] ? 0 : 1;
+        $settings->hide_sku             = $cfg['show_sku'] ? 0 : 1;
+        $settings->hide_product         = $cfg['show_product_name'] ? 0 : 1;
+        $settings->hide_qty             = $cfg['show_qty'] ? 0 : 1;
+        $settings->hide_amount          = $cfg['show_item_price'] ? 0 : 1;
+        $settings->show_support_contact = $cfg['show_support_contact'] ? 1 : 0;
+        if (\Illuminate\Support\Facades\Schema::hasColumn('label_settings', 'config')) {
+            $settings->config = json_encode($cfg);
+        }
         $settings->save();
 
-        return redirect()->route('seller.custom-label.index')
-                        ->with('success', 'Label settings updated successfully!');
+        return redirect()->route('seller.custom-label.index')->with('success', 'Label settings saved.');
     }
 }

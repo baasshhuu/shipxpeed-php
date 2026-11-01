@@ -160,9 +160,8 @@ public function createShipmentweb(Request $request)
 
         // Use seller_id from request instead of Auth
         // $request->seller_id
-        $sellerId = str_replace('#SX', '', $request->seller_id);
-
-        $seller = \App\Models\SellerList::find($sellerId);
+        // Seller comes from the API token (or the logged-in seller), never from the request body.
+        $seller = $request->attributes->get('api_seller') ?: auth()->guard('seller')->user();
         if (!$seller || $seller->status != 1) {
             return response()->json([
                 'success' => false,
@@ -218,6 +217,12 @@ public function createShipmentweb(Request $request)
             'order_id' => $order->id
         ]);
 
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Order not created: ' . collect($e->errors())->flatten()->implode(' '),
+            'errors'  => $e->errors(),
+        ], 422);
     } catch (\GuzzleHttp\Exception\RequestException $e) {
         return response()->json([
             'success' => false,
@@ -225,10 +230,10 @@ public function createShipmentweb(Request $request)
             // 'error' => $e->getMessage()
         ], 500);
     } catch (\Exception $e) {
+        \Log::error('createShipmentweb failed: ' . $e->getMessage(), ['line' => $e->getLine()]);
         return response()->json([
             'success' => false,
-            'message' => 'Something went wrong',
-            // 'error' => $e->getMessage()
+            'message' => 'Order not created: ' . mb_substr($e->getMessage(), 0, 200),
         ], 500);
     }
 }
@@ -477,6 +482,9 @@ public function createShipmentweb(Request $request)
 
 
         // return redirect()->back()->with('success', 'Shipment created successfully. AWB: ' . ($order->awb_number ?? 'N/A'));
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return redirect()->back()->withErrors($e->errors())->withInput()
+            ->with('error', 'Order not created: ' . collect($e->errors())->flatten()->take(4)->implode(' '));
     } catch (\GuzzleHttp\Exception\RequestException $e) {
         // dd($e->getMessage());
         return redirect()->back()->with('error', 'API request failed: ' . $e->getMessage());
@@ -1558,7 +1566,26 @@ protected function prepareRequestData(Request $request)
             }
         }
 
-        $response = app($key)->assignOrder($params);
+        try {
+            $response = app($key)->assignOrder($params);
+        } catch (\Throwable $e) {
+            \Log::error('assignOrder exception', ['courier' => $key, 'order' => $orderId, 'error' => $e->getMessage(), 'file' => basename($e->getFile()), 'line' => $e->getLine()]);
+            $msg = \App\Support\CourierError::record($order ?? Order::find($orderId), $logisticProvider->code ?? $key, $provider_name, $e);
+            return redirect()->route('seller.order')->with('error', 'Booking failed: ' . $msg);
+        }
+        $order = ($order ?? null) ? $order->fresh() : Order::find($orderId);
+
+        // One success test for every courier: an AWB came back and status is not false.
+        $__awb = $response['awb_number'] ?? ($response['data']['awb_number'] ?? ($response['packages'][0]['waybill'] ?? null));
+        $__failed = !is_array($response)
+            || (array_key_exists('status', $response) && ($response['status'] === false || $response['status'] === 0 || $response['status'] === '0'))
+            || (array_key_exists('success', $response) && $response['success'] === false)
+            || (empty($__awb) && empty($response['status']) && empty($response['success']) && ($response['message'] ?? null) !== 'Success');
+        if ($__failed) {
+            $msg = \App\Support\CourierError::record($order, $logisticProvider->code ?? $key, $provider_name, $response);
+            return redirect()->route('seller.order')->with('error', 'Booking failed: ' . $msg);
+        }
+        \App\Support\CourierError::clear($order);
 
         if (($response['couriername'] ?? null) === 'shipclues') {
             if (!empty($response['status'])) {
@@ -1798,6 +1825,8 @@ if (
 
         // Process each order
         foreach ($orderIds as $orderId) {
+            $order = null;
+            $response = null;
             try {
                 $order = Order::where('id', $orderId)->first();
                 if (!$order) {
@@ -1835,15 +1864,18 @@ if (
                 
                 if ($result['success']) {
                     $successCount++;
+                    \App\Support\CourierError::clear($order);
                     $results[] = "Order ID {$orderId}: Successfully assigned - AWB: {$result['awb']}";
                 } else {
                     $failureCount++;
-                    $results[] = "Order ID {$orderId}: Failed - {$result['message']}";
+                    $why = \App\Support\CourierError::record($order, $logisticProvider->code ?? $key, $provider_name, is_array($response) ? $response : ($result['message'] ?? $response));
+                    $results[] = "#" . ($order->order_number ?? $orderId) . ": {$why}";
                 }
 
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $failureCount++;
-                $results[] = "Order ID {$orderId}: Exception - " . $e->getMessage();
+                $why = \App\Support\CourierError::record($order ?? null, $logisticProvider->code ?? $key, $provider_name, $e);
+                $results[] = "#" . (($order->order_number ?? null) ?: $orderId) . ": {$why}";
                 Log::error("Bulk courier assignment error for order {$orderId}: " . $e->getMessage());
             }
         }
@@ -1855,10 +1887,11 @@ if (
             $successDetails = implode(', ', array_filter($results, function($result) {
                 return strpos($result, 'Successfully assigned') !== false;
             }));
-            return redirect()->route('seller.order')->with('success', "Bulk assignment completed: {$successCount} successful, {$failureCount} failed. " . substr($successDetails, 0, 200));
+            $failDetails = implode(' • ', array_slice(array_values(array_filter($results, fn ($r) => strpos($r, 'Successfully assigned') === false)), 0, 3));
+            return redirect()->route('seller.order')->with('success', "Bulk assignment completed: {$successCount} successful, {$failureCount} failed. Failed orders stay in New orders with the reason shown on each. " . mb_substr($failDetails, 0, 400));
         } else {
             $errorDetails = implode(', ', array_slice($results, 0, 3));
-            return redirect()->route('seller.order')->with('error', "Bulk assignment failed: {$failureCount} orders failed. " . substr($errorDetails, 0, 200));
+            return redirect()->route('seller.order')->with('error', "Bulk assignment failed: {$failureCount} orders failed. The reason is shown on each order. " . mb_substr(implode(' • ', array_slice($results, 0, 3)), 0, 400));
         }
     }
 

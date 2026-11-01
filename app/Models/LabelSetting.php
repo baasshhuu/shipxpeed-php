@@ -32,6 +32,7 @@ class LabelSetting extends Model
         'label_type',
         'label_layout', // New field for layout system
         'label_size',
+        'config',
     ];
 
     protected $casts = [

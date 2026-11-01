@@ -78,184 +78,213 @@ class Dashboard extends Controller
     }
 
 
+    // ===================== Shipping labels =====================
+    // One renderer for every download path (single, bulk, legacy routes).
+
+    private function labelSellerId()
+    {
+        return auth()->guard('seller')->id();
+    }
+
+    private function labelLogoDataUri($settings): ?string
+    {
+        if (!$settings || empty($settings->logo_path)) {
+            return null;
+        }
+        $path = public_path($settings->logo_path);
+        if (!is_file($path)) {
+            return null;
+        }
+        $mime = @mime_content_type($path) ?: 'image/png';
+        if (!in_array($mime, ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml'], true)) {
+            return null; // webp etc. are not supported by the PDF engine
+        }
+        return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+    }
+
+    private function labelError(string $message, int $status = 422)
+    {
+        if (request()->expectsJson()) {
+            return response()->json(['success' => false, 'message' => $message], $status);
+        }
+        $msg = e($message);
+        $back = e(url()->previous() ?: url('/seller/dashboard'));
+        return response(
+            '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Label</title></head>'
+            . '<body style="font-family:system-ui,Arial;padding:24px;background:#0f1220;color:#e8eaf6">'
+            . '<h2 style="margin:0 0 8px">Label could not be downloaded</h2><p style="color:#b9bdd6">' . $msg . '</p>'
+            . '<a href="' . $back . '" style="display:inline-block;margin-top:12px;padding:10px 16px;background:#646dff;color:#fff;border-radius:8px;text-decoration:none">Go back</a>'
+            . '</body></html>',
+            $status
+        );
+    }
+
+    /** Build the PDF for a set of orders and return it as a download (or inline). */
+    private function labelPdfResponse($orders, string $filename)
+    {
+        $sellerId = $this->labelSellerId();
+        $settings = \App\Models\LabelSetting::where('seller_id', $sellerId)->first();
+        $cfg = \App\Support\Label\LabelRenderer::config($settings);
+        $seller = \App\Models\SellerList::find($sellerId);
+        $logo = $cfg['show_logo'] ? $this->labelLogoDataUri($settings) : null;
+
+        $labels = [];
+        foreach ($orders as $order) {
+            $labels[] = \App\Support\Label\LabelRenderer::fromOrder($order, $seller, $logo);
+        }
+        $html = \App\Support\Label\LabelRenderer::render($labels, $cfg);
+
+        $pdf = Pdf::loadHTML($html)->setOptions(['isRemoteEnabled' => false, 'defaultFont' => 'DejaVu Sans']);
+        if ($cfg['label_type'] === 'thermal') {
+            $pdf->setPaper([0, 0, 288, 432], 'portrait'); // 4 x 6 in
+        } else {
+            $pdf->setPaper('A4', 'portrait');
+        }
+
+        $output = $pdf->output();
+        $inline = request()->boolean('inline');
+        return response($output, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => ($inline ? 'inline' : 'attachment') . '; filename="' . $filename . '"',
+            'Content-Length'      => strlen($output),
+            'Cache-Control'       => 'private, no-store, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    private function labelOrdersFromRequest(Request $request)
+    {
+        $ids = $request->input('order_ids', $request->input('ids', []));
+        if (is_string($ids)) {
+            $ids = array_filter(explode(',', $ids));
+        }
+        $ids = array_values(array_filter(array_map('intval', (array) $ids)));
+        if (!$ids) {
+            return collect();
+        }
+        return Order::where('seller_id', $this->labelSellerId())->whereIn('id', $ids)->orderBy('id')->get();
+    }
+
+    // Legacy route: /download-label/{id}
     public function downloadLabel($id)
-{
-    $order = Order::findOrFail($id);
+    {
+        return $this->downloadCustomLabel($id);
+    }
 
-    $labelData = [
-        'order_id' => $order->id,
-        'order_number' => $order->order_number,
-        'awb_number' => $order->awb_number,
-    ];
-
-    return view('lebal', compact('labelData'));
-}
-
-    // Custom Label Generation Methods
+    // JSON preview (HTML) for one order
     public function generateCustomLabel($id)
     {
         try {
-            $sellerId = auth()->guard('seller')->id();
+            $sellerId = $this->labelSellerId();
             $order = Order::where('seller_id', $sellerId)->findOrFail($id);
-            
-            // Get seller's label settings
             $settings = \App\Models\LabelSetting::where('seller_id', $sellerId)->first();
-            
-            // Generate label HTML with dummy data
-            $labelHtml = $this->generateLabelHtml($order, $settings);
-            
-            return response()->json([
-                'success' => true,
-                'labelHtml' => $labelHtml
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error generating label: ' . $e->getMessage()
-            ]);
+            $cfg = \App\Support\Label\LabelRenderer::config($settings);
+            $label = \App\Support\Label\LabelRenderer::fromOrder($order, \App\Models\SellerList::find($sellerId), $this->labelLogoDataUri($settings));
+            return response()->json(['success' => true, 'labelHtml' => \App\Support\Label\LabelRenderer::render([$label], $cfg)]);
+        } catch (\Throwable $e) {
+            Log::error('Label preview failed', ['order' => $id, 'error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Error generating label: ' . $e->getMessage()]);
         }
     }
 
     public function generateBulkCustomLabels(Request $request)
     {
         try {
-            $request->validate([
-                'order_ids' => 'required|array',
-                'order_ids.*' => 'integer'
-            ]);
-
-            $sellerId = auth()->guard('seller')->id();
-            $orders = Order::where('seller_id', $sellerId)
-                          ->whereIn('id', $request->order_ids)
-                          ->get();
-            
+            $orders = $this->labelOrdersFromRequest($request);
             if ($orders->isEmpty()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No valid orders found.'
-                ]);
+                return response()->json(['success' => false, 'message' => 'No valid orders found.']);
             }
-
-            // Get seller's label settings
+            $sellerId = $this->labelSellerId();
             $settings = \App\Models\LabelSetting::where('seller_id', $sellerId)->first();
-            
-            // Generate bulk label HTML
-            $bulkLabelHtml = '';
-            foreach ($orders as $index => $order) {
-                if ($index > 0) {
-                    $bulkLabelHtml .= '<div class="page-break"></div>';
-                }
-                $bulkLabelHtml .= $this->generateLabelHtml($order, $settings);
-            }
-            
-            return response()->json([
-                'success' => true,
-                'labelHtml' => $bulkLabelHtml
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error generating bulk labels: ' . $e->getMessage()
-            ]);
+            $cfg = \App\Support\Label\LabelRenderer::config($settings);
+            $seller = \App\Models\SellerList::find($sellerId);
+            $logo = $this->labelLogoDataUri($settings);
+            $labels = $orders->map(fn ($o) => \App\Support\Label\LabelRenderer::fromOrder($o, $seller, $logo))->all();
+            return response()->json(['success' => true, 'labelHtml' => \App\Support\Label\LabelRenderer::render($labels, $cfg)]);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => 'Error generating bulk labels: ' . $e->getMessage()]);
         }
     }
-   
+
     public function downloadCustomLabel($id)
     {
+        if (!$this->labelSellerId()) {
+            return redirect()->route('seller.login')->with('error', 'Please log in again to download the label.');
+        }
         try {
-            $sellerId = auth()->guard('seller')->id();
-            $order = Order::where('seller_id', $sellerId)->findOrFail($id);
-            
-            // Get seller's label settings
-            $settings = \App\Models\LabelSetting::where('seller_id', $sellerId)->first();
-            
-            // Generate label HTML
-            $labelHtml = $this->generateLabelHtml($order, $settings);
-            
-            // Generate PDF
-            $pdf = Pdf::loadHTML($labelHtml);
-            
-            if ($settings && $settings->label_type == 'thermal') {
-                $pdf->setPaper([0, 0, 288, 432], 'portrait'); // 4x6 inches in points
-            } else {
-                $pdf->setPaper('A4', 'portrait');
+            $order = Order::where('seller_id', $this->labelSellerId())->find($id);
+            if (!$order) {
+                return $this->labelError('This order was not found in your account.', 404);
             }
-            
-            return $pdf->download("custom-label-{$order->order_number}.pdf");
-            
-        } catch (\Exception $e) {
-            return back()->with('error', 'Error downloading label: ' . $e->getMessage());
+            if (empty($order->awb_number)) {
+                return $this->labelError('This order has no AWB yet. The label is available once the courier assigns an AWB. If booking failed, see the failure reason on the order.');
+            }
+            $name = preg_replace('/[^A-Za-z0-9_-]/', '', (string) $order->awb_number) ?: $order->id;
+            return $this->labelPdfResponse([$order], "label-{$name}.pdf");
+        } catch (\Throwable $e) {
+            Log::error('Label download failed', ['order' => $id, 'error' => $e->getMessage(), 'line' => $e->getLine()]);
+            return $this->labelError('Something went wrong while creating the label. Please try again; if it keeps failing, raise a ticket with order ID ' . $id . '.', 500);
         }
     }
 
     public function downloadBulkCustomLabels(Request $request)
     {
+        if (!$this->labelSellerId()) {
+            return redirect()->route('seller.login')->with('error', 'Please log in again to download labels.');
+        }
         try {
-            $request->validate([
-                'order_ids' => 'required|array',
-                'order_ids.*' => 'integer'
-            ]);
-
-            $sellerId = auth()->guard('seller')->id();
-            $orders = Order::where('seller_id', $sellerId)
-                          ->whereIn('id', $request->order_ids)
-                          ->get();
-            
+            $orders = $this->labelOrdersFromRequest($request);
             if ($orders->isEmpty()) {
-                return back()->with('error', 'No valid orders found.');
+                return $this->labelError('No valid orders selected.');
             }
-
-            // Get seller's label settings
-            $settings = \App\Models\LabelSetting::where('seller_id', $sellerId)->first();
-            
-            // Generate bulk label HTML - ALL labels on single page
-            $bulkLabelHtml = '<div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 8px;">';
-            
-            foreach ($orders as $index => $order) {
-                $labelHtml = $this->generateLabelHtml($order, $settings);
-                
-                // Modify individual label to be smaller and fit more per page (3 per row)
-                $labelHtml = str_replace(
-                    'style="max-width: 100%; margin: 0 auto;', 
-                    'style="max-width: 30%; margin: 0; flex: 0 0 30%;', 
-                    $labelHtml
-                );
-                
-                // Make labels more compact
-                $labelHtml = str_replace('padding: 15px', 'padding: 8px', $labelHtml);
-                $labelHtml = str_replace('font-size: 12px', 'font-size: 9px', $labelHtml);
-                $labelHtml = str_replace('line-height: 1.4', 'line-height: 1.2', $labelHtml);
-                
-                $bulkLabelHtml .= $labelHtml;
+            $withAwb = $orders->filter(fn ($o) => !empty($o->awb_number));
+            if ($withAwb->isEmpty()) {
+                return $this->labelError('None of the selected orders has an AWB yet.');
             }
-            
-            $bulkLabelHtml .= '</div>';
-            
-            // Generate PDF
-            $pdf = Pdf::loadHTML($bulkLabelHtml);
-            
-            if ($settings && $settings->label_type == 'thermal') {
-                $pdf->setPaper([0, 0, 288, 432], 'portrait'); // 4x6 inches in points
-            } else {
-                $pdf->setPaper('A4', 'portrait');
+            if ($withAwb->count() > 200) {
+                return $this->labelError('Please download at most 200 labels at a time.');
             }
-            
-            return $pdf->download("bulk-custom-labels-" . date('Y-m-d-H-i-s') . ".pdf");
-            
-        } catch (\Exception $e) {
-            return back()->with('error', 'Error downloading bulk labels: ' . $e->getMessage());
+            return $this->labelPdfResponse($withAwb, 'labels-' . date('Y-m-d-His') . '.pdf');
+        } catch (\Throwable $e) {
+            Log::error('Bulk label download failed', ['error' => $e->getMessage(), 'line' => $e->getLine()]);
+            return $this->labelError('Something went wrong while creating the labels. Please try again.', 500);
         }
     }
 
+    // Route seller.order.bulk-label-download pointed at a method that did not exist (500 error).
+    public function bulkLabelDownload(Request $request)
+    {
+        return $this->downloadBulkCustomLabels($request);
+    }
 
-
-
-
-
-
-
-
-
+    // Settings page live preview (sample data, current unsaved form values)
+    public function previewLabel(Request $request)
+    {
+        $settings = \App\Models\LabelSetting::where('seller_id', $this->labelSellerId())->first();
+        $cfg = \App\Support\Label\LabelRenderer::config($settings);
+        foreach (\App\Support\Label\LabelRenderer::DEFAULTS as $k => $v) {
+            if ($request->has($k)) {
+                $cfg[$k] = is_bool($v) ? $request->boolean($k) : (is_int($v) ? (int) $request->input($k) : $request->input($k));
+            }
+        }
+        $cfg = \App\Support\Label\LabelRenderer::config(['config' => $cfg]);
+        $sample = \App\Support\Label\LabelRenderer::sample();
+        $seller = \App\Models\SellerList::find($this->labelSellerId());
+        if ($seller) {
+            $sample['seller']['name'] = $seller->gst_verified_name ?: ($seller->name ?: $sample['seller']['name']);
+            $sample['seller']['gst'] = $seller->gst_number ?: ($seller->gst_no ?: $sample['seller']['gst']);
+        }
+        $sample['logo'] = $cfg['show_logo'] ? $this->labelLogoDataUri($settings) : null;
+        $html = \App\Support\Label\LabelRenderer::render([$sample], $cfg);
+        if ($request->input('format') === 'html') {
+            $w = $cfg['label_type'] === 'thermal' ? '4in' : '7.6in';
+            $html = str_replace('</style>', 'html{background:#eef0f4} body{width:' . $w . ';margin:12px auto;background:#fff;padding:8pt;box-shadow:0 1px 6px rgba(0,0,0,.12)}</style>', $html);
+            return response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8', 'Cache-Control' => 'no-store']);
+        }
+        $pdf = Pdf::loadHTML($html)->setOptions(['isRemoteEnabled' => false, 'defaultFont' => 'DejaVu Sans']);
+        $cfg['label_type'] === 'thermal' ? $pdf->setPaper([0, 0, 288, 432], 'portrait') : $pdf->setPaper('A4', 'portrait');
+        return response($pdf->output(), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="label-preview.pdf"', 'Cache-Control' => 'no-store']);
+    }
 
     private function generateLabelHtml($order, $settings = null)
 {

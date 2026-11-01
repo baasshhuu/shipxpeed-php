@@ -313,6 +313,11 @@ Route::middleware(['seller'])->prefix('seller')->group(function () {
 
 Route::get('/custom-label', [LebalController::class, 'index'])->name('seller.custom-label.index');
 Route::post('/custom-label', [LebalController::class, 'store'])->name('seller.custom-label.store');
+Route::get('/custom-label/preview', [Dashboard::class, 'previewLabel'])->name('seller.custom-label.preview');
+// Xpeed Assistant (AI helper)
+Route::post('/assistant/chat', [\App\Http\Controllers\selleradmin\AssistantController::class, 'chat'])->middleware('throttle:30,1')->name('seller.assistant.chat');
+Route::post('/assistant/confirm', [\App\Http\Controllers\selleradmin\AssistantController::class, 'confirm'])->middleware('throttle:20,1')->name('seller.assistant.confirm');
+Route::post('/assistant/reset', [\App\Http\Controllers\selleradmin\AssistantController::class, 'reset'])->name('seller.assistant.reset');
 
 // Custom Label Generation Routes with new layout support
 // Route::get('/orders/{id}/custom-label', [Dashboard::class, 'generateCustomLabel'])->name('seller.order.custom-label');

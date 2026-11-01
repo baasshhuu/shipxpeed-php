@@ -131,7 +131,8 @@ Route::post('/test-webhook', [TestwebhookController::class, 'getAllwebhookstatus
 
 
 
-Route::post('/api/shipments/create', [ShipmentController::class, 'createShipmentweb'])->name('api.shipments.create');
+// Was open to anyone with any seller id; now needs the seller's API token.
+Route::post('/api/shipments/create', [ShipmentController::class, 'createShipmentweb'])->middleware(\App\Http\Middleware\SellerApiToken::class)->name('api.shipments.create');
 Route::get('/api/orders/track', [\App\Http\Controllers\Frontend\TrackController::class, 'trackOrder'])
     ->name('api.orders.track');
 

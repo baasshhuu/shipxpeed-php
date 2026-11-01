@@ -573,11 +573,11 @@ class DelhiveryB2CServiceExpress implements CourierServiceInterface
             $responseData = $orderResponse->json();
             // dd($responseData);
 
-                    if (!$orderResponse->successful() || ($responseData['success'] ?? false) === false) {
+                    if (!$orderResponse->successful() || ($responseData['success'] ?? false) === false || empty($responseData['packages'][0]['waybill'])) {
             //  echo 'scascac';die;
             return [
                 'status' => false,
-                'message' => 'Order creation failed: ' . ($responseData['rmk'] ?? 'Unknown error')
+                'message' => 'Order creation failed: ' . \App\Support\CourierError::raw($responseData ?: $orderResponse->body())
             ];
         }
 
@@ -751,7 +751,7 @@ public function assignOrder_bulk($orderPayloads)
 
             $responseData = $orderResponse->json();
 
-            if (!$orderResponse->successful() || ($responseData['success'] ?? false) === false) {
+            if (!$orderResponse->successful() || ($responseData['success'] ?? false) === false || empty($responseData['packages'][0]['waybill'])) {
                 $failures[] = [
                     'order_number' => $order_number,
                     'message' => 'Order creation failed: ' . ($responseData['rmk'] ?? 'Unknown')

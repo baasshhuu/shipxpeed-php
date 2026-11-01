@@ -686,11 +686,11 @@ public function reversegetServiceability(array $params): array
 
             $responseData = $orderResponse->json();
             // dd($responseData);
-            if (!$orderResponse->successful() || ($responseData['success'] ?? false) === false) {
+            if (!$orderResponse->successful() || ($responseData['success'] ?? false) === false || empty($responseData['packages'][0]['waybill'])) {
                 //  echo 'scascac';die;
                 return [
                     'status' => false,
-                    'message' => 'Order creation failed: ' . ($responseData['rmk'] ?? 'Unknown error')
+                    'message' => 'Order creation failed: ' . \App\Support\CourierError::raw($responseData ?: $orderResponse->body())
                 ];
             }
 
@@ -1091,10 +1091,10 @@ private function processSingleOrderAssignmentBulk($orderPayload)
 
         $responseData = $orderResponse->json();
 
-        if (!$orderResponse->successful() || ($responseData['success'] ?? false) === false) {
+        if (!$orderResponse->successful() || ($responseData['success'] ?? false) === false || empty($responseData['packages'][0]['waybill'])) {
             return [
                 'status' => false,
-                'message' => 'Order creation failed: ' . ($responseData['rmk'] ?? 'Unknown error')
+                'message' => 'Order creation failed: ' . \App\Support\CourierError::raw($responseData ?: $orderResponse->body())
             ];
         }
 

@@ -2326,9 +2326,15 @@
                             </td>
                             @else
                             <td>
-                                <button class="custom-label-btn" data-order-id="{{ $order->id }}">
+                                @if(!empty($order->awb_number))
+                                <a class="custom-label-btn" data-order-id="{{ $order->id }}"
+                                   href="{{ route('seller.order.custom-label.download', $order->id) }}"
+                                   style="text-decoration:none;display:inline-block;" rel="nofollow">
                                     <i class="fas fa-download me-1"></i>Download
-                                </button>
+                                </a>
+                                @else
+                                <span class="badge bg-secondary" title="Label is available after an AWB is assigned">No AWB</span>
+                                @endif
                             </td>
                             @endif
                     
@@ -3522,11 +3528,13 @@
     // Event listeners
     document.addEventListener('DOMContentLoaded', function() {
         // Individual custom label buttons
+        // Single label download is a plain link (works on phones too); just show feedback.
         document.addEventListener('click', function(e) {
-            if (e.target.classList.contains('custom-label-btn')) {
-                const orderId = e.target.getAttribute('data-order-id');
-                generateCustomLabel(orderId);
-            }
+            const btn = e.target.closest ? e.target.closest('a.custom-label-btn') : null;
+            if (!btn) return;
+            const original = btn.innerHTML;
+            btn.innerHTML = '<span class="loading-spinner"></span> Preparing...';
+            setTimeout(() => { btn.innerHTML = original; }, 4000);
         });
 
         // Bulk custom label button
@@ -3805,7 +3813,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // (clear selections handled elsewhere)
 
     // Enhanced loading states for action buttons
-    document.querySelectorAll('.custom-label-btn, .tekipost-open-popup').forEach(button => {
+    document.querySelectorAll('.tekipost-open-popup').forEach(button => {
         button.addEventListener('click', function() {
             const originalContent = this.innerHTML;
             this.innerHTML = '<span class="loading-spinner"></span> Processing...';
