@@ -82,7 +82,9 @@ class ReturnsController extends Controller
         if ($s !== '') {
             $this->search($fq, $s);
         }
-        $already = $linked->values()->flip();
+        // a return that was deleted frees its original order again
+        $alive = Order::whereIn('id', $linked->keys())->pluck('id')->flip();
+        $already = $linked->filter(fn ($orig, $ret) => $alive->has($ret))->values()->flip();
         $eligible = $fq->orderByDesc('updated_at')->limit(300)->get()
             ->filter(fn ($o) => Kit::bucket($o) === 'delivered' && !$already->has($o->id))->values();
 
@@ -125,7 +127,7 @@ class ReturnsController extends Controller
 
         foreach (Order::where('seller_id', $seller->id)->whereIn('id', $data['order_ids'])->get() as $orig) {
             if ($orig->reverse === 'reverse' || Kit::bucket($orig) !== 'delivered'
-                || DB::table('xp_returns')->where('original_order_id', $orig->id)->exists()) {
+                || DB::table('xp_returns')->where('original_order_id', $orig->id)->whereIn('return_order_id', Order::select('id'))->exists()) {
                 $done['skipped']++;
                 continue;
             }
@@ -222,6 +224,7 @@ class ReturnsController extends Controller
         $ret->updated_at = now();
         $ret->save();
 
+        DB::table('xp_returns')->where('original_order_id', $orig->id)->whereNotIn('return_order_id', Order::select('id'))->delete();
         DB::table('xp_returns')->insert([
             'seller_id' => $orig->seller_id, 'return_order_id' => $ret->id, 'original_order_id' => $orig->id,
             'reason' => $reason, 'created_at' => now(), 'updated_at' => now(),

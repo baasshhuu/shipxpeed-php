@@ -24,8 +24,9 @@
     .rv .rv-top p { margin:4px 0 0; color:var(--rv-fg2); font-size:.86rem; max-width:640px; }
     .rv .rv-btn { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:9px; font-size:.84rem; font-weight:600; border:1px solid var(--rv-line2); background:var(--rv-raised); color:var(--rv-fg); text-decoration:none; cursor:pointer; white-space:nowrap; }
     .rv .rv-btn:hover { border-color:var(--rv-blue); color:var(--rv-fg); }
-    .rv .rv-btn.pri { background:var(--rv-blue); border-color:var(--rv-blue); color:#fff; }
-    .rv .rv-btn.pri:hover { filter:brightness(1.08); color:#fff; }
+    .rv .rv-btn.pri, .rv a.rv-btn.pri, .rv a.rv-btn.pri:visited { background:var(--rv-blue); border-color:var(--rv-blue); color:#fff !important; }
+    .rv .rv-btn.pri:hover { filter:brightness(1.08); color:#fff !important; }
+    .rv a.rv-btn:not(.pri), .rv a.rv-stat { color:var(--rv-fg) !important; }
     .rv .rv-btn.sm { padding:5px 10px; font-size:.78rem; border-radius:7px; }
     .rv .rv-btn.danger:hover { border-color:var(--rv-bad); color:var(--rv-bad); }
     .rv .rv-btn[disabled] { opacity:.55; pointer-events:none; }
