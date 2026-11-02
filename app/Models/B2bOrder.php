@@ -25,7 +25,7 @@ class B2bOrder extends Model
     ];
 
     public const STATUS_LABELS = [
-        'draft'      => 'Draft',
+        'draft'      => 'Unshipped',
         'booked'     => 'Booked',
         'in_transit' => 'In transit',
         'delivered'  => 'Delivered',

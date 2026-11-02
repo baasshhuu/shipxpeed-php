@@ -212,8 +212,8 @@ class B2bOrderController extends Controller
             'invoice_file'          => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'ewaybill_no'           => [$needEway ? 'required' : 'nullable', 'regex:/^\d{12}$/'],
             'ewaybill_file'         => [$needEway ? 'required' : 'nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
-            'courier_id'            => 'required|string|max:20',
-            'quoted_price'          => 'required|numeric|min:1',
+            'courier_id'            => 'nullable|string|max:20',
+            'quoted_price'          => 'nullable|numeric|min:1',
         ] + $this->boxRules(), [
             'consignee.phone.regex'   => 'Receiver phone must be a 10-digit Indian mobile number.',
             'ewaybill_no.required'    => 'E-way bill number is required for invoices of ₹' . number_format($threshold) . ' or more.',
@@ -250,7 +250,7 @@ class B2bOrderController extends Controller
             'total_boxes'         => array_sum(array_column($boxes, 'count')),
             'total_weight'        => array_sum(array_map(fn ($b) => $b['count'] * $b['weight'], $boxes)),
             'ewaybill_no'         => $d['ewaybill_no'] ?? null,
-            'quote'               => ['courier_id' => $d['courier_id'], 'price' => (float) $d['quoted_price']],
+            'quote'               => null,
         ]);
         $order->order_ref = 'B2B' . str_pad((string) $order->id, 6, '0', STR_PAD_LEFT);
         $dir = "b2b/{$sellerId}/{$order->id}";
@@ -260,8 +260,18 @@ class B2bOrderController extends Controller
         }
         $order->save();
 
-        $res = $this->bigship->book($order, (string) $d['courier_id'], (float) $d['quoted_price']);
-        return redirect()->route('seller.b2b.order.show', $order->id)->with($res['ok'] ? 'success' : 'error', $res['message']);
+        // B2B-UNSHIPPED: save only; the courier is assigned from the Unshipped tab
+        return redirect()->route('seller.b2b.orders', ['status' => 'draft'])
+            ->with('success', 'Order ' . $order->order_ref . ' saved. Assign a courier to ship it.');
+    }
+
+    /** After an action taken on the list, go back to the list (keeps the tab). */
+    private function done(Request $request, B2bOrder $order, bool $ok, string $msg, ?string $tab = null)
+    {
+        if ($request->input('from') === 'list') {
+            return redirect()->route('seller.b2b.orders', array_filter(['status' => $tab ?? $request->input('tab')]))->with($ok ? 'success' : 'error', $order->order_ref . ': ' . $msg);
+        }
+        return redirect()->route('seller.b2b.order.show', $order->id)->with($ok ? 'success' : 'error', $msg);
     }
 
     public function show(int $id)
@@ -317,27 +327,27 @@ class B2bOrderController extends Controller
         $d = $request->validate(['courier_id' => 'required|string|max:20', 'quoted_price' => 'required|numeric|min:1']);
         abort_unless($this->bigship->enabledForSellers(), 403);
         $res = $this->bigship->book($order, $d['courier_id'], (float) $d['quoted_price']);
-        return redirect()->route('seller.b2b.order.show', $order->id)->with($res['ok'] ? 'success' : 'error', $res['message']);
+        return $this->done($request, $order, (bool) $res['ok'], $res['message'], $res['ok'] ? 'booked' : 'draft');
     }
 
-    public function cancel(int $id)
+    public function cancel(Request $request, int $id)
     {
         $order = $this->own($id);
         if ($order->status === 'draft') {
             $order->status = 'cancelled';
             $order->cancelled_at = now();
             $order->save();
-            return redirect()->route('seller.b2b.order.show', $order->id)->with('success', 'Draft cancelled.');
+            return $this->done($request, $order, true, 'Order cancelled.');
         }
         $res = $this->bigship->cancel($order);
-        return redirect()->route('seller.b2b.order.show', $order->id)->with($res['ok'] ? 'success' : 'error', $res['message']);
+        return $this->done($request, $order, (bool) $res['ok'], $res['message']);
     }
 
-    public function track(int $id)
+    public function track(Request $request, int $id)
     {
         $order = $this->own($id);
         $res = $this->bigship->track($order);
-        return redirect()->route('seller.b2b.order.show', $order->id)->with($res['ok'] ? 'success' : 'error', 'Tracking: ' . $res['message']);
+        return $this->done($request, $order, (bool) $res['ok'], 'Tracking: ' . $res['message']);
     }
 
     /** Label / manifest / invoice / e-way bill from the courier, streamed through the panel. */

@@ -13,7 +13,7 @@
     <div class="b2-head">
         <div>
             <h1>Create B2B shipment</h1>
-            <p>Multi-box shipment to a business. Invoice is required; e-way bill for invoices of ₹{{ number_format($threshold) }} or more.</p>
+            <p>Create the order here, then assign a courier from the Unshipped tab. Multi-box shipment to a business. Invoice is required; e-way bill for invoices of ₹{{ number_format($threshold) }} or more.</p>
         </div>
     </div>
 
@@ -133,15 +133,10 @@
 
             <div class="b2-sticky">
                 <div class="b2-card">
-                    <h2><i class="ti ti-truck"></i> Courier &amp; price</h2>
-                    <div id="b2RateMsg" class="b2-muted" style="margin-bottom:12px">Fill pickup, receiver pincode, boxes and invoice value, then get rates.</div>
-                    <button type="button" class="b2-btn ghost" id="b2GetRates" style="width:100%;margin-bottom:12px"><i class="ti ti-refresh"></i> Get rates</button>
-                    <div class="b2-rates" id="b2Rates"></div>
-                    <div style="border-top:1px solid var(--b2-line);margin-top:14px;padding-top:14px">
-                        <div class="b2-sum" style="margin:0 0 12px"><span>Wallet balance: <b>₹{{ number_format($balance, 2) }}</b></span></div>
-                        <button type="submit" class="b2-btn" id="b2Book" style="width:100%" disabled><i class="ti ti-check"></i> Book shipment</button>
-                        <div class="b2-muted" style="margin-top:8px">Prices include GST. The amount is debited from your wallet when the courier confirms the booking.</div>
-                    </div>
+                    <h2><i class="ti ti-device-floppy"></i> Save order</h2>
+                    <div class="b2-muted" style="margin-bottom:12px">The order is saved as <b>Unshipped</b>. You then compare courier rates and assign it from the Unshipped tab. Nothing is charged until a courier is assigned.</div>
+                    <div class="b2-sum" style="margin:0 0 12px"><span>Wallet balance: <b>₹{{ number_format($balance, 2) }}</b></span></div>
+                    <button type="submit" class="b2-btn" id="b2Book" style="width:100%"><i class="ti ti-check"></i> Save order</button>
                 </div>
             </div>
         </div>
@@ -154,8 +149,7 @@
 (function () {
     var form = document.getElementById('b2Form'), boxes = document.getElementById('b2Boxes');
     var TH = {{ (int) $threshold }}, idx = {{ count($oldBoxes) }};
-    var rates = document.getElementById('b2Rates'), msg = document.getElementById('b2RateMsg');
-    var book = document.getElementById('b2Book'), cId = document.getElementById('b2Courier'), cPr = document.getElementById('b2Price');
+    var book = document.getElementById('b2Book'), cId = document.getElementById('b2Courier');
     function money(n) { return '₹' + Number(n).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
     function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
 
@@ -178,10 +172,7 @@
         document.getElementById('b2EwayNo').required = big;
         document.getElementById('b2EwayFile').required = big;
     }
-    function clearRates(text) {
-        rates.innerHTML = ''; cId.value = ''; cPr.value = ''; book.disabled = true;
-        msg.textContent = text || 'Details changed - get rates again.';
-    }
+    function clearRates() {}
 
     boxes.addEventListener('click', function (e) {
         if (!e.target.hasAttribute('data-rm')) return;
@@ -212,46 +203,7 @@
         }).catch(function () {});
     });
 
-    document.getElementById('b2GetRates').addEventListener('click', function () {
-        var btn = this, fd = new FormData();
-        fd.append('_token', form.querySelector('input[name=_token]').value);
-        fd.append('pickup_warehouse_id', document.getElementById('b2Pick').value);
-        fd.append('to_pincode', document.getElementById('b2To').value.trim());
-        fd.append('invoice_amount', document.getElementById('b2Amt').value);
-        fd.append('payment_mode', payment());
-        fd.append('cod_amount', document.getElementById('b2Cod').value || 0);
-        fd.append('risk_type_id', form.querySelector('select[name=risk_type_id]').value);
-        boxes.querySelectorAll('.b2-box input').forEach(function (i) { fd.append(i.name, i.value); });
-        clearRates('Fetching rates…'); btn.disabled = true;
-        fetch(@json(route('seller.b2b.order.quote')), {method: 'POST', body: fd, headers: {'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest'}})
-            .then(function (r) { return r.json().then(function (j) { return {s: r.status, j: j}; }); })
-            .then(function (x) {
-                btn.disabled = false;
-                if (x.s === 422 && x.j.errors) { msg.textContent = Object.values(x.j.errors)[0][0]; return; }
-                if (!x.j.ok) { msg.textContent = x.j.error || x.j.message || 'Could not get rates.'; return; }
-                if (!x.j.rates.length) { msg.textContent = 'No courier is available for this route and weight.'; return; }
-                msg.textContent = 'Choose a courier:';
-                rates.innerHTML = x.j.rates.map(function (r, i) {
-                    return '<label class="b2-rate"><input type="radio" name="_rate" value="' + i + '">' +
-                        '<div><div class="nm">' + esc(r.courier_name) + '</div><div class="mt">' +
-                        (r.tat ? r.tat + ' day' + (r.tat > 1 ? 's' : '') + ' · ' : '') +
-                        (r.charged_weight ? 'charged ' + r.charged_weight + ' kg' : '') + '</div>' +
-                        (r.note ? '<div class="mt">' + esc(r.note) + '</div>' : '') + '</div>' +
-                        '<div class="pr">' + money(r.price) + '</div></label>';
-                }).join('');
-                rates.querySelectorAll('input').forEach(function (inp) {
-                    inp.addEventListener('change', function () {
-                        var r = x.j.rates[+inp.value];
-                        rates.querySelectorAll('.b2-rate').forEach(function (l) { l.classList.remove('on'); });
-                        inp.closest('.b2-rate').classList.add('on');
-                        cId.value = r.courier_id; cPr.value = r.price; book.disabled = false;
-                        book.innerHTML = '<i class="ti ti-check"></i> Book for ' + money(r.price);
-                    });
-                });
-            })
-            .catch(function () { btn.disabled = false; msg.textContent = 'Network error - please try again.'; });
-    });
-    form.addEventListener('submit', function () { book.disabled = true; book.textContent = 'Booking…'; });
+    form.addEventListener('submit', function () { book.disabled = true; book.textContent = 'Saving…'; });
 
     totals(); toggles();
 })();
