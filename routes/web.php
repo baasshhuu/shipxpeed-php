@@ -578,3 +578,6 @@ require __DIR__ . '/notify_web.php';
 
 // Seller › Value Added Services hub
 require __DIR__ . '/vas_web.php';
+
+// Domestic B2B shipments (Bigship)
+require __DIR__ . '/b2b_web.php';

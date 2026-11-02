@@ -8,13 +8,15 @@
 (function () {
     var VAS = @json(route('vas.index'));
     var NDR = @json(Route::has('xp.ndr') ? route('xp.ndr') : null);
+    var B2B = @json(Route::has('seller.b2b.orders') && class_exists(\App\Services\BigshipService::class) && app(\App\Services\BigshipService::class)->enabledForSellers() ? route('seller.b2b.orders') : null);
     var VAS_GROUP = /^\/(notifications|seller\/services|seller\/xp\/)/;
-    // [heading, [[path, label, icon], ...]]   '@vas' / '@ndr' = built here if the sidebar has no such link
+    // [heading, [[path, label, icon], ...]]   '@vas' / '@ndr' / '@b2b' = built here if the sidebar has no such link
     var MENU = [
         ['Overview', [['/seller/dashboard', 'Dashboard', 'ti ti-smart-home']]],
         ['Orders', [
             ['/seller/order-add', 'Create order', 'ti ti-circle-plus'],
             ['/seller/order', 'Orders & shipments', 'ti ti-package'],
+            ['@b2b', 'B2B orders', 'ti ti-truck-delivery'],
             ['/seller/reverse-order', 'Reverse orders', 'ti ti-arrow-back-up'],
             ['/seller/track-order-in', 'Track order', 'ti ti-map-pin'],
             ['/seller/channels', 'Channels', 'ti ti-plug']]],
@@ -60,6 +62,7 @@
     function isActive(key, p) {
         if (key === '@vas') return VAS_GROUP.test(here) && here.indexOf('/seller/xp/ndr') !== 0;
         if (key === '@ndr') return here.indexOf('/seller/xp/ndr') === 0;
+        if (key === '@b2b') return here.indexOf('/seller/b2b-orders') === 0;
         return here === p || (p !== '/seller/order' && here.indexOf(p + '/') === 0);
     }
 
@@ -75,8 +78,8 @@
             var items = [];
             sec[1].forEach(function (it) {
                 var key = it[0], p = key, a;
-                if (key === '@vas' || key === '@ndr') {
-                    var url = key === '@vas' ? VAS : NDR; if (!url) return;
+                if (key === '@vas' || key === '@ndr' || key === '@b2b') {
+                    var url = key === '@vas' ? VAS : (key === '@ndr' ? NDR : B2B); if (!url) return;
                     p = norm(url);
                     a = byPath[p];
                     if (!a) { a = links[0].cloneNode(true); a.setAttribute('href', url); }

@@ -19,6 +19,11 @@
                                 <i class="fa-solid fa-plug me-1"></i> Fship Settings
                             </a>
                         @endif
+                        @if (Route::has('admin.bigship.index'))
+                            <a href="{{ route('admin.bigship.index') }}" class="btn btn-outline-primary me-2">
+                                <i class="fa-solid fa-truck-ramp-box me-1"></i> Bigship B2B
+                            </a>
+                        @endif
                         @if (Helper::userCan(104, 'can_add'))
                             <a href="{{ route('logistics.add') }}" class="btn btn-outline-secondary">
                                 <i class="fa fa-plus me-1"></i>

@@ -442,7 +442,7 @@
                                             </a>
                                         </li>
                                         <li>
-                                            <a href="{{-- route('seller.b2b.order') --}}" class="nav-link sidebar-sub-nav-link {{ request()->routeIs('seller.b2b.order*') ? 'active' : '' }}">
+                                            <a href="{{ Route::has('seller.b2b.order') ? route('seller.b2b.order') : '#' }}" class="nav-link sidebar-sub-nav-link {{ request()->routeIs('seller.b2b.order*') ? 'active' : '' }}">
                                                 <span class="ms-2">Add B2B Order</span>
                                             </a>
                                         </li>
@@ -467,8 +467,8 @@
                                     <ul class="nav flex-column sidebar-dropdown-menu">
 
                                         <li>
-                                            <a href="{{ route('seller.order') }}"
-                                            class="nav-link sidebar-sub-nav-link {{ request()->routeIs('seller.order') ? 'active' : '' }}">
+                                            <a href="{{ Route::has('seller.b2b.order') ? route('seller.b2b.order') : route('seller.order') }}"
+                                            class="nav-link sidebar-sub-nav-link {{ request()->routeIs('seller.b2b.order*') ? 'active' : '' }}">
                                                 <span class="ms-2">Add B2B Order</span>
                                             </a>
                                         </li>
@@ -484,7 +484,7 @@
                                 </div>
                             </li>
                             <li>
-                                <a href="{{-- route('seller.b2b.order') --}}" class="nav-link sidebar-sub-nav-link {{ request()->routeIs('seller.b2b.order*') ? 'active' : '' }}">
+                                <a href="{{ Route::has('seller.b2b.orders') ? route('seller.b2b.orders') : '#' }}" class="nav-link sidebar-sub-nav-link {{ request()->routeIs('seller.b2b.order*') ? 'active' : '' }}">
                                     <span class="ms-2">Shipment History</span>
                                 </a>
                             </li>
@@ -777,7 +777,7 @@
                                 </a>
                             </li>
                             <li>
-                                <a href="{{-- route('seller.b2b.order') --}}" class="nav-link sidebar-sub-nav-link {{ request()->routeIs('seller.b2b.order*') ? 'active' : '' }}">
+                                <a href="{{ Route::has('seller.b2b.order') ? route('seller.b2b.order') : '#' }}" class="nav-link sidebar-sub-nav-link {{ request()->routeIs('seller.b2b.order*') ? 'active' : '' }}">
                                     <span class="ms-2">Add B2B Order</span>
                                 </a>
                             </li>
