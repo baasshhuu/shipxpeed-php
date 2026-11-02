@@ -39,6 +39,12 @@ Route::middleware(['seller'])->prefix('seller/xp')->name('xp.')->controller(Sell
     Route::get('protection/claim/{id}/proof/{n}', 'claimProof')->whereNumber('id')->whereNumber('n')->name('protection.claim.proof');
 });
 
+// ---------------------------------------------------------------- reverse orders (returns)
+Route::middleware(['seller'])->prefix('seller/reverse-order')->name('seller.reverse.')->controller(\App\Http\Controllers\Xpeed\ReturnsController::class)->group(function () {
+    Route::post('create-from-delivered', 'create')->name('fromforward');
+    Route::post('auto-assign', 'assign')->name('autoassign');
+});
+
 // ---------------------------------------------------------------- seller login with e-mail OTP
 Route::post('/seller-login/email-otp/send', [\App\Http\Controllers\Xpeed\EmailOtpLoginController::class, 'send'])->middleware('throttle:8,1')->name('seller.login.emailotp.send');
 Route::post('/seller-login/email-otp/verify', [\App\Http\Controllers\Xpeed\EmailOtpLoginController::class, 'verify'])->middleware('throttle:15,1')->name('seller.login.emailotp.verify');

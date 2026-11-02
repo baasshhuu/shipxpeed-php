@@ -903,6 +903,10 @@ public function getSmartshipLabel(Request $request)
 
 public function reverse_order()
 {
+    // RETURNS-PAGE: new Reverse orders page (create returns from delivered orders, auto-assign, tabs)
+    if (class_exists(\App\Http\Controllers\Xpeed\ReturnsController::class) && view()->exists('sellerdashboard.returns.index')) {
+        return app(\App\Http\Controllers\Xpeed\ReturnsController::class)->index(request());
+    }
     $seller = Auth::guard('seller')->user();
    
     $totalAmount = 0;
