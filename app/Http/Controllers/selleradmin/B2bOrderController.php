@@ -174,6 +174,7 @@ class B2bOrderController extends Controller
             'rates' => array_map(fn ($r) => [
                 'courier_id'     => $r['courier_id'],
                 'courier_name'   => $r['courier_name'],
+                'logo'           => \App\Support\CourierBrand::logoUrl($r['courier_name']),
                 'tat'            => $r['tat'],
                 'charged_weight' => $r['charged_weight'],
                 'price'          => $r['price'],
@@ -313,6 +314,7 @@ class B2bOrderController extends Controller
         return response()->json(['ok' => true, 'rates' => array_map(fn ($r) => [
             'courier_id'     => $r['courier_id'],
             'courier_name'   => $r['courier_name'],
+            'logo'           => \App\Support\CourierBrand::logoUrl($r['courier_name']),
             'tat'            => $r['tat'],
             'charged_weight' => $r['charged_weight'],
             // a confirmed final price replaces the estimate for that courier

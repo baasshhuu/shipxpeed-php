@@ -56,8 +56,38 @@ class CourierBrand
             str_contains($n, 'amazon') => 'brands/1703c4f8-55a6-4923-8c94-9bcb98f39c2d.jpeg',
             str_contains($n, 'shadowfax') => 'brands/1749459823_shadowfax_wedeliver (1).png',
             str_contains($n, 'maruti') => 'brands/Shreemaruti.jpg',
-            default => null,
+            default => self::extraLogo($n),
         };
+    }
+
+    /** COURIER-LOGOS-B2B: freight / B2B carriers (files in public/brands/b2b, only when present). */
+    public const EXTRA_LOGOS = [
+        'movin' => 'movin', 'gati' => 'gati', 'dp world' => 'dpworld', 'dpworld' => 'dpworld', 'tci' => 'tci',
+        'safexpress' => 'safexpress', 'safe express' => 'safexpress', 'v-xpress' => 'vxpress', 'vxpress' => 'vxpress', 'v xpress' => 'vxpress',
+        'rivigo' => 'rivigo', 'om logistics' => 'omlogistics', 'smartr' => 'smartr', 'ecom' => 'ecom', 'spoton' => 'spoton',
+        'shree anjani' => 'anjani', 'professional' => 'professional', 'trackon' => 'trackon', 'nandan' => 'nandan',
+    ];
+
+    public static function extraLogo(string $n): ?string
+    {
+        foreach (self::EXTRA_LOGOS as $needle => $slug) {
+            if (str_contains($n, $needle)) {
+                foreach (['svg', 'png', 'webp', 'jpg'] as $ext) {
+                    if (is_file(public_path("brands/b2b/$slug.$ext"))) {
+                        return "brands/b2b/$slug.$ext";
+                    }
+                }
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /** Full URL of a courier's logo for the browser, or null when there is no brand image. */
+    public static function logoUrl(?string $courierName): ?string
+    {
+        $p = self::logo($courierName);
+        return $p && is_file(public_path($p)) ? asset($p) : null;
     }
 
     /** Logo to show a seller: known brand image, else a safe hint, else the neutral default. */

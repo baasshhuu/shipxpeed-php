@@ -96,6 +96,7 @@
     var boxes = document.getElementById('rcBoxes'), msg = document.getElementById('rcMsg'), out = document.getElementById('rcRates');
     function money(n) { return '₹' + Number(n).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
     function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+    function logo(r) { return r.logo ? '<span class="b2-logo"><img src="' + esc(r.logo) + '" alt="" loading="lazy"></span>' : '<span class="b2-logo txt">' + esc(String(r.courier_name || '?').replace(/^LTL\s+/i, '').slice(0, 2).toUpperCase()) + '</span>'; }
     function pay() { return document.querySelector('input[name=rc_pay]:checked').value; }
     function totals() {
         var tb = 0, tw = 0, tv = 0;
@@ -143,7 +144,7 @@
                 if (!x.j.rates.length) { msg.textContent = 'No courier is available for this route and weight.'; return; }
                 msg.textContent = x.j.rates.length + ' courier' + (x.j.rates.length > 1 ? 's' : '') + ' available, cheapest first:';
                 out.innerHTML = x.j.rates.map(function (r) {
-                    return '<div class="b2-rate static"><div><div class="nm">' + esc(r.courier_name) + '</div><div class="mt">' +
+                    return '<div class="b2-rate static">' + logo(r) + '<div><div class="nm">' + esc(r.courier_name) + '</div><div class="mt">' +
                         (r.tat ? r.tat + ' day' + (r.tat > 1 ? 's' : '') + ' · ' : '') +
                         (r.charged_weight ? 'charged ' + r.charged_weight + ' kg' : '') + '</div>' +
                         (r.note ? '<div class="mt">' + esc(r.note) + '</div>' : '') + '</div>' +

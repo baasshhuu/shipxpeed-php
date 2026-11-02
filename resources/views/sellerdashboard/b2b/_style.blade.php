@@ -48,6 +48,11 @@
 .b2-rate.on{border-color:var(--b2-blue);box-shadow:0 0 0 3px var(--b2-blue-bg)}
 .b2-rate input{accent-color:var(--b2-blue);width:18px;height:18px}
 .b2-rate .nm{font-weight:700;font-size:15px}
+.b2-logo{flex:0 0 auto;width:64px;height:36px;border-radius:8px;background:#fff;display:inline-flex;align-items:center;justify-content:center;padding:4px 6px;overflow:hidden;border:1px solid rgba(0,0,0,.06)}
+.b2-logo img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.b2-logo.sm{width:46px;height:26px;border-radius:6px;padding:3px 4px;vertical-align:middle;margin-right:8px}
+.b2-logo.txt{background:var(--b2-blue-bg);color:var(--b2-blue);font-weight:800;font-size:13px;border:0}
+.b2-cr{display:flex;align-items:center}
 .b2-rate .mt{font-size:12px;color:var(--b2-fg3)}
 .b2-rate .pr{margin-left:auto;font-size:18px;font-weight:800;white-space:nowrap}
 .b2-split{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}

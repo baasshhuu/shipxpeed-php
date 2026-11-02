@@ -57,7 +57,7 @@
             <div class="b2-card">
                 <h2><i class="ti ti-map-pin"></i> Tracking</h2>
                 <dl class="b2-kv" style="margin-bottom:14px">
-                    <dt>Courier</dt><dd>{{ $order->courier_name }}</dd>
+                    <dt>Courier</dt><dd><span class="b2-cr">@php $lg = \App\Support\CourierBrand::logoUrl($order->courier_name); @endphp @if($lg)<span class="b2-logo sm"><img src="{{ $lg }}" alt=""></span>@endif{{ $order->courier_name }}</span></dd>
                     <dt>AWB</dt><dd><b>{{ $order->awb ?: 'Generating…' }}</b></dd>
                     @if($order->lr_number)<dt>LR number</dt><dd>{{ $order->lr_number }}</dd>@endif
                     <dt>Status</dt><dd>{{ $order->tracking_status ?: $order->statusLabel() }}</dd>
@@ -152,6 +152,7 @@
     var rates = document.getElementById('b2Rates'), msg = document.getElementById('b2RateMsg'), book = document.getElementById('b2Book');
     function money(n) { return '₹' + Number(n).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
     function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+    function logo(r) { return r.logo ? '<span class="b2-logo"><img src="' + esc(r.logo) + '" alt="" loading="lazy"></span>' : '<span class="b2-logo txt">' + esc(String(r.courier_name || '?').replace(/^LTL\s+/i, '').slice(0, 2).toUpperCase()) + '</span>'; }
     fetch(@json(route('seller.b2b.order.rates', $order->id)), {headers: {'Accept': 'application/json'}})
         .then(function (r) { return r.json(); })
         .then(function (j) {
@@ -159,7 +160,7 @@
             if (!j.rates.length) { msg.textContent = 'No courier is available for this shipment right now.'; return; }
             msg.textContent = 'Choose a courier:';
             rates.innerHTML = j.rates.map(function (r, i) {
-                return '<label class="b2-rate"><input type="radio" name="_rate" value="' + i + '"><div><div class="nm">' + esc(r.courier_name) +
+                return '<label class="b2-rate"><input type="radio" name="_rate" value="' + i + '">' + logo(r) + '<div><div class="nm">' + esc(r.courier_name) +
                     '</div><div class="mt">' + (r.tat ? r.tat + ' days · ' : '') + (r.charged_weight ? 'charged ' + r.charged_weight + ' kg' : '') +
                     '</div></div><div class="pr">' + money(r.price) + '</div></label>';
             }).join('');

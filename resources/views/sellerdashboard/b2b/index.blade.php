@@ -74,7 +74,7 @@
                     <td>{{ $o->consignee['name'] ?? '' }}<div class="b2-muted">{{ $o->consignee['city'] ?? '' }} · {{ $o->consignee['pincode'] ?? '' }}</div></td>
                     <td>{{ $o->total_boxes }}<div class="b2-muted">{{ rtrim(rtrim(number_format($o->total_weight, 2), '0'), '.') }} kg</div></td>
                     <td>₹{{ number_format($o->invoice_amount, 0) }}<div class="b2-muted">{{ strtoupper($o->payment_mode) }}{{ $o->invoice_no ? ' · ' . $o->invoice_no : '' }}</div></td>
-                    <td>{{ $o->courier_name ?: '—' }}<div class="b2-muted">{{ $o->awb ? 'AWB ' . $o->awb : '' }}{{ $o->lr_number ? ' · LR ' . $o->lr_number : '' }}</div></td>
+                    <td>@if($o->courier_name)<div class="b2-cr">@php $lg = \App\Support\CourierBrand::logoUrl($o->courier_name); @endphp @if($lg)<span class="b2-logo sm"><img src="{{ $lg }}" alt=""></span>@endif<span>{{ $o->courier_name }}</span></div>@else — @endif<div class="b2-muted">{{ $o->awb ? 'AWB ' . $o->awb : '' }}{{ $o->lr_number ? ' · LR ' . $o->lr_number : '' }}</div></td>
                     <td>{{ $o->seller_charge ? '₹' . number_format($o->seller_charge, 2) : '—' }}</td>
                     <td><span class="b2-pill {{ $o->status }}">{{ $o->statusLabel() }}</span>@if($o->tracking_status && !in_array($o->status, ['cancelled', 'draft']))<div class="b2-muted">{{ $o->tracking_status }}</div>@endif</td>
                     <td>
@@ -159,6 +159,7 @@
     function u(t, id) { return t.replace(/\/0\/(book|rates)$/, '/' + id + '/$1'); }
     function money(n) { return '₹' + Number(n).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
     function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+    function logo(r) { return r.logo ? '<span class="b2-logo"><img src="' + esc(r.logo) + '" alt="" loading="lazy"></span>' : '<span class="b2-logo txt">' + esc(String(r.courier_name || '?').replace(/^LTL\s+/i, '').slice(0, 2).toUpperCase()) + '</span>'; }
     window.b2Assign = function (id, ref) {
         var m = document.getElementById('b2Modal'), msg = document.getElementById('b2mMsg'), box = document.getElementById('b2mRates'), btn = document.getElementById('b2mBook');
         document.getElementById('b2mRef').textContent = ref;
@@ -172,7 +173,7 @@
                 if (!j.rates.length) { msg.textContent = 'No courier is available for this route and weight.'; return; }
                 msg.textContent = 'Choose a courier:';
                 box.innerHTML = j.rates.map(function (r, i) {
-                    return '<label class="b2-rate"><input type="radio" name="_rate" value="' + i + '">' +
+                    return '<label class="b2-rate"><input type="radio" name="_rate" value="' + i + '">' + logo(r) +
                         '<div><div class="nm">' + esc(r.courier_name) + '</div><div class="mt">' +
                         (r.tat ? r.tat + ' day' + (r.tat > 1 ? 's' : '') + ' · ' : '') +
                         (r.charged_weight ? 'charged ' + r.charged_weight + ' kg' : '') + '</div>' +
