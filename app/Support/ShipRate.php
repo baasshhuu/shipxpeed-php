@@ -174,7 +174,8 @@ class ShipRate
             if (!$svc) {
                 return null;
             }
-            $entries = array_values(array_filter((array) $svc->getServiceability(['order_id' => $orderId]), 'is_array'));
+            $isReverse = optional(\App\Models\Order::find($orderId))->reverse === 'reverse' && method_exists($svc, 'reversegetServiceability');
+            $entries = array_values(array_filter((array) ($isReverse ? $svc->reversegetServiceability(['order_id' => $orderId]) : $svc->getServiceability(['order_id' => $orderId])), 'is_array'));
             if (!$entries) {
                 return false;
             }

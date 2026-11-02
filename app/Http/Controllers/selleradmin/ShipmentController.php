@@ -1465,6 +1465,10 @@ protected function prepareRequestData(Request $request)
         } else if ($courierId == '4') {
             $order = Order::where('id', $orderId)->first();
             $params = json_decode($order->delhivery_b2c);
+            if ($order->reverse === 'reverse') {
+                // DELHIVERY-RVP: reverse pickup from the buyer to the seller's warehouse
+                $params = \App\Services\DelhiveryB2CService::toRvpPayload($params);
+            }
             $order->seller_amount_walate = $courierCharge;
             $order->save();
    

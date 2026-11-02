@@ -3,6 +3,8 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Cache;
+
 use App\Models\Order;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
@@ -477,117 +479,55 @@ class DelhiveryB2CService implements CourierServiceInterface
 
 public function reversegetServiceability(array $params): array
 {
-    // dd($params);
+    // DELHIVERY-RVP: reverse pickup from the buyer back to the seller's warehouse.
+    // Price = the seller's Delhivery rate card for this lane (Admin > Rate Manager), only if Delhivery
+    // can pick up from the buyer's pincode.
     $order = Order::findOrFail($params['order_id']);
-
-    // Consignee Info
-    $consignee = is_string($order->consignee) 
-        ? json_decode($order->consignee, true) 
-        : $order->consignee;
-
-    $destinationPin = $consignee['pincode'];
-
-    // Pickup Info
-    $source = is_string($order->pickup) 
-        ? json_decode($order->pickup, true) 
-        : $order->pickup;
-
-    $originPin = $source['pincode'];
-
-    // Seller Price Settings
-    $PriceSetting = PriceSetting::where([
-        'seller_id' => $order->seller_id,
-        'LogisticProvider' => 'Delhivery'
-    ])->first();
-
-    // Disable check
-    if ($PriceSetting && $PriceSetting->status == '0') {
+    $consignee = is_string($order->consignee) ? json_decode($order->consignee, true) : (array) $order->consignee;
+    $buyerPin = (string) ($consignee['pincode'] ?? '');
+    if (!preg_match('/^[1-9][0-9]{5}$/', $buyerPin) || !self::rvpPickupServiceable($buyerPin)) {
         return [];
     }
+    $rows = $this->getServiceability(['order_id' => $order->id]);
+    return array_values(array_map(function ($r) {
+        $r['codCharge'] = 0; // a reverse pickup never collects cash
+        $r['rvp'] = true;
+        return $r;
+    }, array_filter((array) $rows, 'is_array')));
+}
 
-    // Weight & Payment
-    $weight = (float)$order->package_weight;
-    $orderAmount = $order->collectable_amount;
-    $paymentType = $order->payment_type === 'cod' ? 'COD' : 'Pre-paid';
-
-    // Seller Settings
-    $sellerPercentage = $PriceSetting->shipping_charge ?? 30;
-    $codChargePercent = $PriceSetting->cod_charge_parsent ?? 1.9;
-    $codChargeFixed   = $PriceSetting->cod_charge ?? 32;
-
-    // ------------------------------------
-    // FIXED RATE FOR ALL – ONLY ONE SLAB
-    // ------------------------------------
-    $baseRate = 100; // Fixed base rate
-
-    // COD + GST + Seller Margin Calculation
-    $applyCharges = function ($freight_charges) use (
-        $PriceSetting, $sellerPercentage, $codChargePercent, $codChargeFixed,
-        $paymentType, $orderAmount, $weight
-    ) {
-
-        // 1) If seller has fixed courier rate
-        if ($PriceSetting && $PriceSetting->fixed_courier_price > 0) {
-
-            $weightInKg = $weight / 1000;
-            $weightMultiplier = max(1, ceil($weightInKg / 0.5));
-
-            $freightWithGST = $PriceSetting->fixed_courier_price * $weightMultiplier;
-            $freightWithSeller = 10 * $weightMultiplier;
-            $codCharge = 10 * $weightMultiplier;
-
-            return [
-                'courierCharge'  => round($freightWithGST, 2),
-                'freightCharges' => round($freightWithSeller, 2),
-                'codCharge'      => round($codCharge, 2),
-            ];
+/** Delhivery pincode API: can Delhivery pick up (reverse) from this pincode? Cached 12 h. */
+public static function rvpPickupServiceable(string $pin): bool
+{
+    return (bool) Cache::remember('dlv_rvp_pin_' . $pin, now()->addHours(12), function () use ($pin) {
+        try {
+            $token = env('DELHIVERY_B2C_TOKEN') ?: 'a6cd5bb955fddcb41757ec23ee92cf62b6650607';
+            $r = Http::timeout(15)->acceptJson()->withHeaders(['Authorization' => 'Token ' . $token])
+                ->get('https://track.delhivery.com/c/api/pin-codes/json/', ['filter_codes' => $pin]);
+            if (!$r->successful()) {
+                return true; // API down: let the booking call decide
+            }
+            $pc = $r->json('delivery_codes.0.postal_code');
+            if (!$pc) {
+                return false; // pincode not served by Delhivery
+            }
+            return strtoupper((string) ($pc['pickup'] ?? 'N')) === 'Y';
+        } catch (\Throwable $e) {
+            return true;
         }
+    });
+}
 
-        // 2) Normal calculation
-        $freight = $freight_charges * 1.10; // Add 10%
-        $freightWithSeller = $freight + ($freight * $sellerPercentage / 100);
-
-        $codCharge = 0;
-        if ($paymentType === 'COD') {
-            $codCharge = $orderAmount > 1400
-                ? ($orderAmount * $codChargePercent / 100)
-                : $codChargeFixed;
-        }
-
-        $freightWithSellerCodCharge = $freightWithSeller + $codCharge;
-        $freightWithGST = $freightWithSellerCodCharge + ($freightWithSellerCodCharge * 18 / 100);
-
-        return [
-            'courierCharge'  => round($freightWithGST, 2),
-            'freightCharges' => round($freightWithSeller, 2),
-            'codCharge'      => round($codCharge, 2),
-        ];
-    };
-
-    // Calculate Charges
-    $charges = $applyCharges($baseRate);
-
-    // ----------------------
-    // FINAL SINGLE RESPONSE
-    // ----------------------
-    // dd([
-    //     'serviceabilityId' => $destinationPin,
-    //     'courierName'      => 'Delhivery Reverse',
-    //     'courierCharge'    => $charges['courierCharge'],
-    //     'freightCharges'   => $charges['freightCharges'],
-    //     'codCharge'        => $charges['codCharge'],
-    //     'minWeight'        => $weight,
-    //     'volWeight'        => $weight,
-    // ]);
-    return [[
-        'serviceabilityId' => $destinationPin,
-        'courierName'      => 'Delhivery',
-        'courierCharge'    => $charges['courierCharge'],
-        'freightCharges'   => $charges['freightCharges'],
-        'codCharge'        => $charges['codCharge'],
-        'minWeight'        => $weight,
-        'volWeight'        => $weight,
-    ]];
+/** Turn the stored forward Delhivery payload of a reverse order into an RVP (payment_mode "Pickup") payload. */
+public static function toRvpPayload($payload)
+{
+    $p = json_decode(json_encode($payload), true) ?: [];
+    foreach (($p['shipments'] ?? []) as $i => $sh) {
+        $p['shipments'][$i]['payment_mode'] = 'Pickup';
+        $p['shipments'][$i]['cod_amount'] = '0';
+        $p['shipments'][$i]['shipping_mode'] = 'Surface';
+    }
+    return $p;
 }
 
 
