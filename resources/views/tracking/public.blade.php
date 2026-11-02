@@ -43,7 +43,7 @@ a{color:inherit}
 .wrap{position:relative;z-index:1;max-width:980px;margin:0 auto;padding:0 16px}
 header.top{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
 .logo{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:800;font-size:18px;letter-spacing:-.01em}
-.logo img{height:34px;width:auto}
+.logo img{height:30px;width:auto;display:block}
 .top a.home{color:var(--muted);text-decoration:none;font-size:14px;font-weight:600}
 .top a.home:hover{color:var(--text)}
 
@@ -153,7 +153,7 @@ header.top{display:flex;align-items:center;justify-content:space-between;padding
 <div class="wrap">
     <header class="top">
         <a class="logo" href="{{ url('/') }}">
-            <img src="{{ asset('assets/website/img/newlogo.PNG') }}" alt="Shipxpeed" onerror="this.remove()">
+            <img src="{{ asset('site/assets/img/logo-white.png') }}" alt="Shipxpeed" onerror="this.remove()">
         </a>
         <a class="home" href="{{ url('/') }}">shipxpeed.tech →</a>
     </header>
