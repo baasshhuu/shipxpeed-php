@@ -1,6 +1,8 @@
 @extends('layouts.sellerdash')
 
 @section('content')
+<div class="pc-container b2-page">
+<div class="pc-content sxd">{{-- sidebar-aware frame, same as every other seller page --}}
 @include('sellerdashboard.b2b._style')
 @php
     $oldBoxes = old('boxes', [['count' => 1, 'length' => '', 'breadth' => '', 'height' => '', 'weight' => '']]);
@@ -255,4 +257,6 @@
 })();
 </script>
 @endif
+</div>
+</div>
 @endsection

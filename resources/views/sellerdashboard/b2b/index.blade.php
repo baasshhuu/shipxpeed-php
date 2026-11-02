@@ -1,6 +1,8 @@
 @extends('layouts.sellerdash')
 
 @section('content')
+<div class="pc-container b2-page">
+<div class="pc-content sxd">{{-- sidebar-aware frame, same as every other seller page --}}
 @include('sellerdashboard.b2b._style')
 <div class="b2">
     @include('sellerdashboard.b2b._tabs')
@@ -57,5 +59,7 @@
             <div class="b2-empty"><i class="ti ti-truck-delivery"></i>No B2B shipments yet.</div>
         @endif
     </div>
+</div>
+</div>
 </div>
 @endsection
