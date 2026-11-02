@@ -312,7 +312,10 @@ class BigshipService
         }
 
         $city = (string) ($a['city'] ?? '');
+        $whName = trim(preg_replace('/[^A-Za-z0-9 \-]/', ' ', (string) ($a['title'] ?? '') ?: (string) ($a['name'] ?? '')));
+        $whName = mb_substr(trim(preg_replace('/\s+/', ' ', ($whName ?: 'Warehouse') . ' ' . ($a['pincode'] ?? '') . ' ' . substr($hash, 0, 4))), 0, 50);
         $payload = [
+            'warehouseName'            => $whName,
             'warehouseContactPerson'   => mb_substr(trim((string) ($a['name'] ?? 'Warehouse')), 0, 50) ?: 'Warehouse',
             'warehouseAddressPhone'    => self::phone10($a['phone'] ?? ''),
             'warehouseCountry'         => 'India',
