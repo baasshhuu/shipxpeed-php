@@ -27,6 +27,7 @@
     .b2l-modal .bx { width:100%; max-width:520px; max-height:88vh; overflow:auto; background:var(--sx-surface,#0f1626); border:1px solid var(--b2-line); border-radius:14px; padding:18px; }
     .b2l-modal h3 { font-size:1.05rem; margin:0 0 4px; }
     .b2-table td .b2l-ref { font-weight:600; }
+    .b2 a.b2-btn:not(.ghost), .b2 a.b2-btn:not(.ghost):hover, .b2 a.b2-btn:not(.ghost):visited { color:#fff !important; }
 </style>
 <div class="b2">
     @include('sellerdashboard.b2b._tabs')
@@ -134,7 +135,7 @@
     </div>
 </div>
 
-<div class="b2l-modal" id="b2Modal" onclick="if (event.target === this) this.classList.remove('on')">
+<div class="b2l-modal" id="b2Modal" onclick="if (event.target === this && Date.now() - (window.b2Opened || 0) > 400) this.classList.remove('on')">
     <div class="bx">
         <div style="display:flex;justify-content:space-between;align-items:start;gap:10px">
             <div><h3>Assign courier · <span id="b2mRef"></span></h3><div class="b2-muted">Prices include GST. The amount is debited from your wallet when the courier confirms the booking.</div></div>
@@ -163,7 +164,7 @@
         document.getElementById('b2mRef').textContent = ref;
         document.getElementById('b2mForm').action = u(BOOK, id);
         box.innerHTML = ''; btn.disabled = true; btn.innerHTML = '<i class="ti ti-check"></i> Book shipment'; msg.textContent = 'Fetching rates…';
-        m.classList.add('on');
+        m.classList.add('on'); window.b2Opened = Date.now();
         fetch(u(RATES, id), {headers: {'Accept': 'application/json'}})
             .then(function (r) { return r.json(); })
             .then(function (j) {

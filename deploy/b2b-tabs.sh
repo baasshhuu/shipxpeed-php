@@ -15,8 +15,9 @@ for f in $FILES; do [ -s "$f" ] || { echo "FAIL: $f missing"; exit 1; }; done
 
 # only replace files that are still the deployed version (or already the new one) - never overwrite local edits
 for f in $FILES; do
-  cur=$(git hash-object "$f"); old=$(git rev-parse "$BASE:$f" 2>/dev/null); new=$(git rev-parse "$REF:$f")
-  if [ "$cur" != "$old" ] && [ "$cur" != "$new" ]; then echo "STOP: $f was changed on this server; not overwriting. Send this output to Claude."; exit 1; fi
+  cur=$(git hash-object "$f"); known=""
+  for c in $BASE $(git log --format=%H "$BASE..$REF" -- "$f"); do [ "$(git rev-parse "$c:$f" 2>/dev/null)" = "$cur" ] && known=1; done
+  if [ -z "$known" ]; then echo "STOP: $f was changed on this server; not overwriting. Send this output to Claude."; exit 1; fi
 done
 tar czf "$BK" $FILES && echo "Backup: $BK"
 restore() { echo "!! restoring"; tar xzf "$BK"; php artisan optimize:clear >/dev/null 2>&1; echo "RESTORED - nothing changed"; exit 1; }
