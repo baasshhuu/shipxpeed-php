@@ -312,8 +312,10 @@ class BigshipService
         }
 
         $city = (string) ($a['city'] ?? '');
-        $whName = trim(preg_replace('/[^A-Za-z0-9 \-]/', ' ', (string) ($a['title'] ?? '') ?: (string) ($a['name'] ?? '')));
-        $whName = mb_substr(trim(preg_replace('/\s+/', ' ', ($whName ?: 'Warehouse') . ' ' . ($a['pincode'] ?? '') . ' ' . substr($hash, 0, 4))), 0, 50);
+        // Bigship: warehouse name may only contain letters and spaces; add a letter code so each address is unique
+        $whName = trim(preg_replace('/\s+/', ' ', preg_replace('/[^A-Za-z ]/', ' ', (string) (($a['title'] ?? '') ?: ($a['name'] ?? '')))));
+        $code = strtoupper(strtr(substr($hash, 0, 5), '0123456789abcdef', 'ghijklmnopabcdef'));
+        $whName = mb_substr(trim(mb_substr($whName ?: 'Warehouse', 0, 38) . ' ' . $code), 0, 50);
         $payload = [
             'warehouseName'            => $whName,
             'warehouseContactPerson'   => mb_substr(trim((string) ($a['name'] ?? 'Warehouse')), 0, 50) ?: 'Warehouse',
