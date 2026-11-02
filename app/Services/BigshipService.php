@@ -30,6 +30,7 @@ class BigshipService
     public const SEGMENT = 'domestic_b2b';
     private const SETTINGS_KEY = 'bigship';
     private const SETTINGS_CACHE = 'bigship_settings_v1';
+    public const CANCEL_REASON = 'Order Canceled by Customer';
 
     /* ------------------------------------------------------------------ */
     /*  Settings (admin page, encrypted) with .env override                */
@@ -422,6 +423,9 @@ class BigshipService
             if ($id === '' || $name === '' || $cost <= 0) {
                 continue;
             }
+            if (self::isB2cSlab($name)) {
+                continue; // Bigship B2C weight-slab plan (e.g. "Delhivery 10KG") - booked as B2C, not for B2B
+            }
             $rates[] = [
                 'courier_id'     => $id,
                 'courier_name'   => $name,
@@ -446,6 +450,12 @@ class BigshipService
         usort($rates, fn ($a, $b) => $a['price'] <=> $b['price']);
 
         return ['ok' => true, 'error' => null, 'rates' => $rates];
+    }
+
+    /** Bigship B2C parcel plans are named by weight slab ("Delhivery 10KG", "Ekart Surface 2Kg"); B2B ones are "LTL …", "… MPS", "… CFT". */
+    public static function isB2cSlab(string $name): bool
+    {
+        return (bool) preg_match('/\b\d+(\.\d+)?\s*(kg|gram)\b/i', $name) && !preg_match('/\bLTL\b|\bCFT\b|\bMPS\b/i', $name);
     }
 
     /** Remember every courier Bigship offers; new ones start OFF until admin approves. */
@@ -702,9 +712,12 @@ class BigshipService
         if (!$order->canCancel()) {
             return ['ok' => false, 'message' => 'This shipment can no longer be cancelled.'];
         }
+        // Bigship requires a "reason" (not in the API doc); same wording as its dashboard
         $res = $this->request('api/outbound/cancel-order', 'POST', [
             'CustomGlobalOrderId' => $order->provider_order_id,
             'MasterCustomOrderId' => $order->provider_order_id,
+            'reason'              => self::CANCEL_REASON,
+            'remark'              => 'Cancelled by seller from Shipxpeed',
         ], ['order_id' => $order->id, 'awb' => $order->awb]);
         if (!$res['ok']) {
             return ['ok' => false, 'message' => 'Courier did not accept the cancellation: ' . $res['error']];

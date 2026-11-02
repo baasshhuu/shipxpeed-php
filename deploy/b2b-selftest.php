@@ -164,13 +164,16 @@ foreach ($couriers as $c) {
     $tr = $svc->request('api/outbound/track-order', 'GET', $awb ? ['TrackingNumber' => $awb, 'CustomGlobalOrderId' => $gid] : ['CustomGlobalOrderId' => $gid], $ctx);
     $r['track'] = $tr['ok'] ? ((string) ($tr['data']['data']['order_status'] ?? 'ok') ?: 'ok') : 'none';
 
-    $can = $svc->request('api/outbound/cancel-order', 'POST', ['CustomGlobalOrderId' => $gid, 'MasterCustomOrderId' => $gid], $ctx);
+    $can = $svc->request('api/outbound/cancel-order', 'POST', ['CustomGlobalOrderId' => $gid, 'MasterCustomOrderId' => $gid, 'reason' => BigshipService::CANCEL_REASON, 'remark' => 'Shipxpeed self-test'], $ctx);
     if (!$can['ok'] && $awb) { // some setups cancel by AWB
-        $can = $svc->request('api/outbound/cancel-order', 'POST', ['CustomGlobalOrderId' => $gid, 'MasterCustomOrderId' => $gid, 'AwbNumber' => $awb, 'TrackingNumber' => $awb], $ctx);
+        $can = $svc->request('api/outbound/cancel-order', 'POST', ['CustomGlobalOrderId' => $gid, 'MasterCustomOrderId' => $gid, 'AwbNumber' => $awb, 'TrackingNumber' => $awb, 'reason' => BigshipService::CANCEL_REASON, 'remark' => 'Shipxpeed self-test'], $ctx);
     }
     $r['cancel'] = $can['ok'] ? 'ok' : 'FAIL';
     if (!$can['ok']) {
         $r['note'] = 'CANCEL FAILED - cancel AWB ' . ($awb ?: $gid) . ' in Bigship: ' . $can['error'];
+        $rows[] = $r;
+        echo "  STOPPING: cancel failed, no more bookings will be made.\n";
+        break;
     }
     echo "  label {$r['label']} | track {$r['track']} | cancel {$r['cancel']}\n";
     $rows[] = $r;
