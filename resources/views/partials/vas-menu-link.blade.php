@@ -8,18 +8,27 @@
 (function () {
     var VAS = @json(route('vas.index'));
     var NDR = @json(Route::has('xp.ndr') ? route('xp.ndr') : null);
-    var B2B = @json(Route::has('seller.b2b.orders') && class_exists(\App\Services\BigshipService::class) && app(\App\Services\BigshipService::class)->enabledForSellers() ? route('seller.b2b.orders') : null);
+    var B2B_ON = @json(Route::has('seller.b2b.rates') && class_exists(\App\Services\BigshipService::class) && app(\App\Services\BigshipService::class)->enabledForSellers());
+    var SPECIAL = {'@vas': VAS, '@ndr': NDR,
+        '@b2b-new': B2B_ON ? @json(Route::has('seller.b2b.order') ? route('seller.b2b.order') : null) : null,
+        '@b2b': B2B_ON ? @json(Route::has('seller.b2b.orders') ? route('seller.b2b.orders') : null) : null,
+        '@b2b-rates': B2B_ON ? @json(Route::has('seller.b2b.rates') ? route('seller.b2b.rates') : null) : null,
+        '@b2b-track': B2B_ON ? @json(Route::has('seller.b2b.track') ? route('seller.b2b.track') : null) : null};
     var VAS_GROUP = /^\/(notifications|seller\/services|seller\/xp\/)/;
-    // [heading, [[path, label, icon], ...]]   '@vas' / '@ndr' / '@b2b' = built here if the sidebar has no such link
+    // [heading, [[path, label, icon], ...]]   '@…' keys = built here if the sidebar has no such link
     var MENU = [
         ['Overview', [['/seller/dashboard', 'Dashboard', 'ti ti-smart-home']]],
         ['Orders', [
             ['/seller/order-add', 'Create order', 'ti ti-circle-plus'],
             ['/seller/order', 'Orders & shipments', 'ti ti-package'],
-            ['@b2b', 'B2B orders', 'ti ti-truck-delivery'],
             ['/seller/reverse-order', 'Reverse orders', 'ti ti-arrow-back-up'],
             ['/seller/track-order-in', 'Track order', 'ti ti-map-pin'],
             ['/seller/channels', 'Channels', 'ti ti-plug']]],
+        ['B2B Shipments', [
+            ['@b2b-new', 'Create B2B shipment', 'ti ti-circle-plus'],
+            ['@b2b', 'All B2B shipments', 'ti ti-truck-delivery'],
+            ['@b2b-rates', 'B2B rate calculator', 'ti ti-calculator'],
+            ['@b2b-track', 'Track B2B shipment', 'ti ti-map-pin']]],
         ['Delivery issues', [
             ['@ndr', 'NDR', 'ti ti-alert-triangle'],
             ['/seller/weight-discrepancy', 'Weight disputes', 'ti ti-scale']]],
@@ -62,7 +71,8 @@
     function isActive(key, p) {
         if (key === '@vas') return VAS_GROUP.test(here) && here.indexOf('/seller/xp/ndr') !== 0;
         if (key === '@ndr') return here.indexOf('/seller/xp/ndr') === 0;
-        if (key === '@b2b') return here.indexOf('/seller/b2b-orders') === 0;
+        if (key === '@b2b') return /^\/seller\/b2b-orders(\/\d+.*)?$/.test(here);
+        if (key.indexOf('@b2b-') === 0) return here === p;
         return here === p || (p !== '/seller/order' && here.indexOf(p + '/') === 0);
     }
 
@@ -78,8 +88,8 @@
             var items = [];
             sec[1].forEach(function (it) {
                 var key = it[0], p = key, a;
-                if (key === '@vas' || key === '@ndr' || key === '@b2b') {
-                    var url = key === '@vas' ? VAS : (key === '@ndr' ? NDR : B2B); if (!url) return;
+                if (key in SPECIAL) {
+                    var url = SPECIAL[key]; if (!url) return;
                     p = norm(url);
                     a = byPath[p];
                     if (!a) { a = links[0].cloneNode(true); a.setAttribute('href', url); }

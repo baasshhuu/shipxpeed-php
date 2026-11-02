@@ -11,13 +11,14 @@
     if (!is_array($checkpoints)) $checkpoints = [];
 @endphp
 <div class="b2">
+    @include('sellerdashboard.b2b._tabs')
     <div class="b2-head">
         <div>
             <h1>{{ $order->order_ref }} <span class="b2-pill {{ $order->status }}" style="vertical-align:middle">{{ $order->statusLabel() }}</span></h1>
             <p>Created {{ $order->created_at->format('d M Y, h:i A') }}@if($order->booked_at) · booked {{ $order->booked_at->format('d M Y, h:i A') }}@endif</p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <a href="{{ route('seller.b2b.orders') }}" class="b2-btn ghost"><i class="ti ti-arrow-left"></i> B2B orders</a>
+            <a href="{{ route('seller.b2b.orders') }}" class="b2-btn ghost"><i class="ti ti-arrow-left"></i> All B2B shipments</a>
             @if($enabled)<a href="{{ route('seller.b2b.order') }}" class="b2-btn ghost"><i class="ti ti-circle-plus"></i> New</a>@endif
         </div>
     </div>

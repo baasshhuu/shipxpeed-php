@@ -3,6 +3,7 @@
 @section('content')
 <div class="pc-container" style="background:#646dff26;">
     <div class="pc-content">
+        <div style="margin:0 0 0 12px">@includeIf('sellerdashboard.b2b._calc_switch', ['calc' => 'b2c'])</div>
         <div class="d-flex align-items-center py-3" style="background: #fff; border-radius: 16px 16px 16px 16px; padding-left: 32px; padding-right: 32px; margin-left:12px;">
             <h2 class="fw-semibold mb-0" style="font-size: 1rem; letter-spacing: 0.01em;color:rgb(37 120 197) !important;">
                 Rate Calculator

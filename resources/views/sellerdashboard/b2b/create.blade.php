@@ -7,12 +7,12 @@
     $defaultWh = optional($warehouses->first())->id;
 @endphp
 <div class="b2">
+    @include('sellerdashboard.b2b._tabs')
     <div class="b2-head">
         <div>
-            <h1>Create B2B order</h1>
+            <h1>Create B2B shipment</h1>
             <p>Multi-box shipment to a business. Invoice is required; e-way bill for invoices of ₹{{ number_format($threshold) }} or more.</p>
         </div>
-        <a href="{{ route('seller.b2b.orders') }}" class="b2-btn ghost"><i class="ti ti-list"></i> B2B orders</a>
     </div>
 
     @if(session('error'))<div class="b2-alert bad">{{ session('error') }}</div>@endif

@@ -3,13 +3,14 @@
 @section('content')
 @include('sellerdashboard.b2b._style')
 <div class="b2">
+    @include('sellerdashboard.b2b._tabs')
     <div class="b2-head">
         <div>
-            <h1>B2B orders</h1>
+            <h1>All B2B shipments</h1>
             <p>Heavy and multi-box shipments to businesses, with invoice and e-way bill.</p>
         </div>
         @if($enabled)
-            <a href="{{ route('seller.b2b.order') }}" class="b2-btn"><i class="ti ti-circle-plus"></i> Create B2B order</a>
+            <a href="{{ route('seller.b2b.order') }}" class="b2-btn"><i class="ti ti-circle-plus"></i> Create B2B shipment</a>
         @endif
     </div>
 
@@ -53,7 +54,7 @@
         </table>
         <div style="padding:12px">{{ $orders->links() }}</div>
         @else
-            <div class="b2-empty"><i class="ti ti-truck-delivery"></i>No B2B orders yet.</div>
+            <div class="b2-empty"><i class="ti ti-truck-delivery"></i>No B2B shipments yet.</div>
         @endif
     </div>
 </div>

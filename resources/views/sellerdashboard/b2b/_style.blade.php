@@ -71,4 +71,14 @@
 .b2-seg input{display:none}
 .b2-seg input:checked+span{color:var(--b2-blue)}
 .b2-seg label:has(input:checked){background:var(--b2-blue-bg)}
+.b2-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--b2-bg);border:1px solid var(--b2-line);border-radius:12px;padding:8px 8px 8px 16px;margin-bottom:18px}
+.b2-nav-title{font-weight:700;font-size:14px;color:var(--b2-fg);display:flex;align-items:center;gap:8px}
+.b2-nav-title i{color:var(--b2-blue);font-size:18px}
+.b2-nav nav{display:flex;gap:4px;flex-wrap:wrap}
+.b2-nav nav a{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;font-size:13px;font-weight:600;color:var(--b2-fg2);text-decoration:none}
+.b2-nav nav a:hover{background:var(--b2-raised);color:var(--b2-fg)}
+.b2-nav nav a.on{background:var(--b2-blue-bg);color:var(--b2-blue)}
+@media (max-width:640px){.b2-nav{padding:8px}.b2-nav nav{width:100%}.b2-nav nav a{flex:1 1 45%;justify-content:center}}
+.b2-rate.static{cursor:default}
+.b2-rate.static:hover{border-color:var(--b2-line2)}
 </style>

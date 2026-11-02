@@ -73,6 +73,33 @@ class B2bOrderController extends Controller
         ]);
     }
 
+    /** B2B rate calculator (no order is created). */
+    public function rates()
+    {
+        $warehouses = Warehouse::where('seller_id', $this->seller()->id)->orderByDesc('is_default')->orderBy('id')->get();
+        return view('sellerdashboard.b2b.rates', [
+            'warehouses' => $warehouses,
+            'enabled'    => $this->bigship->enabledForSellers(),
+        ]);
+    }
+
+    /** Track a B2B shipment by AWB, LR, order ID or invoice number. */
+    public function trackPage(Request $request)
+    {
+        $q = trim((string) $request->query('q'));
+        $found = collect();
+        if ($q !== '') {
+            $found = B2bOrder::where('seller_id', $this->seller()->id)
+                ->where(fn ($w) => $w->where('awb', $q)->orWhere('lr_number', $q)->orWhere('order_ref', $q)->orWhere('invoice_no', $q))
+                ->orderByDesc('id')->limit(20)->get();
+            if ($found->count() === 1) {
+                return redirect()->route('seller.b2b.order.show', $found->first()->id);
+            }
+        }
+        $recent = B2bOrder::where('seller_id', $this->seller()->id)->whereIn('status', ['booked', 'in_transit'])->orderByDesc('id')->limit(10)->get();
+        return view('sellerdashboard.b2b.track', ['q' => $q, 'found' => $found, 'recent' => $recent]);
+    }
+
     private function boxRules(): array
     {
         return [
@@ -110,23 +137,28 @@ class B2bOrderController extends Controller
     {
         abort_unless($this->bigship->enabledForSellers(), 403, 'B2B shipping is not enabled yet.');
         $d = $request->validate([
-            'pickup_warehouse_id' => 'required|integer',
+            'pickup_warehouse_id' => 'required_without:from_pincode|nullable|integer',
+            'from_pincode'        => 'required_without:pickup_warehouse_id|nullable|digits:6',
             'to_pincode'          => 'required|digits:6',
             'invoice_amount'      => 'required|numeric|min:1',
             'payment_mode'        => 'required|in:prepaid,cod',
             'cod_amount'          => 'nullable|numeric|min:0',
             'risk_type_id'        => 'required|in:2,3',
         ] + $this->boxRules());
-        $wh = $this->warehouseFor($d['pickup_warehouse_id']);
-        if (!$wh) {
-            return response()->json(['ok' => false, 'error' => 'Choose a pickup warehouse.'], 422);
+        $from = $d['from_pincode'] ?? null;
+        if (!empty($d['pickup_warehouse_id'])) {
+            $wh = $this->warehouseFor($d['pickup_warehouse_id']);
+            if (!$wh) {
+                return response()->json(['ok' => false, 'error' => 'Choose a pickup warehouse.'], 422);
+            }
+            $from = (string) $wh->pincode;
         }
         if ($d['payment_mode'] === 'cod' && (float) ($d['cod_amount'] ?? 0) >= (float) $d['invoice_amount']) {
             return response()->json(['ok' => false, 'error' => 'COD amount must be less than the invoice amount.'], 422);
         }
 
         $res = $this->bigship->quote([
-            'from'           => $wh->pincode,
+            'from'           => $from,
             'to'             => $d['to_pincode'],
             'invoice_amount' => $d['invoice_amount'],
             'payment'        => $d['payment_mode'],

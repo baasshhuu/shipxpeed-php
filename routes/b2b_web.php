@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth:seller'])->prefix('seller/b2b-orders')->name('seller.b2b.')->group(function () {
     Route::get('/', [B2bOrderController::class, 'index'])->name('orders');
     Route::get('/create', [B2bOrderController::class, 'create'])->name('order');
+    Route::get('/rate-calculator', [B2bOrderController::class, 'rates'])->name('rates');
+    Route::get('/track', [B2bOrderController::class, 'trackPage'])->name('track');
     Route::post('/quote', [B2bOrderController::class, 'quote'])->middleware('throttle:30,1')->name('order.quote');
     Route::post('/', [B2bOrderController::class, 'store'])->middleware('throttle:20,1')->name('order.store');
     Route::get('/{id}', [B2bOrderController::class, 'show'])->whereNumber('id')->name('order.show');
