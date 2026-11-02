@@ -65,7 +65,11 @@ public function index(Request $request): View
         ->take(8)
         ->get();
 
+    // B2C vs B2B split, tonnage, top couriers, top B2B accounts
+    $stats = \App\Support\AdminShipmentStats::build();
+
     return view('home', compact(
+        'stats',
         'recentSellers',
         'todayOrder',
         'monthOrder',
