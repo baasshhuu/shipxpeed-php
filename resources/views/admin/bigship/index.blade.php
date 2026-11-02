@@ -177,12 +177,13 @@
             <tbody>
             @forelse($logs as $l)
                 <tr>
-                    <td class="text-nowrap">{{ \Carbon\Carbon::parse($l->created_at)->format('d M H:i:s') }}</td>
-                    <td class="bs-mono">{{ $l->endpoint }}</td>
+                    @php($ok = $l->success ?? (($l->http_status ?? $l->status_code ?? 0) >= 200 && ($l->http_status ?? $l->status_code ?? 0) < 300))
+                    <td class="text-nowrap">{{ !empty($l->created_at) ? \Carbon\Carbon::parse($l->created_at)->format('d M H:i:s') : '' }}</td>
+                    <td class="bs-mono">{{ $l->endpoint ?? $l->url ?? '' }}</td>
                     <td>{{ $l->http_status ?? $l->status_code ?? '' }}</td>
-                    <td>{!! $l->success ? '<span class="bs-pill bs-ok">OK</span>' : '<span class="bs-pill bs-bad">Fail</span>' !!}</td>
+                    <td>{!! $ok ? '<span class="bs-pill bs-ok">OK</span>' : '<span class="bs-pill bs-bad">Fail</span>' !!}</td>
                     <td>{{ $l->duration_ms ?? '' }}</td>
-                    <td>{{ $l->order_id }}</td>
+                    <td>{{ $l->order_id ?? $l->awb ?? '' }}</td>
                     <td><a href="{{ route('admin.bigship.log', $l->id) }}" target="_blank">View</a></td>
                 </tr>
             @empty
