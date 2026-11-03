@@ -133,6 +133,11 @@ Route::get('/shopify-integration', function () {
 //     Artisan::call('storage:link');
 //     return '<h1>Clear All</h1>';
 // });
+// API v1 developer docs (public). Courier list on the page is live from the panel.
+Route::get('/developers', fn () => view('developers', ['docs' => app(\App\Services\ApiV1Docs::class)]))->name('api.v1.docs');
+Route::get('/developers/postman.json', fn () => response()->json(app(\App\Services\ApiV1Docs::class)->postman(url('/api')), 200,
+    ['Content-Disposition' => 'attachment; filename="shipxpeed-api-v1.postman_collection.json"'], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT))->name('api.v1.postman');
+
 Route::get('/api-docs', function () {
     return view('api-docs');
 })->name('seller.api.docs');
