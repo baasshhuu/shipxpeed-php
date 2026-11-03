@@ -194,6 +194,18 @@ class ShipmentReport
         return ['weight' => $weight, 'whatsapp' => $wa];
     }
 
+    /** Courier/consignee JSON sometimes holds nested values; make every cell printable. */
+    private static function flat(array $row): array
+    {
+        foreach ($row as $k => $v) {
+            if (is_array($v) || is_object($v)) {
+                $v = (array) $v;
+                $row[$k] = implode(', ', array_filter(array_map(fn ($x) => is_scalar($x) ? (string) $x : '', $v), 'strlen'));
+            }
+        }
+        return $row;
+    }
+
     public static function row(Order $o, array $extras): array
     {
         $c = self::json($o->consignee);
@@ -239,7 +251,7 @@ class ShipmentReport
         $vol = $l && $b && $h ? round($l * $b * $h / 5000, 3) : null;
         $isCod = strtolower((string) $o->payment_type) === 'cod';
 
-        return [
+        return self::flat([
             'id'              => $o->id,
             'order_date'      => optional($o->created_at)->format('Y-m-d H:i'),
             'shipped_date'    => $o->shipping_date ? self::date($o->shipping_date) : null,
@@ -294,7 +306,7 @@ class ShipmentReport
             'weight_charge'   => $weight,
             'whatsapp_charge' => $wa,
             'net'             => $net,
-        ];
+        ]);
     }
 
     /** Totals + status counts over the whole filtered set (not just one page). */
