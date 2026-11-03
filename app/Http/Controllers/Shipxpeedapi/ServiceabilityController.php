@@ -1383,144 +1383,40 @@ public function callDtdcAPI(array $params): array
      */
 
 
-    public function callDelhiveryAPI(array $params): array
+    /** One Delhivery rate row (direct account) priced from the client's rate card; [] when off, no zone or no rate. */
+    private function delhiveryRateRow(array $params, string $rateKey, string $courierName): array
     {
-        // dd($params);
-    $weight = $params['package_weight'];
-    $paymentType = $params['payment_type'];
-    $orderAmount = $params['order_amount'];
-    $seller_id = $params['seller_id'];
-    $destinationstate = $params['destination_state'];
-    $pickupstate = $params['pickup_state'];
-
-        // Check if Delhivery zone pricing is configured for this seller
-        $delhiveryZoneCheck = ActicvSleb::where([
-            'seller_id' => $seller_id,
-            'LogisticProvider' => 'Delhivery',
-            'status' => 1
-        ])->exists();
-// dd($delhiveryZoneCheck);
-        if (!$delhiveryZoneCheck) {
+        $sellerId = (int) ($params['seller_id'] ?? 0);
+        if (!\App\Support\CourierAccess::isOn($sellerId, $rateKey)) {
             return [];
         }
-
-
-    //    echo 'xsxsxs';die;
-    // dd($pickupstate, $destinationstate);
-        // 🧾 Step 1: Zone Fetch (Case-Insensitive)
-        $zoneData = DB::table('pincode_zones')
-            ->whereRaw('LOWER(pickup_state) = ?', [strtolower($pickupstate)])
-            ->whereRaw('LOWER(deliver_state) = ?', [strtolower($destinationstate)])
-            ->first();
-//  dd($zoneData);
-        if (!$zoneData) {
+        $zone = \App\Support\RateCard::zoneForStates($params['pickup_state'] ?? null, $params['destination_state'] ?? null);
+        if (!$zone) {
             return [];
         }
-
-        $zone = strtoupper($zoneData->zone);
-
-        // Step 2: Weight & Payment Info
-        $weight = (float)$params['package_weight']; // grams
-        $orderAmount = $params['order_amount'];
-        $paymentType = strtolower($params['payment_type']) === 'cod' ? 'COD' : 'Pre-paid';
-        $seller_id = $params['seller_id'];
-
-        // 🧾 Step 3: Calculate Delhivery charges based on ZonePriceSetting with weight slabs
-        $calculateDelhiveryCharge = function ($zonePricing) use ($weight, $paymentType, $orderAmount) {
-            if (!$zonePricing) {
-                return null; // Skip if no pricing found
-            }
-            
-            // Calculate weight slabs (500gm each)
-            $slabs = max(1, ceil($weight / 500));
-            
-            if ($paymentType === 'COD') {
-                // COD Order Logic
-                if ($zonePricing->cod_fix_price > 0) {
-                    // Use fixed COD price multiplied by weight slabs - NO GST, NO other charges
-                    $totalPrice = $zonePricing->cod_fix_price * $slabs;
-                    return [
-                        'courierCharge'  => round($totalPrice, 2),
-                        'freightCharges' => round($totalPrice, 2),
-                        'codCharge'      => 0,
-                    ];
-                } else {
-                    // Use variable COD price multiplied by weight slabs + 18% GST + COD charge if applicable
-                    $basePrice = $zonePricing->cod_price * $slabs;
-                    $prepaidPrice = $zonePricing->prepaid_price * $slabs;
-
-                    // Calculate COD charge if order amount > 1400
-                    $codCharge = 0;
-                    if ($orderAmount > 1400) {
-                        $codChargePercent = $zonePricing->cod_charge_parsent ?? 0;
-                        $codCharge = ($orderAmount * $codChargePercent / 100);
-                    }
-                    
-                    $totalWithGST = ($basePrice + $prepaidPrice + $codCharge) + (($basePrice + $prepaidPrice + $codCharge) * 18 / 100);
-                    return [
-                        'courierCharge'  => round($totalWithGST, 2),
-                        'freightCharges' => round($basePrice + $prepaidPrice, 2),
-                        'codCharge'      => round($codCharge, 2),
-                    ];
-                }
-            } else {
-                // Prepaid Order Logic
-                if ($zonePricing->prepaid_fix_price > 0) {
-                    // Use fixed Prepaid price multiplied by weight slabs - NO GST, NO other charges
-                    $totalPrice = $zonePricing->prepaid_fix_price * $slabs;
-                    return [
-                        'courierCharge'  => round($totalPrice, 2),
-                        'freightCharges' => round($totalPrice, 2),
-                        'codCharge'      => 0,
-                    ];
-                } else {
-                    // Use variable Prepaid price multiplied by weight slabs + 18% GST
-                    $basePrice = $zonePricing->prepaid_price * $slabs;
-                    $totalWithGST = $basePrice + ($basePrice * 18 / 100);
-                    return [
-                        'courierCharge'  => round($totalWithGST, 2),
-                        'freightCharges' => round($basePrice, 2),
-                        'codCharge'      => 0,
-                    ];
-                }
-            }
-        };
-
-        // Get zone pricing for Delhivery service
-        $zonePricing = ZonePriceSetting::where([
-            'seller_id' => $seller_id,
-            'zone' => $zone,
-            'LogisticProvider' => 'Delhivery',
-            'status' => 1
-        ])->first();
-
-        if (!$zonePricing) {
-        $zonePricing = ZonePriceSetting::where([
-        'seller_id' => 14,
-        'zone' => $zone,
-        'LogisticProvider' => 'Delhivery',
-        'status' => 1
-        ])->first();
-    }
-
-
-        $charges = $calculateDelhiveryCharge($zonePricing);
-        
-        // Only return result if pricing exists for this service
-        if ($charges === null) {
+        $weight = (float) ($params['package_weight'] ?? 0);
+        $cod = strtolower((string) ($params['payment_type'] ?? '')) === 'cod';
+        $p = \App\Support\RateCard::price(\App\Support\RateCard::find($sellerId, $zone, $rateKey), $weight, $cod, (float) ($params['order_amount'] ?? 0));
+        if (!$p) {
             return [];
         }
-
         return [[
-            'serviceabilityId' => $destinationstate,
-            'courierName'      => 'Delhivery',
-            'courierCharge'    => $charges['courierCharge'],
-            'freightCharges'   => $charges['freightCharges'],
-            'codCharge'        => $charges['codCharge'],
+            'serviceabilityId' => $params['destination_state'] ?? null,
+            'courierName'      => $courierName,
+            'courierCharge'    => $p['courierCharge'],
+            'freightCharges'   => $p['freightCharges'],
+            'codCharge'        => $p['codCharge'],
             'zone'             => $zone,
             'minWeight'        => $weight,
             'volWeight'        => $weight,
         ]];
+    }
+
+    public function callDelhiveryAPI(array $params): array
+    {
+        // Same price and on/off switch as the seller panel and API v1 (RateCard / CourierAccess):
+        // client's own zone rate, else the default card; first 500 g + each additional 500 g, COD, + 18% GST.
+        return $this->delhiveryRateRow($params, 'Delhivery', 'Delhivery');
     }
 
 
@@ -1635,142 +1531,9 @@ public function callDtdcAPI(array $params): array
    
     public function callDelhiveryAirAPI(array $params): array
     {
-        // dd($params);
-     $weight = $params['package_weight'];
-    $paymentType = $params['payment_type'];
-    $orderAmount = $params['order_amount'];
-    $seller_id = $params['seller_id'];
-    $destinationstate = $params['destination_state'];
-    $pickupstate = $params['pickup_state'];
-
-        // Check if Delhivery Air zone pricing is configured for this seller
-        $delhiveryAirZoneCheck = ActicvSleb::where([
-            'seller_id' => $seller_id,
-            'LogisticProvider' => 'Delhivery_Air',
-            'status' => 1
-        ])->exists();
-
-        if (!$delhiveryAirZoneCheck) {
-            return [];
-        }
-
-        // Pickup Info
-
-
-        // 🧾 Step 1: Zone Fetch (Case-Insensitive)
-        $zoneData = DB::table('pincode_zones')
-            ->whereRaw('LOWER(pickup_state) = ?', [strtolower($pickupstate)])
-            ->whereRaw('LOWER(deliver_state) = ?', [strtolower($destinationstate)])
-            ->first();
-
-        if (!$zoneData) {
-            return [];
-        }
-
-        $zone = strtoupper($zoneData->zone);
-
-        // Step 2: Weight & Payment Info
-        $weight = (float)$params['package_weight']; // grams
-        $orderAmount = $params['order_amount'];
-        $paymentType = strtolower($params['payment_type']) === 'cod' ? 'COD' : 'Pre-paid';
-        $seller_id = $params['seller_id'];
-
-        // 🧾 Step 3: Calculate Delhivery Air charges based on ZonePriceSetting with weight slabs
-        $calculateDelhiveryAirCharge = function ($zonePricing) use ($weight, $paymentType, $orderAmount) {
-            if (!$zonePricing) {
-                return null; // Skip if no pricing found
-            }
-            
-            // Calculate weight slabs (500gm each)
-            $slabs = max(1, ceil($weight / 500));
-            
-            if ($paymentType === 'COD') {
-                // COD Order Logic
-                if ($zonePricing->cod_fix_price > 0) {
-                    // Use fixed COD price multiplied by weight slabs - NO GST, NO other charges
-                    $totalPrice = $zonePricing->cod_fix_price * $slabs;
-                    return [
-                        'courierCharge'  => round($totalPrice, 2),
-                        'freightCharges' => round($totalPrice, 2),
-                        'codCharge'      => 0,
-                    ];
-                } else {
-                    // Use variable COD price multiplied by weight slabs + 18% GST + COD charge if applicable
-                    $basePrice = $zonePricing->cod_price * $slabs;
-                    $prepaidPrice = $zonePricing->prepaid_price * $slabs;
-                    // Calculate COD charge if order amount > 1400
-                    $codCharge = 0;
-                    if ($orderAmount > 1400) {
-                        $codChargePercent = $zonePricing->cod_charge_parsent ?? 0;
-                        $codCharge = ($orderAmount * $codChargePercent / 100);
-                    }
-                    
-                    $totalWithGST = ($basePrice + $prepaidPrice + $codCharge) + (($basePrice + $prepaidPrice + $codCharge) * 18 / 100);
-                    return [
-                        'courierCharge'  => round($totalWithGST, 2),
-                        'freightCharges' => round($basePrice + $prepaidPrice, 2),
-                        'codCharge'      => round($codCharge, 2),
-                    ];
-                }
-            } else {
-                // Prepaid Order Logic
-                if ($zonePricing->prepaid_fix_price > 0) {
-                    // Use fixed Prepaid price multiplied by weight slabs - NO GST, NO other charges
-                    $totalPrice = $zonePricing->prepaid_fix_price * $slabs;
-                    return [
-                        'courierCharge'  => round($totalPrice, 2),
-                        'freightCharges' => round($totalPrice, 2),
-                        'codCharge'      => 0,
-                    ];
-                } else {
-                    // Use variable Prepaid price multiplied by weight slabs + 18% GST
-                    $basePrice = $zonePricing->prepaid_price * $slabs;
-                    $totalWithGST = $basePrice + ($basePrice * 18 / 100);
-                    return [
-                        'courierCharge'  => round($totalWithGST, 2),
-                        'freightCharges' => round($basePrice, 2),
-                        'codCharge'      => 0,
-                    ];
-                }
-            }
-        };
-
-        // Get zone pricing for Delhivery Air service
-        $zonePricing = ZonePriceSetting::where([
-            'seller_id' => $seller_id,
-            'zone' => $zone,
-            'LogisticProvider' => 'Delhivery_Air',
-            'status' => 1
-        ])->first();
-        
-        if (!$zonePricing) {
-        $zonePricing = ZonePriceSetting::where([
-        'seller_id' => 14,
-        'zone' => $zone,
-        'LogisticProvider' => 'Delhivery_Air',
-        'status' => 1
-        ])->first();
-            }
-
-
-
-        $charges = $calculateDelhiveryAirCharge($zonePricing);
-        
-        // Only return result if pricing exists for this service
-        if ($charges === null) {
-            return [];
-        }
-
-        return [[
-            'serviceabilityId' => $destinationstate,
-            'courierName'      => 'Delhivery B2C (Express)',
-            'courierCharge'    => $charges['courierCharge'],
-            'freightCharges'   => $charges['freightCharges'],
-            'codCharge'        => $charges['codCharge'],
-            'zone'             => $zone,
-            'minWeight'        => $weight,
-            'volWeight'        => $weight,
-        ]];
+        // Same price and on/off switch as the seller panel and API v1 (RateCard / CourierAccess):
+        // client's own zone rate, else the default card; first 500 g + each additional 500 g, COD, + 18% GST.
+        return $this->delhiveryRateRow($params, 'Delhivery_Air', 'Delhivery B2C (Express)');
     }
 
    
@@ -2039,7 +1802,7 @@ public function callDtdcAPI(array $params): array
                                 $providerResults = $this->callshiprocketAPI($serviceabilityParams);
                                 break;
                             default:
-                                continue;
+                                continue 2;
                         }
 
                         foreach ($providerResults as $service) {
@@ -2334,6 +2097,12 @@ public function callDtdcAPI(array $params): array
                             // Update order with assignment details
                             $order->courier_id = $request->courier_id;
                             $order->all_courier_name = $providerName;
+                            // Delhivery: save it the way the panel does, so the tracking sync, NDR, cancel and weight
+                            // disputes all pick it up (they look for courier_id "delhivery_b2c").
+                            if (in_array($request->courier_id, ['delhivery', 'delhivery_air'], true)) {
+                                $order->courier_id = 'delhivery_b2c';
+                                $order->all_courier_name = $request->courier_id === 'delhivery_air' ? 'Delhivery Air' : 'delhivery_b2c';
+                            }
                             $order->shipping_status = 'assigned';
                             $order->shipping_date = now();
                             $order->save();

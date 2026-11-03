@@ -31,8 +31,9 @@ app/Services/ApiV1Docs.php
 routes/api_v1.php
 resources/views/developers.blade.php
 database/migrations/2026_11_03_000001_api_v1_logs.php
+deploy/old-api-delhivery-backfill.php
 "
-SHARED="routes/api.php routes/web.php app/Observers/OrderObserver.php app/Providers/AppServiceProvider.php"
+SHARED="routes/api.php routes/web.php app/Observers/OrderObserver.php app/Providers/AppServiceProvider.php app/Http/Controllers/Shipxpeedapi/ServiceabilityController.php"
 
 git fetch -q origin || { echo "FAIL: git fetch"; exit 1; }
 git cat-file -e "$REF:routes/api_v1.php" 2>/dev/null || { echo "FAIL: API v1 not found on $REF"; exit 1; }
@@ -89,6 +90,78 @@ edit('app/Providers/AppServiceProvider.php', 'b2bChanged', function ($s) {
     }
     return preg_replace('/(public function boot\(\)(\s*:\s*void)?\s*\{)/', "$1\n" . rtrim($line, "\n"), $s, 1);
 });
+
+// Old seller API: Delhivery priced from the client's rate card + panel switches, saved as courier_id "delhivery_b2c"
+// so the tracking sync, NDR, cancel and weight checks pick it up.
+edit('app/Http/Controllers/Shipxpeedapi/ServiceabilityController.php', 'delhiveryRateRow', function ($s) {
+    $span = function ($s, $sig) {
+        $a = strpos($s, $sig);
+        if ($a === false) { return null; }
+        $i = strpos($s, '{', $a); $d = 0;
+        for ($n = strlen($s); $i < $n; $i++) {
+            if ($s[$i] === '{') { $d++; }
+            elseif ($s[$i] === '}' && --$d === 0) { return [$a, $i + 1]; }
+        }
+        return null;
+    };
+    foreach ([['callDelhiveryAPI', 'Delhivery', 'Delhivery'], ['callDelhiveryAirAPI', 'Delhivery_Air', 'Delhivery B2C (Express)']] as [$fn, $key, $name]) {
+        $sp = $span($s, "public function $fn(array \$params): array");
+        if (!$sp) { return null; }
+        $s = substr($s, 0, $sp[0])
+            . "public function $fn(array \$params): array\n    {\n"
+            . "        // Same price and on/off switch as the seller panel and API v1 (RateCard / CourierAccess):\n"
+            . "        // client's own zone rate, else the default card; first 500 g + each additional 500 g, COD, + 18% GST.\n"
+            . "        return \$this->delhiveryRateRow(\$params, '$key', '$name');\n    }"
+            . substr($s, $sp[1]);
+    }
+    $helper = <<<'H'
+    /** One Delhivery rate row (direct account) priced from the client's rate card; [] when off, no zone or no rate. */
+    private function delhiveryRateRow(array $params, string $rateKey, string $courierName): array
+    {
+        $sellerId = (int) ($params['seller_id'] ?? 0);
+        if (!\App\Support\CourierAccess::isOn($sellerId, $rateKey)) {
+            return [];
+        }
+        $zone = \App\Support\RateCard::zoneForStates($params['pickup_state'] ?? null, $params['destination_state'] ?? null);
+        if (!$zone) {
+            return [];
+        }
+        $weight = (float) ($params['package_weight'] ?? 0);
+        $cod = strtolower((string) ($params['payment_type'] ?? '')) === 'cod';
+        $p = \App\Support\RateCard::price(\App\Support\RateCard::find($sellerId, $zone, $rateKey), $weight, $cod, (float) ($params['order_amount'] ?? 0));
+        if (!$p) {
+            return [];
+        }
+        return [[
+            'serviceabilityId' => $params['destination_state'] ?? null,
+            'courierName'      => $courierName,
+            'courierCharge'    => $p['courierCharge'],
+            'freightCharges'   => $p['freightCharges'],
+            'codCharge'        => $p['codCharge'],
+            'zone'             => $zone,
+            'minWeight'        => $weight,
+            'volWeight'        => $weight,
+        ]];
+    }
+
+H;
+    $s = str_replace('    public function callDelhiveryAPI(array $params): array', $helper . "\n    public function callDelhiveryAPI(array \$params): array", $s);
+
+    // after a successful booking: save Delhivery as the panel does
+    $s = preg_replace(
+        '/(\$order->courier_id = \$request->courier_id;\s*\n\s*\$order->all_courier_name = \$providerName;)/',
+        "$1\n                            // Delhivery: save it the way the panel does, so the tracking sync, NDR, cancel and weight\n"
+        . "                            // disputes all pick it up (they look for courier_id \"delhivery_b2c\").\n"
+        . "                            if (in_array(\$request->courier_id, ['delhivery', 'delhivery_air'], true)) {\n"
+        . "                                \$order->courier_id = 'delhivery_b2c';\n"
+        . "                                \$order->all_courier_name = \$request->courier_id === 'delhivery_air' ? 'Delhivery Air' : 'delhivery_b2c';\n"
+        . "                            }",
+        $s, 1, $count);
+    if ($count !== 1) { return null; }
+
+    // "continue" inside a switch (PHP compile warning on every load): skip unknown providers explicitly
+    return preg_replace('/(default:\s*\n\s*)continue;/', '$1continue 2;', $s);
+});
 PHP
 echo "Existing files up to date"
 
@@ -114,7 +187,11 @@ has() { local body; body=$(curl -s "$1"); [[ "$body" == *"$2"* ]]; }   # no pipe
 has "$SITE/developers" 'Shipxpeed shipping API' && echo "OK   /developers docs page" || { echo "FAIL /developers"; FAILED=1; }
 has "$SITE/developers/postman.json" '"Shipxpeed API v1"' && echo "OK   Postman download" || { echo "FAIL Postman download"; FAILED=1; }
 has "$SITE/api/v1/public/couriers" '"success":true' && echo "OK   live courier list" || { echo "FAIL courier list"; FAILED=1; }
+c=$(code -X POST -H 'Accept: application/json' "$SITE/api/serviceability");      [ "$c" = 401 ] && echo "OK   old API still answers (no token -> 401)" || { echo "FAIL old API -> $c"; FAILED=1; }
 [ "$FAILED" = 0 ] || restore
+
+# 5b. existing old-API Delhivery orders still in transit (last 30 days) -> start getting tracking updates
+php deploy/old-api-delhivery-backfill.php --apply 2>&1 | sed 's/^/     /'
 
 # 6. read-only test with a real account (nothing is booked or changed)
 KEY=${SMOKE_KEY:-$(php -r '
