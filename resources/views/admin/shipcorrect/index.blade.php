@@ -19,6 +19,12 @@
     <div class="card-body">
         @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
         @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+        @if($lowBalance)
+            <div class="alert alert-danger d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span><strong>ShipCorrect account balance is empty</strong> (since {{ $lowBalance }}). Bookings fail, so ShipCorrect couriers are hidden from sellers for 30 minutes. Recharge the wallet on shipcorrect.com, then click the button.</span>
+                <a href="{{ route('admin.shipcorrect.index', ['balance_ok' => 1]) }}" class="btn btn-sm btn-light">I recharged - show couriers again</a>
+            </div>
+        @endif
 
         <div class="row g-3">
             <div class="col-md-3"><div class="text-muted small">API</div><strong>Production</strong><div class="fs-mono text-muted">{{ $baseUrl }}</div></div>

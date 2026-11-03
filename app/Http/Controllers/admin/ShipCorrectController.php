@@ -17,6 +17,10 @@ class ShipCorrectController extends Controller
         if ($request->boolean('refresh')) {
             Cache::forget('shipcorrect_unauthorized_' . md5($sc->apiKey()));
         }
+        if ($request->boolean('balance_ok')) {
+            Cache::forget(ShipCorrectService::LOW_BALANCE_FLAG);
+            return redirect()->route('admin.shipcorrect.index')->with('success', 'ShipCorrect couriers are offered to sellers again.');
+        }
 
         // Connection check = a tiny live rate call (cached 10 min unless refreshed)
         $conn = null;
@@ -46,6 +50,7 @@ class ShipCorrectController extends Controller
             'baseUrl'     => config('shipcorrect.base_url'),
             'markup'      => config('shipcorrect.markup_percent'),
             'conn'        => $conn,
+            'lowBalance'  => ShipCorrectService::lowBalanceSince(),
             'couriers'    => ShipCorrectService::rateCardKeys(),
             'logs'        => $logs,
             'provider'    => $provider,

@@ -40,6 +40,20 @@ class ShipCorrectService implements CourierServiceInterface
 
     private static ?bool $logTableExists = null;
 
+    /** Set when ShipCorrect says our account wallet is empty; couriers are hidden while it is set. */
+    public const LOW_BALANCE_FLAG = 'shipcorrect_account_low_balance';
+
+    /** ShipCorrect account (not seller) out of balance, e.g. "auto-dispatch failed: Insufficient wallet balance". */
+    public static function isAccountBalanceError(string $msg): bool
+    {
+        return (bool) preg_match('/insufficient|wallet balance|please recharge|low balance/i', $msg);
+    }
+
+    public static function lowBalanceSince(): ?string
+    {
+        return Cache::get(self::LOW_BALANCE_FLAG);
+    }
+
     /* ------------------------------------------------------------------ */
     /*  HTTP client                                                        */
     /* ------------------------------------------------------------------ */
@@ -386,7 +400,7 @@ class ShipCorrectService implements CourierServiceInterface
 
     public function getServiceability(array $params): array
     {
-        if (!$this->isConfigured() || empty($params['order_id'])) {
+        if (!$this->isConfigured() || empty($params['order_id']) || self::lowBalanceSince()) {
             return [];
         }
         $order = Order::find($params['order_id']);
@@ -427,7 +441,7 @@ class ShipCorrectService implements CourierServiceInterface
     /** Seller API serviceability without a saved order. courier_id = "shipcorrect_<booking name>". */
     public function getRatesForParams(array $params): array
     {
-        if (!$this->isConfigured()) {
+        if (!$this->isConfigured() || self::lowBalanceSince()) {
             return [];
         }
         try {
@@ -511,7 +525,7 @@ class ShipCorrectService implements CourierServiceInterface
             $res = $this->bookOrder($this->decode($params));
         } catch (\Throwable $e) {
             Log::error('ShipCorrect assignOrder exception: ' . $e->getMessage(), ['params' => $params]);
-            $res = ['status' => false, 'message' => 'ShipCorrect booking failed: ' . $e->getMessage()];
+            $res = ['status' => false, 'message' => 'Courier booking failed: ' . $e->getMessage()];
         }
         return $res + ['couriername' => self::CODE];
     }
@@ -634,7 +648,15 @@ class ShipCorrectService implements CourierServiceInterface
 
         $data = $res['data'] ?? [];
         if (!$res['ok'] || empty($data['awb'])) {
-            return ['status' => false, 'message' => 'ShipCorrect: ' . ($res['error'] ?? ($data['message'] ?? 'AWB not generated')), 'data' => $data];
+            $err = (string) ($res['error'] ?? ($data['message'] ?? 'AWB not generated'));
+            if (self::isAccountBalanceError($err)) {
+                // Our own ShipCorrect account is out of balance: not the seller's fault.
+                // Hide ShipCorrect couriers for a while so other sellers are not sent into the same failure.
+                Cache::put(self::LOW_BALANCE_FLAG, now()->toDateTimeString(), now()->addMinutes(30));
+                Log::error('ShipCorrect account balance is too low - couriers hidden for 30 minutes', ['order_id' => $order->id]);
+                return ['status' => false, 'message' => 'This courier is temporarily unavailable on our side. Our team has been notified - please choose another courier.'];
+            }
+            return ['status' => false, 'message' => 'Courier: ' . $err];
         }
 
         $awb = (string) $data['awb'];
@@ -701,7 +723,7 @@ class ShipCorrectService implements CourierServiceInterface
         $res = $this->cancelRequest((string) $awb, 'Cancelled by seller');
         $alreadyCancelled = str_contains(strtolower((string) ($res['error'] ?? '')), 'already cancel');
         if (!$res['ok'] && !$alreadyCancelled) {
-            return ['status' => false, 'message' => $res['error'] ?? 'ShipCorrect cancellation failed', 'responseCode' => $res['http']];
+            return ['status' => false, 'message' => $res['error'] ?? 'Courier cancellation failed', 'responseCode' => $res['http']];
         }
 
         DB::transaction(function () use ($order) {
