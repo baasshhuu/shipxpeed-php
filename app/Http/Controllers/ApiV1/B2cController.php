@@ -116,9 +116,11 @@ class B2cController extends Controller
         }
 
         // 2. Aggregator couriers (live serviceability; priced from the client's rate card inside each adapter)
-        foreach (['courier.shipclues', 'courier.fship'] as $svc) {
+        //    Every aggregator registered in RateCard::AGGREGATORS is used, so a newly integrated one works here with no change.
+        foreach (array_keys(RateCard::AGGREGATORS) as $code) {
+            $svc = 'courier.' . $code;
             try {
-                if (app()->bound($svc)) {
+                if (app()->bound($svc) && method_exists(app($svc), 'getRatesForParams')) {
                     $raw = array_merge($raw, (array) app($svc)->getRatesForParams($params));
                 }
             } catch (\Throwable $e) {
@@ -127,8 +129,9 @@ class B2cController extends Controller
         }
 
         // 3. Any older direct provider still switched on in the panel (priced by its own panel code)
+        $native = array_merge(self::NATIVE_CODES, array_keys(RateCard::AGGREGATORS));
         $legacyCodes = LogisticProvider::active()->pluck('code')->map(fn ($c) => strtolower((string) $c))
-            ->reject(fn ($c) => in_array($c, self::NATIVE_CODES, true))->values();
+            ->reject(fn ($c) => in_array($c, $native, true))->values();
         if ($legacyCodes->isNotEmpty()) {
             $res = Respond::legacy($request, ServiceabilityController::class, 'getAllServiceability', $params + [
                 'origin_pincode' => (int) $d['origin_pincode'], 'destination_pincode' => (int) $d['destination_pincode'],
@@ -136,7 +139,7 @@ class B2cController extends Controller
             foreach ((array) ($res['data'] ?? []) as $r) {
                 $id = (string) ($r['courier_id'] ?? '');
                 if (is_array($r) && !empty($r['bookable']) && $id !== '' && !in_array($id, ['delhivery', 'delhivery_air'], true)
-                    && !str_starts_with($id, 'shipclues_') && !str_starts_with($id, 'fship_')) {
+                    && !self::aggregatorOf($id)) {
                     $r['_legacy'] = true;
                     $raw[] = $r;
                 }
@@ -183,7 +186,18 @@ class B2cController extends Controller
 
     /** Provider codes v1 prices and books itself; anything else active goes through the legacy controller. */
     private const NATIVE_CODES = ['delhivery', 'delhivery_surface', 'delhivery_b2c', 'delhivery_air', 'delhivery_express',
-        'delhivery_b2c_express', 'shipclues', 'fship'];
+        'delhivery_b2c_express'];
+
+    /** Aggregator code for a booking id like "shipclues_14" / "shipcorrect_ekart_surface", or null. */
+    public static function aggregatorOf(string $courierId): ?string
+    {
+        foreach (array_keys(RateCard::AGGREGATORS) as $code) {
+            if (str_starts_with($courierId, $code . '_')) {
+                return $code;
+            }
+        }
+        return null;
+    }
 
     /** Delhivery pincode API: does Delhivery deliver (prepaid / COD) to this pincode? Cached 12 h; unknown = yes. */
     public static function delhiveryDelivers(string $pin, bool $cod): bool
@@ -452,11 +466,10 @@ class B2cController extends Controller
     {
         $sellerId = (int) $order->seller_id;
         try {
-            if (str_starts_with($courierId, 'shipclues_')) {
-                return (array) app('courier.shipclues')->assignOrder(['order_id' => $order->id, 'serviceability_id' => (int) substr($courierId, 10), 'seller_id' => $sellerId]);
-            }
-            if (str_starts_with($courierId, 'fship_')) {
-                return (array) app('courier.fship')->assignOrder(['order_id' => $order->id, 'serviceability_id' => (int) substr($courierId, 6), 'seller_id' => $sellerId]);
+            if (($code = self::aggregatorOf($courierId)) && app()->bound('courier.' . $code)) {
+                // Shipclues / Fship take their numeric courier id; newer adapters (ShipCorrect, ...) take the full booking id.
+                $sid = in_array($code, ['shipclues', 'fship'], true) ? (int) substr($courierId, strlen($code) + 1) : $courierId;
+                return (array) app('courier.' . $code)->assignOrder(['order_id' => $order->id, 'serviceability_id' => $sid, 'seller_id' => $sellerId]);
             }
             if (in_array($courierId, ['delhivery', 'delhivery_air'], true)) {
                 // Same Delhivery services the seller panel books with: wallet check + debit inside,

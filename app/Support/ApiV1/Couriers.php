@@ -75,9 +75,7 @@ class Couriers
 
         if ($type === null || $type === 'b2c' || $type === 'reverse') {
             foreach (self::b2cRaw() as $key => $label) {
-                $on = $sellerId > 0
-                    ? CourierAccess::isOn($sellerId, $key, str_starts_with($key, 'Shipclues_') ? 'Shipclues' : (str_starts_with($key, 'Fship_') ? 'Fship' : null))
-                    : CourierAccess::isDefaultOn($key);
+                $on = $sellerId > 0 ? CourierAccess::isOn($sellerId, $key, self::aggregatorName($key)) : CourierAccess::isDefaultOn($key);
                 if (!$on) {
                     continue;
                 }
@@ -110,6 +108,17 @@ class Couriers
 
         usort($out, fn ($a, $b) => [$a['type'], $a['name']] <=> [$b['type'], $b['name']]);
         return $out;
+    }
+
+    /** Aggregator name for a rate key ("Shipclues_Bluedart..." -> "Shipclues"), from the panel's aggregator registry. */
+    private static function aggregatorName(string $key): ?string
+    {
+        foreach (\App\Support\RateCard::AGGREGATORS as [$name, $prefix]) {
+            if (str_starts_with($key, $prefix)) {
+                return $name;
+            }
+        }
+        return null;
     }
 
     /** Public shape (internal key removed). */
