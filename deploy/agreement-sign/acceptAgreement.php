@@ -1,4 +1,4 @@
-    public function acceptAgreement(Request $request) // aadhaar-sign-v2
+    public function acceptAgreement(Request $request) // aadhaar-sign-v3
     {
         /** @var SellerList $seller */
         $seller = auth('seller')->user();
@@ -68,12 +68,18 @@
 
             SellerList::where('id', $seller->id)->update(['agreement_accepted' => 1]);
 
+        } catch (\Throwable $e) {
+            Log::error('Agreement save failed', ['seller_id' => $seller->id, 'error' => $e->getMessage(), 'at' => $e->getFile() . ':' . $e->getLine()]);
+            return response()->json(['success' => false, 'message' => 'Could not save the signed agreement: ' . \Illuminate\Support\Str::limit($e->getMessage(), 220)], 500);
+        }
+
+        // Copy the Aadhaar address to the seller's address (optional: never blocks signing)
+        try {
             $addr = SellerAddress::firstOrNew(['seller_id' => $seller->id]);
             $addr->address_line = $clientAddress;
             $addr->save();
         } catch (\Throwable $e) {
-            Log::error('Agreement save failed', ['seller_id' => $seller->id, 'error' => $e->getMessage(), 'at' => $e->getFile() . ':' . $e->getLine()]);
-            return response()->json(['success' => false, 'message' => 'Could not save the signed agreement: ' . \Illuminate\Support\Str::limit($e->getMessage(), 220)], 500);
+            Log::warning('Agreement address copy skipped', ['seller_id' => $seller->id, 'error' => \Illuminate\Support\Str::limit($e->getMessage(), 300)]);
         }
 
         $downloadUrl = \Illuminate\Support\Facades\Route::has('seller.agreement.download') ? route('seller.agreement.download') : null;
