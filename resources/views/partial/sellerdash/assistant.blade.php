@@ -2,9 +2,9 @@
 <div id="xa-root" aria-live="polite">
 <style>
 #xa-root{--xa:#4f5bff;--xa2:#3b44e6;font-family:inherit}
-#xa-fab{position:fixed;right:20px;bottom:20px;z-index:1080;width:58px;height:58px;border-radius:50%;border:0;background:linear-gradient(135deg,#5b66ff,#8a4dff);color:#fff;box-shadow:0 8px 24px rgba(79,91,255,.4);display:flex;align-items:center;justify-content:center;cursor:pointer}
+#xa-fab{position:fixed;right:20px;bottom:20px;z-index:2000;width:58px;height:58px;border-radius:50%;border:0;background:linear-gradient(135deg,#5b66ff,#8a4dff);color:#fff;box-shadow:0 8px 24px rgba(79,91,255,.4);display:flex;align-items:center;justify-content:center;cursor:pointer}
 #xa-fab svg{width:26px;height:26px}
-#xa-panel{position:fixed;right:20px;bottom:90px;z-index:1081;width:380px;max-width:calc(100vw - 24px);height:560px;max-height:calc(100vh - 120px);background:#fff;border-radius:18px;box-shadow:0 18px 50px rgba(15,18,32,.28);display:none;flex-direction:column;overflow:hidden;border:1px solid #e6e8f0}
+#xa-panel{position:fixed;right:20px;bottom:90px;z-index:2001;width:380px;max-width:calc(100vw - 24px);height:560px;max-height:calc(100vh - 170px);background:#fff;border-radius:18px;box-shadow:0 18px 50px rgba(15,18,32,.28);display:none;flex-direction:column;overflow:hidden;border:1px solid #e6e8f0}
 #xa-panel.open{display:flex}
 @media (max-width:576px){#xa-panel{right:8px;left:8px;bottom:84px;width:auto;height:calc(100vh - 110px)}#xa-fab{right:14px;bottom:14px}}
 .xa-head{background:linear-gradient(135deg,#1b1f3b,#2b2f63);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px}
