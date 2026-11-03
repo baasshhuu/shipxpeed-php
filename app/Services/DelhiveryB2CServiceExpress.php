@@ -514,15 +514,14 @@ class DelhiveryB2CServiceExpress implements CourierServiceInterface
     //   dd($warehouseData);
             // Step 2: Check if warehouse already exists error
             if (
-                isset($warehouseData['error'][0]) &&
-                str_contains($warehouseData['error'][0], 'already exists CLIENT_STORES_CREATE')
+                preg_match('/already exist/i', \App\Support\CourierError::raw($warehouseData ?: $warehouseResponse->body()))
             ) {
                 // Allowed — continue to create order
-            } elseif (!$warehouseResponse->successful() || $warehouseData['success'] === false) {
+            } elseif (!$warehouseResponse->successful() || ($warehouseData['success'] ?? null) === false) {
                 // Some other warehouse error
                 return [
                     'status' => false,
-                    'message' => 'Warehouse creation failed: ' . ($warehouseData['error'][0] ?? 'Unknown error')
+                    'message' => 'Pickup warehouse rejected by courier: ' . \App\Support\CourierError::raw($warehouseData ?: $warehouseResponse->body())
                 ];
             }
 
@@ -728,8 +727,7 @@ public function assignOrder_bulk($orderPayloads)
             $warehouseData = $warehouseResponse->json();
 
             if (
-                isset($warehouseData['error'][0]) &&
-                str_contains($warehouseData['error'][0], 'already exists CLIENT_STORES_CREATE')
+                preg_match('/already exist/i', \App\Support\CourierError::raw($warehouseData ?: $warehouseResponse->body()))
             ) {
                 // Warehouse exists - continue
             } elseif (!$warehouseResponse->successful() || ($warehouseData['success'] ?? false) === false) {
@@ -754,7 +752,7 @@ public function assignOrder_bulk($orderPayloads)
             if (!$orderResponse->successful() || ($responseData['success'] ?? false) === false || empty($responseData['packages'][0]['waybill'])) {
                 $failures[] = [
                     'order_number' => $order_number,
-                    'message' => 'Order creation failed: ' . ($responseData['rmk'] ?? 'Unknown')
+                    'message' => 'Order creation failed: ' . \App\Support\CourierError::raw($responseData ?: $orderResponse->body())
                 ];
                 continue;
             }

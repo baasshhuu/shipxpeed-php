@@ -641,15 +641,14 @@ public function reversegetServiceability(array $params): array
             //  dd($warehouseData);
             // Step 2: Check if warehouse already exists error
             if (
-                isset($warehouseData['error'][0]) &&
-                str_contains($warehouseData['error'][0], 'already exists CLIENT_STORES_CREATE')
+                preg_match('/already exist/i', \App\Support\CourierError::raw($warehouseData ?: $warehouseResponse->body()))
             ) {
                 // Allowed — continue to create order
-            } elseif (!$warehouseResponse->successful() || $warehouseData['success'] === false) {
+            } elseif (!$warehouseResponse->successful() || ($warehouseData['success'] ?? null) === false) {
                 // Some other warehouse error
                 return [
                     'status' => false,
-                    'message' => 'Warehouse creation failed: ' . ($warehouseData['error'][0] ?? 'Unknown error')
+                    'message' => 'Pickup warehouse rejected by courier: ' . \App\Support\CourierError::raw($warehouseData ?: $warehouseResponse->body())
                 ];
             }
 
@@ -1022,15 +1021,14 @@ private function processSingleOrderAssignmentBulk($orderPayload)
 
         // Step 2: Check if warehouse already exists error
         if (
-            isset($warehouseData['error'][0]) &&
-            str_contains($warehouseData['error'][0], 'already exists CLIENT_STORES_CREATE')
+            preg_match('/already exist/i', \App\Support\CourierError::raw($warehouseData ?: $warehouseResponse->body()))
         ) {
             // Allowed — continue to create order
-        } elseif (!$warehouseResponse->successful() || $warehouseData['success'] === false) {
+        } elseif (!$warehouseResponse->successful() || ($warehouseData['success'] ?? null) === false) {
             // Some other warehouse error
             return [
                 'status' => false,
-                'message' => 'Warehouse creation failed: ' . ($warehouseData['error'][0] ?? 'Unknown error')
+                'message' => 'Pickup warehouse rejected by courier: ' . \App\Support\CourierError::raw($warehouseData ?: $warehouseResponse->body())
             ];
         }
 

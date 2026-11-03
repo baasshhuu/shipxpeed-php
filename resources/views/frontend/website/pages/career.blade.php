@@ -48,7 +48,8 @@
                                     </p>
                                     <p class="card-text flex-grow-1">{{ $career->short_description }}</p>
                                     <a href="#" class="btn btn-apply mt-3" data-bs-toggle="modal"
-                                        data-bs-target="#applyModal">Apply Now</a>
+                                        data-bs-target="#applyModal" data-career-id="{{ $career->id }}"
+                                        onclick="document.getElementById('apply_title_id').value=this.dataset.careerId">Apply Now</a>
                                 </div>
                             </div>
                         </div>
@@ -72,7 +73,7 @@
                     <div class="modal-body">
                         <form method="POST" action="{{ route('careerdetails') }}" enctype="multipart/form-data">
                             @csrf
-                            <input type="hidden" name="title_id" value="{{ $career->id }}">
+                            <input type="hidden" name="title_id" id="apply_title_id" value="{{ optional($careers->first())->id }}">
 
                             <div class="mb-3">
                                 <label for="full_name" class="form-label">Full Name</label>

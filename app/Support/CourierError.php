@@ -71,11 +71,11 @@ class CourierError
         $map = [
             ['/insufficient|low balance|wallet/', 'Insufficient wallet balance. Recharge your wallet and try again.'],
             ['/non.?serviceable|not serviceable|pincode.*(not|invalid)|pin code.*(not|invalid)|no serviceab|serviceability/', 'Delivery or pickup PIN code is not serviceable by this courier. Choose another courier.'],
+            ['/warehouse|pickup location|client.?store|pickup address/', 'Pickup address (warehouse) was rejected by the courier. Check the pickup address and PIN code.'],
             ['/duplicate|already exists.*order|order id.*exist|same order/', 'This order number was already sent to the courier. Use a new order number or clone the order.'],
             ['/phone|mobile/', 'Customer or pickup phone number is invalid. Use a 10-digit Indian mobile number.'],
             ['/weight/', 'Package weight is missing or outside this courier\'s limit. Check the weight and dimensions.'],
             ['/(dimension|length|breadth|height)/', 'Package dimensions are invalid. Enter length, breadth and height in cm.'],
-            ['/warehouse|pickup location|client.?store|pickup address/', 'Pickup address (warehouse) was rejected by the courier. Check the pickup address and PIN code.'],
             ['/address|consignee/', 'Delivery address is incomplete or too short. Add house number, street and landmark.'],
             ['/cod.*(limit|amount|not)|collectable/', 'COD amount is not accepted by this courier (limit exceeded or COD unavailable). Choose another courier or prepaid.'],
             ['/(token|unauthori|authenticat|forbidden|invalid key|api key|credentials|401|403)/', 'Courier account authentication failed on our side. Our team has been notified; please try another courier meanwhile.'],
@@ -125,6 +125,36 @@ class CourierError
         }
         Log::warning('Courier booking failed', ['order' => $order->id ?? null, 'courier' => $courierCode, 'provider' => $provider, 'reason' => $msg]);
         return $msg;
+    }
+
+    /**
+     * One-click fixes for a saved booking failure: [[label, url], ...].
+     * "Try another courier" is always offered; the rest depend on the reason.
+     */
+    public static function fixActions(?string $msg, $order): array
+    {
+        $r = strtolower((string) $msg);
+        $id = $order->id ?? null;
+        $out = [];
+        $link = function (string $label, string $route, $param = null) use (&$out) {
+            try {
+                $out[] = [$label, $param === null ? route($route) : route($route, $param)];
+            } catch (\Throwable $e) {
+            }
+        };
+        if (preg_match('/insufficient|low balance|wallet|recharge/', $r)) {
+            $link('Recharge wallet', 'seller.recharge');
+        }
+        if (preg_match('/warehouse|pickup/', $r)) {
+            $link('Fix pickup address', 'seller.warehouse');
+        }
+        if ($id && preg_match('/address|consignee|phone|mobile|weight|dimension|length|breadth|height|invoice|e-way|ewaybill|order number|duplicate|already|pin ?code|pincode|cod/', $r)) {
+            $link('Edit order', 'seller.orderedit', $id);
+        }
+        if ($id) {
+            $link('Try another courier', 'seller.courier', $id);
+        }
+        return $out;
     }
 
     public static function clear($order): void

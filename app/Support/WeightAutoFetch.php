@@ -74,7 +74,7 @@ class WeightAutoFetch
         }
         $limit = $limit ?: self::PER_RUN;
 
-        $charged = WeightDisputes::where('dispute_status', '!=', WeightDisputes::VOID)->pluck('awb')->filter()->flip();
+        $charged = WeightDisputes::where('dispute_status', '!=', 'void')->pluck('awb')->filter()->flip();
         $orders = Order::query()
             ->whereNotNull('awb_number')->where('awb_number', '!=', '')
             ->where('created_at', '>=', now()->subDays(self::LOOKBACK_DAYS))

@@ -532,7 +532,8 @@ class ShipcluesService implements CourierServiceInterface
             ];
         } catch (\Throwable $e) {
             Log::error('Shipclues assignOrder failed: ' . $e->getMessage(), ['order_id' => $orderId]);
-            return $this->fail('Courier booking failed. Please try again or choose another courier.');
+            // Show the courier's real reason (aggregator name hidden), never a generic message.
+            return $this->fail(\App\Support\CourierBrand::cleanName($e->getMessage(), 'Courier booking failed. Please try again or choose another courier.'));
         }
     }
 
@@ -715,12 +716,53 @@ class ShipcluesService implements CourierServiceInterface
 
         $res = $this->request('POST', 'warehouse/create/', $payload);
         $id = $res->json('id');
+
+        // Name already taken on Shipclues (seller re-booked, or the address/phone was edited so the
+        // code changed). Reuse the existing warehouse when it is the same pickup PIN; otherwise
+        // register this address under a unique name so the booking never stops here.
+        if ((!$res->successful() || !$id) && preg_match('/duplicate|already exist|unique/i', $this->errorText($res))) {
+            if ($existing = $this->findWarehouseByName($payload['warehouse_name'], (string) ($p['pincode'] ?? ''))) {
+                Cache::forever($cacheKey, $existing);
+                return $existing;
+            }
+            $unique = mb_substr($payload['warehouse_name'], 0, 21) . ' ' . substr($code, -6);
+            $payload['warehouse_name'] = $unique;
+            $payload['return_warehouse_name'] = $unique;
+            $res = $this->request('POST', 'warehouse/create/', $payload);
+            $id = $res->json('id');
+        }
+
         if (!$res->successful() || !$id) {
             throw new \RuntimeException('pickup address could not be registered: ' . $this->errorText($res));
         }
 
         Cache::forever($cacheKey, (int) $id);
         return (int) $id;
+    }
+
+    /** Shipclues warehouse id with this exact name (and same pickup PIN, when known), or null. */
+    private function findWarehouseByName(string $name, string $pincode): ?int
+    {
+        $want = strtolower(trim($name));
+        for ($page = 1; $page <= 30; $page++) {
+            $res = $this->request('GET', 'warehouses/', ['page' => $page]);
+            $rows = $res->json('data') ?? [];
+            foreach ($rows as $w) {
+                if (strtolower(trim((string) ($w['warehouse_name'] ?? ''))) !== $want) {
+                    continue;
+                }
+                $pin = (string) ($w['pincode'] ?? $w['address']['pincode'] ?? '');
+                if ($pincode === '' || $pin === '' || $pin === $pincode) {
+                    return (int) $w['id'];
+                }
+            }
+            $next = $res->json('pagination.next') ?? $res->json('pagination.next_page') ?? null;
+            $totalPages = (int) ($res->json('pagination.total_pages') ?? $res->json('pagination.num_pages') ?? 0);
+            if (!$rows || (!$next && (!$totalPages || $page >= $totalPages))) {
+                break;
+            }
+        }
+        return null;
     }
 
     /* =========================================================
