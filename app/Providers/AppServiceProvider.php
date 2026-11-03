@@ -28,5 +28,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Buyer WhatsApp alerts on every shipment status change (AiSensy)
         \App\Models\Order::observe(\App\Observers\OrderObserver::class);
+        // API v1: B2B status changes go to the client's webhook URL too
+        \App\Models\B2bOrder::updated(fn (\App\Models\B2bOrder $o) => \App\Support\ApiV1\WebhookPusher::b2bChanged($o));
     }
 }
