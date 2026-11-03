@@ -4,7 +4,6 @@ namespace App\Http\Controllers\ApiV1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Shipxpeedapi\CancelshipmentController;
-use App\Http\Controllers\Shipxpeedapi\NdrController;
 use App\Http\Controllers\Shipxpeedapi\TrackController;
 use App\Models\B2bOrder;
 use App\Models\Order;
@@ -308,16 +307,30 @@ class ShipmentController extends Controller
         if ($v->fails()) {
             return Respond::invalid($v);
         }
-        if (!Order::where('seller_id', $seller->id)->where('awb_number', $request->awb_number)->exists()) {
+        $order = Order::where('seller_id', $seller->id)->where('awb_number', $request->awb_number)->first();
+        if (!$order) {
             return Respond::error('AWB not found in your account.', 404, 'not_found');
         }
-        $r = Respond::legacy($request, NdrController::class, 'ndrReattempt', array_filter([
-            'awb_number' => $request->awb_number, 'action' => $request->action, 'reattempt_date' => $request->reattempt_date,
-            'name' => $request->name, 'address' => $request->address, 'landmark' => $request->landmark,
-            'phone' => $request->phone, 'remark' => $request->remarks,
-        ], fn ($x) => $x !== null));
-        return Respond::legacyOk($r)
-            ? Respond::ok(['awb_number' => $request->awb_number, 'action' => $request->action, 'courier_response' => $r['data'] ?? null], $r['message'] ?? 'NDR action submitted')
-            : Respond::error($r['message'] ?? 'NDR action failed', Respond::legacyStatus($r), 'ndr_failed');
+        // Same path as Seller panel > NDR: routed per courier, recorded in the panel's NDR history (source "api").
+        $data = [
+            'action' => $request->action, 'reattempt_date' => $request->reattempt_date, 'address' => $request->address,
+            'landmark' => $request->landmark, 'phone' => $request->phone ? Respond::phone10($request->phone) : null,
+            'remark' => $request->remarks,
+        ];
+        try {
+            $suite = app(\App\Http\Controllers\Xpeed\SellerSuiteController::class);
+            $res = (fn ($d, $o, $x) => $this->dispatchNdr($d, $o, $x, 'api'))
+                ->call($suite, app(\App\Services\WhatsApp\NdrActionDispatcher::class), $order, $data);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('ApiV1 NDR failed', ['awb' => $order->awb_number, 'e' => $e->getMessage()]);
+            return Respond::error('NDR action could not be submitted. Try again.', 500, 'ndr_failed');
+        }
+        $status = (string) ($res['status'] ?? 'failed');
+        $out = ['awb_number' => $order->awb_number, 'action' => $request->action, 'result' => $status];
+        return match ($status) {
+            'sent_to_courier' => Respond::ok($out, 'Request sent to the courier'),
+            'needs_manual'    => Respond::ok($out, 'Recorded. The Shipxpeed ops team will raise it with the courier today.'),
+            default           => Respond::error('Courier rejected the request: ' . mb_strimwidth((string) ($res['message'] ?? ''), 0, 150, '…'), 422, 'ndr_failed', ['result' => $status]),
+        };
     }
 }

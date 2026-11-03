@@ -290,7 +290,7 @@ class B2cController extends Controller
         $courierId = SellerApiToken::toInternalId($pick['courier_id']);
 
         $consignee = [
-            'name' => $d['consignee']['name'], 'phone' => preg_replace('/^(\+?91)/', '', $d['consignee']['phone']), 'email' => $d['consignee']['email'] ?? null,
+            'name' => $d['consignee']['name'], 'phone' => Respond::phone10($d['consignee']['phone']), 'email' => $d['consignee']['email'] ?? null,
             'address' => $d['consignee']['address'], 'address_2' => $d['consignee']['address_2'] ?? null,
             'pincode' => (string) $d['consignee']['pincode'], 'city' => $d['consignee']['city'], 'state' => $d['consignee']['state'],
         ];
@@ -459,28 +459,32 @@ class B2cController extends Controller
                 return (array) app('courier.fship')->assignOrder(['order_id' => $order->id, 'serviceability_id' => (int) substr($courierId, 6), 'seller_id' => $sellerId]);
             }
             if (in_array($courierId, ['delhivery', 'delhivery_air'], true)) {
+                // Same Delhivery services the seller panel books with: wallet check + debit inside,
+                // courier_id 'delhivery_b2c' so tracking sync, NDR and cancel all pick the shipment up.
                 $air = $courierId === 'delhivery_air';
                 $order->seller_amount_walate = $rate['total_charge'];   // the quoted price is what the wallet is debited
                 $order->save();
-                $r = (array) app(ServiceabilityController::class)->assignDelhiveryOrder($this->delhiveryPayload($order, $air), $sellerId);
-                if (!empty($r['status'])) {
-                    $order->refresh();
-                    $order->courier_id = $courierId;
-                    $order->all_courier_name = $air ? 'Delhivery Air' : 'Delhivery B2C (Surface)';
+                $svc = app($air ? 'courier.delhivery_b2c_Express' : 'courier.delhivery_b2c');
+                $r = (array) $svc->assignOrder($this->delhiveryPayload($order, $air));
+                $awb = $r['packages'][0]['waybill'] ?? null;
+                $order->refresh();
+                if ($awb) {
+                    $order->awb_number = $awb;
+                    $order->courier_id = 'delhivery_b2c';
+                    $order->all_courier_name = $air ? 'Delhivery Air' : 'Delhivery Surface';
                     if (Kit::hasCol('orders', 'courier_name')) {
                         $order->courier_name = $air ? 'Delhivery Air' : 'Delhivery Surface';
                     }
                     $order->shipping_status = $order->shipping_status ?: 'assigned';
                     $order->shipping_date = $order->shipping_date ?: now();
                     $order->save();
-                } else {
-                    $order->refresh();
-                    if (!$order->awb_number) {
-                        $order->seller_amount_walate = null;
-                        $order->save();
-                    }
+                    return ['status' => true, 'awb_number' => $awb];
                 }
-                return $r;
+                if (!$order->awb_number) {
+                    $order->seller_amount_walate = null;
+                    $order->save();
+                }
+                return ['status' => false, 'message' => $r['message'] ?? 'Delhivery did not return an AWB'];
             }
         } catch (\Throwable $e) {
             Log::error('ApiV1 booking failed', ['order' => $order->id, 'courier' => $courierId, 'e' => $e->getMessage()]);

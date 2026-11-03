@@ -33,6 +33,13 @@ class Respond
         return self::error($first, 422, 'validation_failed', ['fields' => $errors]);
     }
 
+    /** Indian mobile as 10 digits: drops spaces, dashes and a +91 / 91 / 0 prefix only when it is a prefix. */
+    public static function phone10($phone): string
+    {
+        $d = preg_replace('/\D/', '', (string) $phone);
+        return strlen($d) > 10 ? substr($d, -10) : $d;
+    }
+
     public static function seller(Request $request): SellerList
     {
         return $request->attributes->get('api_seller');
