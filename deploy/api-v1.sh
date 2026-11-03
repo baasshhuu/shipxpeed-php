@@ -41,7 +41,8 @@ EXIST=""; for f in $NEW_FILES $SHARED; do [ -e "$f" ] && EXIST="$EXIST $f"; done
 tar czf "$BK" $EXIST && echo "Backup: $BK" || { echo "FAIL: backup"; exit 1; }
 restore() {
   echo "!! restoring backup"; tar xzf "$BK"
-  for f in $NEW_FILES; do tar tzf "$BK" | grep -qxF "$f" || rm -f "$f"; done
+  local saved; saved=$(tar tzf "$BK")
+  for f in $NEW_FILES; do [[ $'\n'"$saved"$'\n' == *$'\n'"$f"$'\n'* ]] || rm -f "$f"; done
   rmdir app/Support/ApiV1 app/Http/Controllers/ApiV1 2>/dev/null
   php artisan optimize:clear >/dev/null 2>&1
   echo "RESTORED - nothing changed"; exit 1
@@ -109,9 +110,10 @@ FAILED=0
 c=$(code -H 'Accept: application/json' "$SITE/api/v1/");                         [ "$c" = 200 ] && echo "OK   /api/v1 up" || { echo "FAIL /api/v1 -> $c"; FAILED=1; }
 c=$(code -H 'Accept: application/json' "$SITE/api/v1/account");                  [ "$c" = 401 ] && echo "OK   no key -> 401" || { echo "FAIL no key -> $c"; FAILED=1; }
 c=$(code -H 'Accept: application/json' -H 'X-API-Key: wrong' "$SITE/api/v1/b2c/rates" -X POST); [ "$c" = 401 ] && echo "OK   wrong key -> 401" || { echo "FAIL wrong key -> $c"; FAILED=1; }
-curl -s "$SITE/developers" | grep -q 'Shipxpeed shipping API' && echo "OK   /developers docs page" || { echo "FAIL /developers"; FAILED=1; }
-curl -s "$SITE/developers/postman.json" | grep -q '"Shipxpeed API v1"' && echo "OK   Postman download" || { echo "FAIL Postman download"; FAILED=1; }
-curl -s "$SITE/api/v1/public/couriers" | grep -q '"success":true' && echo "OK   live courier list" || { echo "FAIL courier list"; FAILED=1; }
+has() { local body; body=$(curl -s "$1"); [[ "$body" == *"$2"* ]]; }   # no pipe: grep -q + pipefail gives false failures
+has "$SITE/developers" 'Shipxpeed shipping API' && echo "OK   /developers docs page" || { echo "FAIL /developers"; FAILED=1; }
+has "$SITE/developers/postman.json" '"Shipxpeed API v1"' && echo "OK   Postman download" || { echo "FAIL Postman download"; FAILED=1; }
+has "$SITE/api/v1/public/couriers" '"success":true' && echo "OK   live courier list" || { echo "FAIL courier list"; FAILED=1; }
 [ "$FAILED" = 0 ] || restore
 
 # 6. read-only test with a real account (nothing is booked or changed)
@@ -124,12 +126,14 @@ if [ -n "$KEY" ]; then
   echo "Live read-only test (account key ${KEY:0:8}...):"
   get() { curl -s -H "X-API-Key: $KEY" -H 'Accept: application/json' "$SITE/api/v1$1"; }
   for p in /account /wallet "/couriers?type=b2c" /rate-card /warehouses "/shipments?per_page=1"; do
-    r=$(get "$p"); echo "$r" | grep -q '"success":true' && echo "  OK   GET $p" || { echo "  FAIL GET $p: ${r:0:200}"; FAILED=1; }
+    r=$(get "$p"); [[ "$r" == *'"success":true'* ]] && echo "  OK   GET $p" || { echo "  FAIL GET $p: ${r:0:200}"; FAILED=1; }
   done
-  PIN=$(get /warehouses | php -r '$j=json_decode(stream_get_contents(STDIN),true); echo $j["data"]["warehouses"][0]["pincode"] ?? "110053";')
+  WH=$(get /warehouses)
+  PIN=$(echo "$WH" | php -r '$j=json_decode(stream_get_contents(STDIN),true); echo $j["data"]["warehouses"][0]["pincode"] ?? "110053";')
+  ST=$(echo "$WH" | php -r '$j=json_decode(stream_get_contents(STDIN),true); echo $j["data"]["warehouses"][0]["state"] ?? "Delhi";')
   r=$(curl -s -X POST -H "X-API-Key: $KEY" -H 'Accept: application/json' -H 'Content-Type: application/json' "$SITE/api/v1/b2c/rates" \
-      -d "{\"origin_pincode\":\"$PIN\",\"destination_pincode\":\"400001\",\"payment_type\":\"prepaid\",\"order_amount\":999,\"weight_g\":500}")
-  if echo "$r" | grep -q '"success":true'; then
+      -d "{\"origin_pincode\":\"$PIN\",\"destination_pincode\":\"400001\",\"payment_type\":\"prepaid\",\"order_amount\":999,\"weight_g\":500,\"origin_state\":\"$ST\",\"destination_state\":\"Maharashtra\"}")
+  if [[ "$r" == *'"success":true'* ]]; then
     echo "  OK   POST /b2c/rates $PIN -> 400001:"
     echo "$r" | php -r '$j=json_decode(stream_get_contents(STDIN),true); foreach(($j["data"]["couriers"]??[]) as $c) printf("         %-32s Rs %8.2f  (%s)\n",$c["courier_name"],$c["total_charge"],$c["courier_id"]); if(empty($j["data"]["couriers"])) echo "         (no courier ON for this account on this lane)\n";'
   else echo "  FAIL POST /b2c/rates: ${r:0:300}"; FAILED=1; fi

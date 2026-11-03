@@ -23,14 +23,14 @@ class OrderObserver
 
     public function updated(Order $order): void
     {
+        // API v1: tell the client's webhook URL about status changes
+        if (class_exists(\App\Support\ApiV1\WebhookPusher::class)) {
+            \App\Support\ApiV1\WebhookPusher::orderChanged($order);
+        }
         if ($order->wasChanged(['shipping_status', 'order_status', 'awb_number'])) {
             app(OrderStatusNotifier::class)->handleOrderChange($order);
             if (class_exists(\App\Services\Notify\BuyerNotifier::class)) {
                 app(\App\Services\Notify\BuyerNotifier::class)->handleOrderChange($order);
-            }
-            // API v1: tell the client's webhook URL
-            if (class_exists(\App\Support\ApiV1\WebhookPusher::class)) {
-                \App\Support\ApiV1\WebhookPusher::orderChanged($order);
             }
         }
     }
