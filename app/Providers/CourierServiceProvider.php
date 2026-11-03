@@ -25,6 +25,9 @@ class CourierServiceProvider extends ServiceProvider
 
         // Fship aggregator (same reason)
         $this->app->bind('courier.fship', fn() => new \App\Services\FshipService);
+
+        // ShipCorrect aggregator (same reason)
+        $this->app->bind('courier.shipcorrect', fn() => new \App\Services\ShipCorrectService);
     }
 
     /**

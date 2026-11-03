@@ -435,6 +435,8 @@ class ZonePriceSettingController extends Controller
     ];
         // Fship couriers (live list from the Fship account)
         $LogisticProviders = array_merge($LogisticProviders, array_keys(RateCard::aggregatorKeys('fship')));
+        // ShipCorrect couriers
+        $LogisticProviders = array_merge($LogisticProviders, array_keys(RateCard::aggregatorKeys('shipcorrect')));
 
         return view('admin.zonepricesetting.zone_price_edit', compact('zonePriceSetting', 'SellerList', 'LogisticProviders'));
     }

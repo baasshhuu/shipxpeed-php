@@ -35,6 +35,7 @@ class CourierAccess
         'delhivery' => ['Delhivery (direct)', null],
         'shipclues' => ['Shipclues couriers', 'Shipclues_'],
         'fship'     => ['Fship couriers', 'Fship_'],
+        'shipcorrect' => ['ShipCorrect couriers', 'ShipCorrect_'],
     ];
 
     /**
@@ -64,6 +65,10 @@ class CourierAccess
                     && method_exists(\App\Services\FshipService::class, 'isConfigured')
                     && (new \App\Services\FshipService())->isConfigured();
                 $keys = $configured ? RateCard::aggregatorKeys('fship') : [];
+            } elseif ($code === 'shipcorrect') {
+                $configured = class_exists(\App\Services\ShipCorrectService::class)
+                    && (new \App\Services\ShipCorrectService())->isConfigured();
+                $keys = $configured ? RateCard::aggregatorKeys('shipcorrect') : [];
             }
 
             // Couriers already switched or defaulted stay listed if the API is briefly unreachable.

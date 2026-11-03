@@ -77,7 +77,7 @@
             </a>
         </li>
         <li class="sx-menu-heading">Couriers &amp; Rates</li>
-        <li class="menu {{ request()->routeIs('logistics', 'admin.fship.*') ? 'active' : '' }}">
+        <li class="menu {{ request()->routeIs('logistics', 'admin.fship.*', 'admin.shipcorrect.*') ? 'active' : '' }}">
             <a href="{{ route('logistics') }}" class="dropdown-toggle">
                 <div class="">
                     <i class="fa-solid fa-warehouse"></i>

@@ -35,13 +35,14 @@ class CourierHealth extends Command
         'dtdc'                  => 'https://dtdcapi.shipsy.io',
         'shiprocket'            => 'https://apiv2.shiprocket.in',
         'fship'                 => 'https://capi.fship.in',
+        'shipcorrect'           => 'https://shipcorrect.com',
         'shipclues'             => 'https://api.shipclues.in',
     ];
 
     public function handle(): int
     {
         $rows = [];
-        $codes = array_unique(array_merge(array_keys(config('couriers', [])), ['shipclues', 'fship']));
+        $codes = array_unique(array_merge(array_keys(config('couriers', [])), ['shipclues', 'fship', 'shipcorrect']));
         $recent = Order::whereNotNull('consignee')->whereNotNull('pickup')->latest('id')->limit((int) $this->option('orders'))->get();
 
         foreach ($codes as $code) {

@@ -31,6 +31,7 @@ class RateManagerController extends Controller
         if ($request->query('refresh')) {
             Cache::forget('ratecard_keys_shipclues');
             Cache::forget('ratecard_keys_fship');
+            Cache::forget('ratecard_keys_shipcorrect');
         }
         $sellers = SellerList::orderBy('name')->get();
         $defaultId = RateCard::defaultSellerId();

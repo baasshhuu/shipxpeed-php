@@ -156,11 +156,21 @@ class PublicTracker
 
         return match (true) {
             str_starts_with($cid, 'fship') => $this->fship($awb),
+            str_starts_with($cid, 'shipcorrect') => $this->shipcorrect($awb),
             str_starts_with($cid, 'shipclues') || str_starts_with($cid, 'sxc') => $this->shipclues($order, $awb),
             str_starts_with($cid, 'xpressbees') => $this->xpressbees($awb),
             str_starts_with($cid, 'delhivery') => $this->delhivery($awb),
             default => str_contains($name, 'delhivery') ? $this->delhivery($awb) : null,
         };
+    }
+
+    private function shipcorrect(string $awb): ?array
+    {
+        $t = app(\App\Services\ShipCorrectService::class)->track($awb);
+        return empty($t['status']) ? null : [
+            'status' => $t['raw_status'] ?? null, 'edd' => $t['edd'] ?? null, 'courier' => null,
+            'events' => array_map(fn ($e) => ['time' => $e['event_time'] ?? null, 'status' => $e['message'] ?? '', 'location' => $e['location'] ?? ''], $t['history'] ?? []),
+        ];
     }
 
     private function fship(string $awb): ?array

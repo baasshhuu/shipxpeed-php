@@ -21,12 +21,12 @@ use Illuminate\Http\Request;
 class SellerApiToken
 {
     /** internal prefix => public prefix (outgoing) */
-    private const ID_PREFIXES = ['shipclues_' => 'sxc_', 'fship_' => 'sxf_'];
+    private const ID_PREFIXES = ['shipclues_' => 'sxc_', 'fship_' => 'sxf_', 'shipcorrect_' => 'sxr_'];
 
     /** public prefix => internal prefix (incoming) */
-    private const INCOMING_PREFIXES = ['sxc_' => 'shipclues_', 'sxf_' => 'fship_'];
+    private const INCOMING_PREFIXES = ['sxc_' => 'shipclues_', 'sxf_' => 'fship_', 'sxr_' => 'shipcorrect_'];
 
-    private const PARTNER_WORDS = '(shipclues|fship)';
+    private const PARTNER_WORDS = '(shipcorrect|shipclues|fship)';
 
     public function handle(Request $request, Closure $next)
     {

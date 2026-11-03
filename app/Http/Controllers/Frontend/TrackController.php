@@ -38,14 +38,16 @@ public function trackOrder(Request $request)
             return $this->trackWithDelhiveryB2C($awb);
         case 'fship':
             return $this->trackWithFship($awb);
+        case 'shipcorrect':
+            return $this->trackWithFship($awb, \App\Services\ShipCorrectService::class);
         default:
             return redirect()->back()->withErrors(['error' => 'Tracking not available for this courier.']);
     }
 }
 
-private function trackWithFship($awb)
+private function trackWithFship($awb, string $service = \App\Services\FshipService::class)
 {
-    $t = app(\App\Services\FshipService::class)->track($awb);
+    $t = app($service)->track($awb);
     if (empty($t['status'])) {
         return redirect()->back()->withErrors(['error' => $t['message'] ?? 'Tracking not available yet.']);
     }

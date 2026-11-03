@@ -144,6 +144,7 @@ class CancelshipmentController extends Controller
             'shiprocket' => 'shiprocket',
             'shipclues' => 'shipclues',
             'fship' => 'fship',
+            'shipcorrect' => 'shipcorrect',
             'selloship' => 'selloship',
             'sell_Ekart_2KG' => 'selloship'
 
@@ -168,6 +169,10 @@ class CancelshipmentController extends Controller
             case 'shipclues':
                 $r = app('courier.shipclues')->cancelShipment($awb);
                 return ['success' => !empty($r['status']), 'message' => $r['message'] ?? null, 'data' => $r['data'] ?? []];
+
+            case 'shipcorrect':
+                $r = app('courier.shipcorrect')->cancelShipment($awb);
+                return ['success' => !empty($r['status']), 'message' => $r['message'] ?? null, 'data' => []];
 
             case 'fship':
                 $r = app('courier.fship')->cancelShipment($awb);

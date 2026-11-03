@@ -46,6 +46,14 @@ class Kernel extends ConsoleKernel
         ->runInBackground()
         ->appendOutputTo(storage_path('logs/fship-track.log'));
 
+        // ShipCorrect: pull tracking status for open shipments
+        $schedule
+        ->command('shipcorrect:track')
+        ->everyThirtyMinutes()
+        ->withoutOverlapping(25)
+        ->runInBackground()
+        ->appendOutputTo(storage_path('logs/shipcorrect-track.log'));
+
         // Shopify: pull new orders + push AWB / shipment status back
         $schedule
         ->command('shopify:sync')

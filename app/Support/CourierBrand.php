@@ -16,12 +16,12 @@ class CourierBrand
 
     /** Aggregator / reseller accounts whose own name and logo must stay hidden from sellers. */
     private const AGGREGATORS = [
-        'shipclues', 'fship', 'shiprocket', 'smartship', 'tekipost', 'boxd',
+        'shipclues', 'fship', 'shipcorrect', 'shiprocket', 'smartship', 'tekipost', 'boxd',
         'parcelx', 'selloship', 'bigship', 'nimbuspost', 'ithink', 'shipway',
     ];
 
     /** Words removed from any courier name shown to sellers. */
-    private const HIDDEN_WORDS = ['shipclues', 'ship clues', 'fship'];
+    private const HIDDEN_WORDS = ['shipclues', 'ship clues', 'fship', 'shipcorrect', 'ship correct'];
 
     public static function isAggregator($provider): bool
     {

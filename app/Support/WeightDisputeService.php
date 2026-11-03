@@ -385,6 +385,9 @@ class WeightDisputeService
         if ($code === 'fship' && class_exists(\App\Services\FshipService::class) && $name) {
             return \App\Services\FshipService::rateKey($name);
         }
+        if ($code === 'shipcorrect' && class_exists(\App\Services\ShipCorrectService::class) && $name) {
+            return \App\Services\ShipCorrectService::rateKey($name);
+        }
         $z = trim((string) $order->zone_courier_name);
         return $z !== '' ? $z : null;
     }

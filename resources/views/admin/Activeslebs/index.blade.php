@@ -144,7 +144,7 @@
                 Removed from the panel ({{ count($removed) }}) — never offered to any seller:
                 <div>
                     @foreach($removed as $rk)
-                        <span data-key="{{ $rk }}">{{ trim(str_replace('_', ' ', preg_replace('/^(Shipclues|Fship)_/', '', $rk))) }}<a class="cs-restore">Restore</a></span>
+                        <span data-key="{{ $rk }}">{{ trim(str_replace('_', ' ', preg_replace('/^(Shipclues|Fship|ShipCorrect)_/', '', $rk))) }}<a class="cs-restore">Restore</a></span>
                     @endforeach
                 </div>
             </div>

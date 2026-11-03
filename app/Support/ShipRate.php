@@ -160,7 +160,7 @@ class ShipRate
     {
         $code = is_object($provider) ? (string) ($provider->code ?? '') : (string) $provider;
         $lc = strtolower($code);
-        if (!in_array($lc, ['delhivery_b2c', 'delhivery_b2c_express', 'shipclues', 'fship'], true)) {
+        if (!in_array($lc, ['delhivery_b2c', 'delhivery_b2c_express', 'shipclues', 'fship', 'shipcorrect'], true)) {
             return null;
         }
         try {

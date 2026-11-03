@@ -34,6 +34,10 @@ class Tracking
         $live = Cache::remember('xp_track_' . md5($awb), now()->addMinutes(10), function () use ($order, $awb) {
             $code = strtolower((string) $order->courier_id);
             try {
+                if ($code === 'shipcorrect' && class_exists(\App\Services\ShipCorrectService::class)) {
+                    $t = app(\App\Services\ShipCorrectService::class)->track($awb);
+                    return !empty($t['status']) ? ['history' => $t['history'] ?? [], 'edd' => $t['edd'] ?? null] : null;
+                }
                 if ($code === 'fship' && class_exists(\App\Services\FshipService::class)) {
                     $t = app(\App\Services\FshipService::class)->track($awb);
                     return !empty($t['status']) ? ['history' => $t['history'] ?? [], 'edd' => $t['edd'] ?? null] : null;

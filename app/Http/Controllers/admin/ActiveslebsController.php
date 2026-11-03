@@ -22,6 +22,7 @@ class ActiveslebsController extends Controller
         if (request('refresh')) {
             Cache::forget('ratecard_keys_shipclues');
             Cache::forget('ratecard_keys_fship');
+            Cache::forget('ratecard_keys_shipcorrect');
         }
 
         $SellerList = SellerList::orderBy('name')->get();

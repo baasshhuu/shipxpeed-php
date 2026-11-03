@@ -19,6 +19,11 @@
                                 <i class="fa-solid fa-plug me-1"></i> Fship Settings
                             </a>
                         @endif
+                        @if (Route::has('admin.shipcorrect.index'))
+                            <a href="{{ route('admin.shipcorrect.index') }}" class="btn btn-outline-primary me-2">
+                                <i class="fa-solid fa-plug me-1"></i> ShipCorrect Settings
+                            </a>
+                        @endif
                         @if (Route::has('admin.bigship.index'))
                             <a href="{{ route('admin.bigship.index') }}" class="btn btn-outline-primary me-2">
                                 <i class="fa-solid fa-truck-ramp-box me-1"></i> Bigship B2B
@@ -79,6 +84,9 @@
             <td>{{ $brand->created_at->format('d-m-Y') }}</td>
             <td>
                 {{-- <a href="{{ route('logistics.edit', $brand->id) }}" class="btn btn-sm btn-info">Edit</a> --}}
+                @if (Route::has('admin.shipcorrect.index') && ($brand->code ?? null) === 'shipcorrect')
+                    <a href="{{ route('admin.shipcorrect.index') }}" class="btn btn-sm btn-primary">Settings</a>
+                @endif
                 @if (Route::has('admin.fship.index') && ($brand->code ?? null) === 'fship')
                     <a href="{{ route('admin.fship.index') }}" class="btn btn-sm btn-primary">Settings</a>
                 @endif

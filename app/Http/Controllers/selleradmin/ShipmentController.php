@@ -1557,14 +1557,14 @@ protected function prepareRequestData(Request $request)
 
         //   dd($key);
         // dd($params);
-        if ($logisticProvider && in_array($logisticProvider->code, ['shipclues', 'fship'], true)) {
+        if ($logisticProvider && in_array($logisticProvider->code, ['shipclues', 'fship', 'shipcorrect'], true)) {
             $params = [
                 'order_id' => $orderId,
                 'provider_name' => $provider_name,
                 'serviceability_id' => $serviceability_id,
             ];
             $order = $order ?? Order::where('id', $orderId)->first();
-            if ($order && $logisticProvider->code === 'fship') {
+            if ($order && in_array($logisticProvider->code, ['fship', 'shipcorrect'], true)) {
                 $order->seller_amount_walate = $courierCharge;
                 $order->save();
             }
@@ -1618,7 +1618,7 @@ if (
 
 if (
     !empty($response['couriername']) &&
-    $response['couriername'] === 'fship'
+    in_array($response['couriername'], ['fship', 'shipcorrect'], true)
 ) {
     if (!empty($response['status']) && !empty($response['awb_number'])) {
         return redirect()
@@ -1626,7 +1626,7 @@ if (
             ->with('success', 'Order successfully assigned! AWB: ' . $response['awb_number'] . (!empty($response['pickup_message']) ? ' (' . $response['pickup_message'] . ')' : ''));
     }
 }
-if (empty($response['status']) && !empty($response['message']) && $logisticProvider->code === 'fship') {
+if (empty($response['status']) && !empty($response['message']) && in_array($logisticProvider->code, ['fship', 'shipcorrect'], true)) {
     return redirect()->route('seller.order')->with('error', $response['message']);
 }
 
@@ -1841,7 +1841,7 @@ if (
 
                 // Prepare parameters based on courier type
                 $params = $this->prepareBulkCourierParams($courierId, $orderId, $provider_name, $codCharges, $serviceability_id);
-                if (in_array($logisticProvider->code, ['shipclues', 'fship'], true)) {
+                if (in_array($logisticProvider->code, ['shipclues', 'fship', 'shipcorrect'], true)) {
                     $params = [
                         'order_id' => $orderId,
                         'provider_name' => $provider_name,
@@ -1943,10 +1943,10 @@ if (
         }
 
         // Fship response
-        if (!empty($response['couriername']) && $response['couriername'] === 'fship') {
+        if (!empty($response['couriername']) && in_array($response['couriername'], ['fship', 'shipcorrect'], true)) {
             return !empty($response['status']) && !empty($response['awb_number'])
                 ? ['success' => true, 'awb' => $response['awb_number']]
-                : ['success' => false, 'message' => $response['message'] ?? 'Fship booking failed'];
+                : ['success' => false, 'message' => $response['message'] ?? 'Booking failed'];
         }
 
         // Shiprocket response

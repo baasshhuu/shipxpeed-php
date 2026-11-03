@@ -79,6 +79,13 @@ Route::middleware(['auth', 'permission', 'authCheck', 'verified'])->group(functi
     Route::post('fship/rate-test', [\App\Http\Controllers\admin\FshipController::class, 'rateTest'])->name('admin.fship.rate-test');
     Route::get('fship/log/{id}', [\App\Http\Controllers\admin\FshipController::class, 'logShow'])->whereNumber('id')->name('admin.fship.log');
 
+    // ShipCorrect aggregator: key, connection, rate test, tracking test, API log
+    Route::get('shipcorrect', [\App\Http\Controllers\admin\ShipCorrectController::class, 'index'])->name('admin.shipcorrect.index');
+    Route::post('shipcorrect/settings', [\App\Http\Controllers\admin\ShipCorrectController::class, 'saveKey'])->name('admin.shipcorrect.settings');
+    Route::post('shipcorrect/rate-test', [\App\Http\Controllers\admin\ShipCorrectController::class, 'rateTest'])->name('admin.shipcorrect.rate-test');
+    Route::post('shipcorrect/track-test', [\App\Http\Controllers\admin\ShipCorrectController::class, 'trackTest'])->name('admin.shipcorrect.track-test');
+    Route::get('shipcorrect/log/{id}', [\App\Http\Controllers\admin\ShipCorrectController::class, 'logShow'])->whereNumber('id')->name('admin.shipcorrect.log');
+
     // WhatsApp (AiSensy): OTP + buyer alerts, rates per seller, NDR queue
     Route::get('whatsapp', [\App\Http\Controllers\admin\WhatsAppController::class, 'index'])->name('admin.whatsapp.index');
     Route::post('whatsapp/settings', [\App\Http\Controllers\admin\WhatsAppController::class, 'saveSettings'])->name('admin.whatsapp.settings');

@@ -65,6 +65,7 @@ class RateCard
     public const AGGREGATORS = [
         'shipclues' => ['Shipclues', 'Shipclues_'],
         'fship'     => ['Fship', 'Fship_'],
+        'shipcorrect' => ['ShipCorrect', 'ShipCorrect_'],
     ];
 
     public static function defaultSellerId(): int
@@ -223,6 +224,9 @@ class RateCard
                 foreach (\App\Services\FshipService::rateCardKeys() as $k) {
                     $keys[$k] = trim(str_replace('_', ' ', substr($k, strlen('Fship_'))));
                 }
+            }
+            if ($code === 'shipcorrect' && class_exists(\App\Services\ShipCorrectService::class)) {
+                $keys = \App\Services\ShipCorrectService::rateCardKeys();
             }
         } catch (\Throwable $e) {
             $keys = [];
