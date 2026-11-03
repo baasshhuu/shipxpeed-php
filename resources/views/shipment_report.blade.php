@@ -17,7 +17,7 @@
         ['RTO', number_format(($bs['rto'] ?? 0) + ($bs['rto_delivered'] ?? 0)), 'rto'],
         ['Cancelled', number_format($bs['cancelled'] ?? 0), 'cancelled'],
     ];
-    $q = request()->except('page');
+    $q = \Illuminate\Support\Arr::except(request()->query(), ['page']);
 @endphp
 <style>
     .sr-pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
@@ -135,7 +135,7 @@
             <div class="small opacity-75">
                 Showing {{ $data->firstItem() ?? 0 }}–{{ $data->lastItem() ?? 0 }} of {{ number_format($data->total()) }} ·
                 <form method="GET" class="d-inline">
-                    @foreach (request()->except(['per_page', 'page']) as $k => $v)<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endforeach
+                    @foreach (request()->query() as $k => $v)@if(is_scalar($v) && !in_array($k, ['per_page', 'page'], true))<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endif@endforeach
                     <select name="per_page" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
                         @foreach ([25, 50, 100, 200] as $n)<option value="{{ $n }}" @selected($perPage === $n)>{{ $n }} per page</option>@endforeach
                     </select>
