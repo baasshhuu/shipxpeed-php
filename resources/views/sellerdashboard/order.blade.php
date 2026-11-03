@@ -1791,7 +1791,7 @@
                                     <strong>Booking failed</strong>
                                     @if($order->booking_error_at)<span style="color:#9a6b6b"> &middot; {{ \Carbon\Carbon::parse($order->booking_error_at)->timezone('Asia/Kolkata')->format('d M, h:i A') }}</span>@endif
                                     <br>{{ \Illuminate\Support\Str::limit($order->booking_error, 220) }}
-                                    @php($__fixes = \App\Support\CourierError::fixActions($order->booking_error, $order))
+                                    @php $__fixes = \App\Support\CourierError::fixActions($order->booking_error, $order); @endphp
                                     @if($__fixes)
                                     <div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:4px;">
                                         @foreach($__fixes as [$__label, $__url])
