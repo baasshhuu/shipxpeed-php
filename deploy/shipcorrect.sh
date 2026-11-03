@@ -96,8 +96,8 @@ php artisan tinker --execute='DB::table("logistic_providers")->where("code","shi
 php artisan optimize:clear >/dev/null 2>&1
 VC=$(php artisan view:cache 2>&1) || { echo "FAIL: a Blade view does not compile:"; echo "$VC" | tail -5; restore; }
 php artisan config:cache >/dev/null 2>&1 || php artisan config:clear >/dev/null 2>&1
-ROUTES=$(php artisan route:list --name=admin.shipcorrect 2>&1 || true)
-case "$ROUTES" in *shipcorrect*) echo "Admin routes: OK" ;; *) echo "FAIL: admin routes not registered"; echo "$ROUTES" | tail -5; restore ;; esac
+ROUTES=$(php artisan tinker --execute='echo app("router")->has("admin.shipcorrect.index") ? "ROUTE_OK" : "ROUTE_MISSING";' 2>&1 || true)
+case "$ROUTES" in *ROUTE_OK*) echo "Admin routes: OK" ;; *) echo "FAIL: admin routes not registered"; echo "$ROUTES" | tail -5; restore ;; esac
 
 for svc in $(systemctl list-units --type=service --no-legend 'php*-fpm*' 2>/dev/null | awk '{print $1}'); do systemctl reload "$svc" 2>/dev/null && echo "Reloaded $svc"; done
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null
