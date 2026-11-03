@@ -112,7 +112,7 @@ class ShipCorrectService implements CourierServiceInterface
 
             $msg = is_array($data) ? (string) ($data['message'] ?? $data['error_message'] ?? $data['error'] ?? '') : '';
             $failedFlag = is_array($data) && (
-                (isset($data['status']) && is_string($data['status']) && in_array(strtolower($data['status']), ['error', 'failed', 'fail', 'false'], true))
+                (isset($data['status']) && is_string($data['status']) && in_array(strtolower($data['status']), ['error', 'failed', 'fail', 'false', 'partial_success'], true))
                 || (array_key_exists('status', $data) && $data['status'] === false)
                 || (array_key_exists('success', $data) && $data['success'] === false)
             );
