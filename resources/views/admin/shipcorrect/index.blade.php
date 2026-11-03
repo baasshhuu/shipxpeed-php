@@ -8,6 +8,7 @@
     .fs-warn{background:var(--sx-warning-soft,#fff4e5);color:var(--sx-warning,#8a5300)}
     .fs-mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
     .fs-table td,.fs-table th{vertical-align:middle;font-size:13px}
+    .fs-logo{height:24px;width:56px;object-fit:contain;margin-right:8px;background:#fff;border-radius:4px;padding:2px;vertical-align:middle}
 </style>
 
 <div class="card mb-3">
@@ -69,7 +70,7 @@
                     @foreach($couriers as $key => $label)
                         @php($def = \App\Support\CourierAccess::defaults()[$key] ?? null)
                         <tr>
-                            <td>{{ $label }}</td>
+                            <td class="text-nowrap"><img class="fs-logo" src="{{ asset(\App\Support\CourierBrand::sellerLogo($label)) }}" alt="">{{ $label }}</td>
                             <td class="fs-mono">{{ $key }}</td>
                             <td>{!! $def === null ? '<span class="fs-pill fs-warn">New · off</span>' : ($def ? '<span class="fs-pill fs-ok">On</span>' : '<span class="fs-pill fs-bad">Off</span>') !!}</td>
                         </tr>
@@ -91,7 +92,7 @@
                     @php($t = $trackResult['track'])
                     <hr>
                     @if(!empty($t['status']))
-                        <div class="small mb-2"><strong>{{ $t['raw_status'] ?? '-' }}</strong> → panel status <span class="fs-pill fs-ok">{{ $t['mapped_status'] }}</span> · {{ $t['courier'] ?? '' }}</div>
+                        <div class="small mb-2"><strong>{{ $t['raw_status'] ?? '-' }}</strong> → panel status <span class="fs-pill fs-ok">{{ $t['mapped_status'] }}</span> · <img class="fs-logo" src="{{ asset(\App\Support\CourierBrand::sellerLogo($t['courier'] ?? '')) }}" alt="">{{ $t['courier'] ?? '' }}</div>
                         <table class="table table-sm fs-table mb-0">
                             @foreach($t['history'] as $h)<tr><td class="text-nowrap">{{ $h['event_time'] }}</td><td>{{ $h['message'] }}</td><td>{{ $h['location'] }}</td></tr>@endforeach
                         </table>
@@ -132,7 +133,7 @@
                             <tbody>
                             @foreach($rt['data']['rates'] as $r)
                                 <tr>
-                                    <td>{{ $r['courier'] ?? $r['courier_name'] ?? '' }}</td>
+                                    <td class="text-nowrap"><img class="fs-logo" src="{{ asset(\App\Support\CourierBrand::sellerLogo($r['courier'] ?? '')) }}" alt="">{{ $r['courier'] ?? $r['courier_name'] ?? '' }}</td>
                                     <td>{{ $r['mode'] ?? '' }}</td>
                                     <td>₹{{ $r['Freight_charge'] ?? '-' }}</td>
                                     <td>₹{{ $r['COD_CHARGE'] ?? 0 }}</td>
