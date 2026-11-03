@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\selleradmin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Shipxpeedapi\AuthController;
+use App\Models\SellerList;
 use Illuminate\Support\Facades\Auth;
 
 class SellerApiController extends Controller
@@ -17,7 +17,11 @@ class SellerApiController extends Controller
         $seller = Auth::guard('seller')->user();
         abort_unless($seller, 403);
 
-        $seller->api_token = AuthController::newToken();
+        // Random, unique per account: "sxp_" + 28 characters. The key alone identifies this account on the API.
+        do {
+            $token = 'sxp_' . \Illuminate\Support\Str::random(28);
+        } while (SellerList::where('api_token', $token)->exists());
+        $seller->api_token = $token;
         $seller->save();
 
         return redirect()->to(route('seller.api') . '#credentials')

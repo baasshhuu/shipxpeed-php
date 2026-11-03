@@ -32,6 +32,8 @@ routes/api_v1.php
 resources/views/developers.blade.php
 database/migrations/2026_11_03_000001_api_v1_logs.php
 deploy/old-api-delhivery-backfill.php
+app/Http/Controllers/selleradmin/SellerApiController.php
+resources/views/sellerdashboard/api.blade.php
 "
 SHARED="routes/api.php routes/web.php app/Observers/OrderObserver.php app/Providers/AppServiceProvider.php app/Http/Controllers/Shipxpeedapi/ServiceabilityController.php"
 
@@ -89,6 +91,12 @@ edit('app/Providers/AppServiceProvider.php', 'b2bChanged', function ($s) {
         return str_replace($m[0], $m[0] . "\n" . rtrim($line, "\n"), $s);
     }
     return preg_replace('/(public function boot\(\)(\s*:\s*void)?\s*\{)/', "$1\n" . rtrim($line, "\n"), $s, 1);
+});
+
+// Seller panel > API: generate / regenerate this account's own key
+edit('routes/web.php', 'seller.api.token', function ($s) {
+    if (!preg_match('/^.*->name\(\'seller\.api\'\);.*$/m', $s, $m)) { return null; }
+    return str_replace($m[0], $m[0] . "\n    Route::post('/api/token', [\\App\\Http\\Controllers\\selleradmin\\SellerApiController::class, 'token'])->name('seller.api.token');", $s);
 });
 
 // Old seller API: Delhivery priced from the client's rate card + panel switches, saved as courier_id "delhivery_b2c"
