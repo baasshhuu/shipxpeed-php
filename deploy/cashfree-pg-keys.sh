@@ -8,7 +8,7 @@ set -uo pipefail
 cd /var/www/shipxpeed || { echo "FAIL: /var/www/shipxpeed not found"; exit 1; }
 CF_ENV=${CF_ENV:-production}
 [ -n "${CF_APP_ID:-}" ] && [ -n "${CF_SECRET:-}" ] || { echo "FAIL: set CF_APP_ID and CF_SECRET"; exit 1; }
-case "$CF_APP_ID$CF_SECRET" in *" "*|*"<"*|*paste*|*your*) echo "FAIL: replace the placeholders with the real keys from Cashfree"; exit 1 ;; esac
+case "$CF_APP_ID$CF_SECRET" in *" "*|*"<"*|*paste*|*PASTE*|*your*) echo "FAIL: replace the placeholders with the real keys from Cashfree"; exit 1 ;; esac
 case "$CF_ENV" in production) HOST=https://api.cashfree.com ;; sandbox) HOST=https://sandbox.cashfree.com ;; *) echo "FAIL: CF_ENV must be production or sandbox"; exit 1 ;; esac
 
 # Ask Cashfree about an order id that does not exist: 404 = keys accepted, 401 = keys rejected
