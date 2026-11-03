@@ -42,7 +42,8 @@ class AssistantController extends Controller
         }
         $key = config('services.anthropic.key') ?: env('ANTHROPIC_API_KEY');
         if (!$key) {
-            return response()->json(['reply' => 'The assistant is not switched on yet: the admin needs to add ANTHROPIC_API_KEY to the server .env file.']);
+            // No AI key: answer with the built-in (rule-based) assistant.
+            return response()->json($this->ruleReply((string) $request->input('message'), $seller));
         }
 
         $history = session($this->sessionKey(), []);
@@ -77,7 +78,8 @@ class AssistantController extends Controller
             }
         } catch (\Throwable $e) {
             Log::error('Assistant error: ' . $e->getMessage());
-            return response()->json(['reply' => 'Sorry, I could not reach the AI service just now. Please try again in a minute.']);
+            // AI unavailable: fall back to the built-in assistant so sellers still get an answer.
+            return response()->json($this->ruleReply((string) $request->input('message'), $seller));
         }
 
         // trim history but keep it starting with a plain user message
@@ -124,8 +126,196 @@ class AssistantController extends Controller
 
     public function reset()
     {
-        session()->forget($this->sessionKey());
+        session()->forget([$this->sessionKey(), $this->ruleStateKey()]);
         return response()->json(['ok' => true]);
+    }
+
+    // ---------------------------------------------------------------- built-in (rule-based) assistant
+    // Works with no AI key. Understands simple English/Hinglish keywords, AWB / order numbers,
+    // and guided steps for tickets and cancellations. Uses the same tools and Confirm flow as the AI.
+
+    private const MENU = ['Wallet balance', 'Track my latest shipment', 'Why did my orders fail?', 'Shipment summary', 'Raise a ticket', 'Cancel an order', 'Create a new order'];
+
+    private function ruleStateKey(): string
+    {
+        return 'xpeed_rules_' . auth()->guard('seller')->id();
+    }
+
+    private function ruleReply(string $msg, $seller): array
+    {
+        $text = trim($msg);
+        $m = mb_strtolower($text);
+        $state = session($this->ruleStateKey());
+        $has = fn (array $words) => (bool) preg_match('/\b(' . implode('|', array_map('preg_quote', $words)) . ')/u', $m);
+
+        // Typing "menu", "cancel"/"stop" during a step, or "hi" always resets to the menu.
+        if ($has(['menu', 'start over', 'main menu']) || preg_match('/^(hi|hii+|hello|hey|namaste|hlo)\b/u', $m)) {
+            session()->forget($this->ruleStateKey());
+            return $this->say("Hi {$this->firstName($seller)}! Tap an option below, or type an AWB / order number to track it.", self::MENU);
+        }
+
+        // ---- guided steps
+        if ($state) {
+            if (preg_match('/^(stop|exit|quit|no|nahi|leave it|rehne do)\b/u', $m)) {
+                session()->forget($this->ruleStateKey());
+                return $this->say('Okay, stopped. What else can I help with?', self::MENU);
+            }
+            switch ($state['step'] ?? '') {
+                case 'ticket_order':
+                    $ref = $has(['general', 'other', 'wallet', 'account']) ? 'general' : $text;
+                    if ($ref !== 'general') {
+                        $o = $this->resolveOrder($ref, $seller);
+                        if (!$o) return $this->say("I couldn't find \"{$text}\" in your account. Type the order number or AWB again, or tap General.", ['General', 'Stop']);
+                        $ref = $o->awb_number ?: ($o->customer_order_id ?: $o->order_number);
+                    }
+                    session([$this->ruleStateKey() => ['step' => 'ticket_msg', 'order' => $ref]]);
+                    return $this->say('Got it. Now describe the problem in one message (what happened and what you need).', ['Stop']);
+
+                case 'ticket_msg':
+                    if (mb_strlen($text) < 5) return $this->say('Please write a little more about the problem so our team can help.', ['Stop']);
+                    session()->forget($this->ruleStateKey());
+                    [, $p] = $this->runTool('raise_ticket', ['order_id' => $state['order'], 'subject' => 'Support request', 'message' => $text], $seller);
+                    return $this->say('Please check the ticket below and tap Confirm to send it.', [], $p);
+
+                case 'cancel_order':
+                    $o = $this->resolveOrder($text, $seller);
+                    if (!$o) return $this->say("I couldn't find \"{$text}\" in your account. Type the order number or AWB again.", ['Stop']);
+                    session()->forget($this->ruleStateKey());
+                    if (preg_match('/deliver|transit|out for delivery|rto|cancel/i', (string) $o->shipping_status)) {
+                        return $this->say("This order can't be cancelled because its status is \"{$o->shipping_status}\". If you need help, raise a ticket.", ['Raise a ticket', 'Menu']);
+                    }
+                    [, $p] = $this->runTool('cancel_order', ['order' => $text], $seller);
+                    return $this->say('Please check the details below and tap Confirm to cancel.', [], $p);
+            }
+            session()->forget($this->ruleStateKey());
+        }
+
+        // ---- an AWB / order number on its own (or inside a sentence) → show that order
+        if (preg_match_all('/#?\b([A-Za-z0-9\-]{5,30})\b/u', $text, $mm)) {
+            foreach ($mm[1] as $tok) {
+                if (!preg_match('/\d{3,}/', $tok)) continue;
+                if ($o = $this->resolveOrder($tok, $seller)) {
+                    return $this->say($this->orderText($o), $o->awb_number ? ['Raise a ticket', 'Menu'] : ['Cancel an order', 'Menu']);
+                }
+            }
+        }
+
+        // ---- intents (order matters: specific before general)
+        if ($has(['cancel'])) {
+            session([$this->ruleStateKey() => ['step' => 'cancel_order']]);
+            return $this->say('Which order should I cancel? Type its order number or AWB.', ['Stop']);
+        }
+        if ($has(['ticket', 'complain', 'complaint', 'support', 'issue', 'problem', 'shikayat'])) {
+            session([$this->ruleStateKey() => ['step' => 'ticket_order']]);
+            return $this->say('Which order is this about? Type the order number or AWB, or tap General for account / wallet issues.', ['General', 'Stop']);
+        }
+        if ($has(['fail', 'error', 'reject', 'not book', 'nahi hua', 'nhi hua', 'stuck'])) {
+            $r = $this->findOrders(['status' => 'failed', 'limit' => 5], $seller);
+            if (!$r['count']) return $this->say('Good news: none of your recent orders failed to book.', self::MENU);
+            $lines = array_map(fn ($o) => '• #' . $o['order_number'] . ($o['buyer'] ? ' (' . $o['buyer'] . ')' : '') . "\n  Reason: " . $this->plainReason($o['booking_failure_reason']), $r['orders']);
+            return $this->say("Orders that failed to book:\n" . implode("\n", $lines) . "\n\nFix the details on New Orders and tap Ship Now again: " . url('/seller/order'), ['Raise a ticket', 'Menu']);
+        }
+        if ($has(['wallet', 'balance', 'recharge', 'paisa', 'paise', 'money', 'debit', 'credit'])) {
+            $w = $this->wallet($seller);
+            $lines = collect($w['recent'])->map(fn ($r) => '• ' . $r['date'] . '  ' . ($r['type'] === 'Credit' ? '+' : '-') . 'Rs ' . number_format($r['amount'], 2) . ($r['note'] ? '  ' . mb_substr($r['note'], 0, 40) : ''))->implode("\n");
+            return $this->say('Your wallet balance is Rs ' . number_format($w['balance'], 2) . '.' . ($lines ? "\n\nRecent transactions:\n{$lines}" : '') . "\n\nRecharge here: " . url('/seller/recharge'), self::MENU);
+        }
+        if ($has(['ndr', 'undeliver', 'not deliver', 'attempt'])) {
+            return $this->listOrders('ndr', 'Orders with a failed delivery attempt (NDR)', $seller, url('/seller/xp/ndr'));
+        }
+        if ($has(['rto', 'return'])) {
+            return $this->listOrders('rto', 'Orders returning to origin (RTO)', $seller);
+        }
+        if ($has(['delivered'])) {
+            return $this->listOrders('delivered', 'Recently delivered orders', $seller);
+        }
+        if ($has(['summary', 'report', 'how many', 'count', 'kitne', 'total', 'stats'])) {
+            $s = $this->summary(30, $seller);
+            if (!count($s['by_status'])) return $this->say('No orders in the last 30 days.', self::MENU);
+            $lines = collect($s['by_status'])->map(fn ($n, $st) => '• ' . ucwords((string) $st) . ': ' . $n)->implode("\n");
+            return $this->say("Your orders in the last 30 days:\n{$lines}", self::MENU);
+        }
+        if ($has(['track', 'status', 'where', 'kahan', 'kaha', 'shipment', 'parcel', 'latest', 'awb'])) {
+            $r = $this->findOrders(['status' => 'any', 'limit' => 10], $seller);
+            $o = collect($r['orders'])->firstWhere('awb', '!=', null);
+            if (!$o) return $this->say('You have no booked shipments yet. Type an order number to check a specific order.', self::MENU);
+            return $this->say("Your latest shipment:\n" . $this->orderText($this->resolveOrder((string) $o['id'], $seller)) . "\n\nTo track another, type its AWB or order number.", ['Menu']);
+        }
+        if ($has(['create', 'new order', 'add order', 'book', 'ship'])) {
+            return $this->say('Create the order here (it takes a minute): ' . url('/seller/order-add') . "\n\nAfter saving, open New Orders and tap Ship Now to choose a courier.", self::MENU);
+        }
+        if ($has(['rate', 'price', 'charge', 'cost', 'kitna'])) {
+            return $this->say('Check courier rates for any PIN code and weight here: ' . url('/rate-cards'), self::MENU);
+        }
+        if ($has(['cod', 'remit', 'settle'])) {
+            return $this->say('Your COD remittances and upcoming payouts are here: ' . url('/seller/cod-remittance'), self::MENU);
+        }
+        if ($has(['label', 'print'])) {
+            return $this->say('Type the order number or AWB and I will give you its label link. Label settings: ' . url('/seller/custom-label'), ['Menu']);
+        }
+
+        return $this->say("Sorry, I didn't understand that. Tap an option below, or type an AWB / order number.", self::MENU);
+    }
+
+    private function say(string $reply, array $chips = [], ?array $pending = null): array
+    {
+        if ($pending) {
+            $token = Str::random(24);
+            session(['xpeed_assistant_pending_' . $token => $pending]);
+            $pending = ['token' => $token, 'title' => $pending['title'], 'summary' => $pending['summary']];
+        }
+        return ['reply' => $reply, 'chips' => array_values($chips), 'pending' => $pending];
+    }
+
+    private function listOrders(string $status, string $title, $seller, ?string $link = null): array
+    {
+        $r = $this->findOrders(['status' => $status, 'limit' => 5], $seller);
+        if (!$r['count']) return $this->say('No ' . strtolower($title) . ' right now.', self::MENU);
+        $lines = array_map(fn ($o) => '• #' . $o['order_number'] . ' | ' . ($o['awb'] ?: 'no AWB') . ($o['courier'] ? ' | ' . $o['courier'] : '') . ($o['buyer'] ? ' | ' . $o['buyer'] : ''), $r['orders']);
+        return $this->say($title . ":\n" . implode("\n", $lines) . ($link ? "\n\nManage them here: {$link}" : "\n\nType an AWB to see full details."), self::MENU);
+    }
+
+    private function orderText(?Order $o): string
+    {
+        if (!$o) return 'Order not found.';
+        $d = $this->getOrder((string) $o->id, $this->seller());
+        $t = 'Order #' . $d['order_number']
+            . "\nStatus: " . ucwords((string) $d['status'])
+            . ($d['awb'] ? "\nAWB: {$d['awb']}" : '')
+            . ($d['courier'] ? "\nCourier: {$d['courier']}" : '')
+            . ($d['buyer'] ? "\nBuyer: {$d['buyer']}" . ($d['city'] ? ", {$d['city']}" : '') . ($d['pincode'] ? " - {$d['pincode']}" : '') : '')
+            . "\nPayment: " . strtoupper((string) $d['payment']) . ' | Rs ' . number_format((float) $d['amount'], 2)
+            . ($d['created'] ? "\nCreated: {$d['created']}" : '');
+        if (!$d['awb'] && $d['booking_failure_reason']) $t .= "\nBooking failed: " . $this->plainReason($d['booking_failure_reason']);
+        if (!empty($d['rto_reason'])) $t .= "\nRTO reason: {$d['rto_reason']}";
+        if ($d['label_link']) $t .= "\nLabel: {$d['label_link']}";
+        if ($d['awb']) $t .= "\nTrack: " . url('/seller/track-order-in');
+        return $t;
+    }
+
+    /** Turn raw courier errors into a short, plain explanation with the fix. */
+    private function plainReason(?string $raw): string
+    {
+        $r = trim(strip_tags((string) $raw));
+        if ($r === '') return 'No reason was stored. Try Ship Now again, or raise a ticket.';
+        $map = [
+            '/pin ?code|pincode|serviceab|not service/i' => 'The courier does not deliver to this PIN code. Pick another courier on Ship Now.',
+            '/balance|insufficient|wallet/i'            => 'Not enough wallet balance. Recharge the wallet, then tap Ship Now again.',
+            '/phone|mobile/i'                            => 'The buyer phone number is invalid. Use a 10-digit mobile number.',
+            '/address/i'                                 => 'The buyer address is incomplete. Add house number, street and area.',
+            '/weight|dimension|length|breadth|height/i'  => 'The weight or box size is missing or out of range. Correct it and retry.',
+            '/duplicate|already exist/i'                 => 'This order number was already used. Change the order number and retry.',
+            '/warehouse|pickup/i'                        => 'There is a problem with the pickup address. Check it under Settings, then retry.',
+        ];
+        foreach ($map as $re => $plain) {
+            if (preg_match($re, $r)) return $plain . ' (' . mb_substr($r, 0, 120) . ')';
+        }
+        return mb_substr($r, 0, 200);
+    }
+
+    private function firstName($seller): string
+    {
+        return trim(explode(' ', (string) ($seller->name ?? 'there'))[0]) ?: 'there';
     }
 
     // ---------------------------------------------------------------- Claude

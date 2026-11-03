@@ -38,13 +38,15 @@
     <div class="xa-head"><span class="xa-dot"></span><div><b>Xpeed Assistant</b><small>Orders, tracking, tickets &amp; more</small></div>
         <button type="button" id="xa-new">New chat</button><button type="button" id="xa-close" aria-label="Close">&#10005;</button></div>
     <div class="xa-body" id="xa-body">
-        <div class="xa-msg xa-bot">Hi! I can track shipments, explain failed orders, check your wallet, create orders, cancel orders and raise tickets. What do you need?</div>
+        <div class="xa-msg xa-bot">Hi! I can track shipments, explain failed orders, check your wallet, cancel orders and raise tickets. Tap an option, or type an AWB / order number.</div>
         <div class="xa-chips" id="xa-chips">
-            <button type="button">Why did my orders fail?</button>
+            <button type="button">Wallet balance</button>
             <button type="button">Track my latest shipment</button>
-            <button type="button">What is my wallet balance?</button>
-            <button type="button">Create a new order</button>
+            <button type="button">Why did my orders fail?</button>
+            <button type="button">Shipment summary</button>
             <button type="button">Raise a ticket</button>
+            <button type="button">Cancel an order</button>
+            <button type="button">Create a new order</button>
         </div>
     </div>
     <form class="xa-foot" id="xa-form" autocomplete="off">
@@ -56,7 +58,7 @@
 <script>
 (function(){
     const R = { chat: @json(route('seller.assistant.chat')), confirm: @json(route('seller.assistant.confirm')), reset: @json(route('seller.assistant.reset')) };
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    let csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
     const $ = id => document.getElementById(id);
     const body = $('xa-body'), input = $('xa-input'), panel = $('xa-panel');
     let busy = false;
@@ -64,33 +66,55 @@
     function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
     function linkify(s){ return esc(s).replace(/(https?:\/\/[^\s)]+|\/seller\/[A-Za-z0-9\/_\-?=&.]+)/g, u => '<a href="'+u+'" target="_blank" rel="noopener">'+u+'</a>'); }
     function add(text, who){ const d = document.createElement('div'); d.className = 'xa-msg ' + (who === 'me' ? 'xa-me' : 'xa-bot'); d.innerHTML = who === 'me' ? esc(text) : linkify(text); body.appendChild(d); body.scrollTop = body.scrollHeight; return d; }
-    async function post(url, data){
+    // Get a fresh CSRF token from the current page (the token changes when the session is refreshed).
+    async function refreshCsrf(){
+        try {
+            const h = await fetch(location.href, { credentials:'same-origin', headers:{'Accept':'text/html'} }).then(r => r.text());
+            const m = h.match(/name="csrf-token" content="([^"]+)"/);
+            if (m) { csrf = m[1]; const meta = document.querySelector('meta[name="csrf-token"]'); if (meta) meta.content = csrf; return true; }
+        } catch(e){}
+        return false;
+    }
+    async function post(url, data, retried){
         const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':csrf,'X-Requested-With':'XMLHttpRequest'}, credentials:'same-origin', body: JSON.stringify(data||{}) });
-        if (r.status === 419) return { reply: 'Your session expired. Please refresh the page and try again.' };
+        if (r.status === 419) {
+            if (!retried && await refreshCsrf()) return post(url, data, true);
+            return { reply: 'Your session expired. Please refresh the page and try again.' };
+        }
+        if (r.status === 401) return { reply: 'You have been logged out. Please log in again.' };
+        if (r.status === 429) return { reply: 'Too many messages in a short time. Please wait a minute and try again.' };
         try { return await r.json(); } catch(e){ return { reply: 'Something went wrong (' + r.status + '). Please try again.' }; }
+    }
+    function chips(list){
+        body.querySelectorAll('.xa-chips').forEach(c => c.remove());
+        if (!list || !list.length) return;
+        const c = document.createElement('div'); c.className = 'xa-chips';
+        list.forEach(t => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; c.appendChild(b); });
+        body.appendChild(c); body.scrollTop = body.scrollHeight;
     }
     function card(p){
         const c = document.createElement('div'); c.className = 'xa-card';
         c.innerHTML = '<b>' + esc(p.title) + '</b><pre>' + esc(p.summary) + '</pre><div class="xa-btns"><button type="button" class="ok">Confirm</button><button type="button">Cancel</button></div>';
         const [ok, no] = c.querySelectorAll('button');
-        const go = async (decision) => { ok.disabled = no.disabled = true; const r = await post(R.confirm, { token: p.token, decision }); c.remove(); add(r.reply || 'Done.', 'bot'); };
+        const go = async (decision) => { ok.disabled = no.disabled = true; const r = await post(R.confirm, { token: p.token, decision }); c.remove(); add(r.reply || 'Done.', 'bot'); chips(MENU); };
         ok.onclick = () => go('confirm'); no.onclick = () => go('cancel');
         body.appendChild(c); body.scrollTop = body.scrollHeight;
     }
     async function send(text){
         text = (text || '').trim(); if (!text || busy) return;
-        busy = true; $('xa-chips')?.remove(); add(text, 'me'); input.value = '';
+        busy = true; body.querySelectorAll('.xa-chips').forEach(c => c.remove()); add(text, 'me'); input.value = '';
         const t = document.createElement('div'); t.className = 'xa-typing'; t.textContent = 'Thinking…'; body.appendChild(t); body.scrollTop = body.scrollHeight;
-        try { const r = await post(R.chat, { message: text }); t.remove(); add(r.reply || '…', 'bot'); if (r.pending) card(r.pending); }
+        try { const r = await post(R.chat, { message: text }); t.remove(); add(r.reply || '…', 'bot'); if (r.pending) card(r.pending); chips(r.chips); }
         catch(e){ t.remove(); add('Network problem. Please check your internet and try again.', 'bot'); }
         busy = false; input.focus();
     }
     $('xa-fab').onclick = () => { panel.classList.toggle('open'); if (panel.classList.contains('open')) input.focus(); };
     $('xa-close').onclick = () => panel.classList.remove('open');
-    $('xa-new').onclick = async () => { await post(R.reset); body.innerHTML = ''; add('New chat started. How can I help?', 'bot'); };
+    const MENU = ['Wallet balance', 'Track my latest shipment', 'Why did my orders fail?', 'Shipment summary', 'Raise a ticket', 'Cancel an order', 'Create a new order'];
+    $('xa-new').onclick = async () => { await post(R.reset); body.innerHTML = ''; add('New chat started. How can I help?', 'bot'); chips(MENU); };
     $('xa-form').onsubmit = e => { e.preventDefault(); send(input.value); };
     input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input.value); } });
-    body.addEventListener('click', e => { if (e.target.closest('#xa-chips button')) send(e.target.textContent); });
+    body.addEventListener('click', e => { const b = e.target.closest('.xa-chips button'); if (b) send(b.textContent); });
 })();
 </script>
 </div>
