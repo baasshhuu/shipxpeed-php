@@ -77,6 +77,29 @@ for f in $FILES; do
   rm -f "$P"
 done
 
+# Fallbacks for the two files ShipCorrect cannot work without, when the live copy was too different to patch
+if ! grep "admin.shipcorrect.index" routes/admin.php >/dev/null 2>&1; then
+  cat >> routes/admin.php <<'PHPEOF'
+
+// ShipCorrect aggregator: key, connection, rate test, tracking test, API log
+Route::middleware(['auth', 'permission', 'authCheck', 'verified'])->group(function () {
+    Route::get('shipcorrect', [\App\Http\Controllers\admin\ShipCorrectController::class, 'index'])->name('admin.shipcorrect.index');
+    Route::post('shipcorrect/settings', [\App\Http\Controllers\admin\ShipCorrectController::class, 'saveKey'])->name('admin.shipcorrect.settings');
+    Route::post('shipcorrect/rate-test', [\App\Http\Controllers\admin\ShipCorrectController::class, 'rateTest'])->name('admin.shipcorrect.rate-test');
+    Route::post('shipcorrect/track-test', [\App\Http\Controllers\admin\ShipCorrectController::class, 'trackTest'])->name('admin.shipcorrect.track-test');
+    Route::get('shipcorrect/log/{id}', [\App\Http\Controllers\admin\ShipCorrectController::class, 'logShow'])->whereNumber('id')->name('admin.shipcorrect.log');
+});
+PHPEOF
+  echo "routes/admin.php: ShipCorrect routes appended"
+fi
+if ! grep "ShipCorrectService" config/couriers.php >/dev/null 2>&1; then
+  LAST=$(grep -n '^[[:space:]]*\];' config/couriers.php | tail -1 | cut -d: -f1)
+  [ -n "$LAST" ] && sed -i "${LAST}i\\    'shipcorrect' => \\\\App\\\\Services\\\\ShipCorrectService::class," config/couriers.php && echo "config/couriers.php: shipcorrect added"
+fi
+
+echo "Patched:${DONE:- none}"
+[ -n "$SKIP" ] && echo "SKIPPED (live file too different - send this list to Claude):$SKIP"
+
 for f in $FILES; do
   case "$f" in *.blade.php) ;; *.php) [ -e "$f" ] && { php -l "$f" >/dev/null 2>&1 || { echo "LINT FAIL: $f"; restore; }; } ;; esac
 done
@@ -102,8 +125,7 @@ case "$ROUTES" in *ROUTE_OK*) echo "Admin routes: OK" ;; *) echo "FAIL: admin ro
 for svc in $(systemctl list-units --type=service --no-legend 'php*-fpm*' 2>/dev/null | awk '{print $1}'); do systemctl reload "$svc" 2>/dev/null && echo "Reloaded $svc"; done
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null
 
-echo "Updated:${DONE:- none}"
-[ -n "$SKIP" ] && echo "SKIPPED (live file too different, send this output to Claude):$SKIP"
+[ -n "$SKIP" ] && echo "SKIPPED (send this list to Claude):$SKIP"
 
 echo "--- live self-test ---"
 php artisan tinker --execute='
