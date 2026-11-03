@@ -569,16 +569,12 @@ class SellerSuiteController extends Controller
     public function earlyCod(Request $request)
     {
         $seller = $this->seller();
-        $data = $request->validate(['plan' => 'required|in:d2,d3,d4,stop']);
-        if ($data['plan'] === 'stop') {
-            Protection::saveService((int) $seller->id, ['early_cod_status' => 'stopped', 'early_cod_decided_at' => now()]);
-            return back()->with('success', 'Early COD stopped. Your COD goes back to the normal remittance cycle.');
-        }
-        if (Kit::setting('early_cod_enabled') !== '1') {
-            return back()->with('error', 'Early COD is not open for new requests right now.');
-        }
-        Protection::saveService((int) $seller->id, ['early_cod_plan' => $data['plan'], 'early_cod_status' => 'requested', 'early_cod_requested_at' => now(), 'early_cod_note' => null]);
-        return back()->with('success', 'Request sent. Shipxpeed will review it within one working day.');
+        $data = $request->validate(['plan' => 'required|in:d2,d4,d7,stop']);
+        $plan = $data['plan'] === 'stop' ? 'd7' : $data['plan'];
+        \App\Support\Cod\CodRemittance::setPlan((int) $seller->id, $plan);
+        return back()->with('success', $plan === 'd7'
+            ? 'Back on D+7 standard COD remittance (no deduction).'
+            : 'Early COD D+' . (\App\Support\Cod\CodRemittance::plans()[$plan]['days']) . ' is active for COD delivered from today.');
     }
 
     public function claim(Request $request)

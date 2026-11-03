@@ -23,10 +23,10 @@ class Kit
         'protection_min_fee'      => '15',     // ₹ per shipment
         'protection_min_value'    => '2500',   // only orders at/above this value are protected
         'protection_max_cover'    => '50000',  // highest payout per shipment
-        'early_cod_enabled'       => '0',
-        'early_cod_d2_pct'        => '1.50',   // fee as % of the COD amount remitted early
-        'early_cod_d3_pct'        => '1.00',
-        'early_cod_d4_pct'        => '0.75',
+        'early_cod_enabled'       => '1',      // sellers switch early COD on themselves (COD module)
+        'early_cod_d2_pct'        => '1.29',   // fee as % of the COD amount, cut from the payout
+        'early_cod_d3_pct'        => '0',      // retired plan
+        'early_cod_d4_pct'        => '0.99',
         'claim_window_days'       => '30',
         'ndr_seller_actions'      => '1',
     ];

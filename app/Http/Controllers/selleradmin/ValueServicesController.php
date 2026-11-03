@@ -126,17 +126,15 @@ class ValueServicesController extends Controller
     private function earlyCod(int $sid): array
     {
         $svc = Protection::service($sid);
-        $plan = $svc->early_cod_plan;
-        $due = ($svc->early_cod_status === 'active' && $plan) ? Protection::earlyCodDue($sid, $plan) : collect();
-        $pending = Kit::hasCol('orders', 'delivered_date')
-            ? (float) Order::where('seller_id', $sid)->where('payment_type', 'cod')->whereNotNull('delivered_date')
-                ->where(fn ($q) => $q->whereNull('payment_status')->orWhere('payment_status', '!=', 'Paid'))
-                ->sum('collectable_amount')
-            : 0.0;
+        $cod = \App\Support\Cod\CodRemittance::class;
+        $ready = Kit::ready('cod_remittances');
+        $today = now()->toDateString();
+        $pending = $ready ? (float) \DB::table('cod_remittances')->where('seller_id', $sid)->where('status', 'pending')->sum('net_payable') : 0.0;
+        $dueQ = $ready ? \DB::table('cod_remittances')->where('seller_id', $sid)->where('status', 'pending')->where('due_on', '<=', $today) : null;
         return [
-            'svc' => $svc, 'plans' => Protection::earlyCodPlans(), 'open' => Kit::setting('early_cod_enabled') === '1',
-            'dueAmount' => (float) $due->sum('collectable_amount'), 'dueCount' => $due->count(), 'pendingCod' => $pending,
-            'action' => Route::has('xp.protection.earlycod') ? route('xp.protection.earlycod') : null,
+            'svc' => $svc, 'plans' => $cod::plans(), 'plan' => $cod::sellerPlan($sid), 'open' => true,
+            'dueAmount' => $dueQ ? (float) (clone $dueQ)->sum('net_payable') : 0.0, 'dueCount' => $dueQ ? (clone $dueQ)->count() : 0, 'pendingCod' => $pending,
+            'action' => Route::has('seller.cod.plan') ? route('seller.cod.plan') : null,
         ];
     }
 

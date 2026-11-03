@@ -70,20 +70,7 @@
                                 <td>@if($s->early_cod_status)<span class="pill {{ $ec }}">{{ $el }}</span> D+{{ $plans[$s->early_cod_plan]['days'] ?? '?' }} @else — @endif</td>
                                 <td class="small">@if($due){{ $due['count'] }} orders · {{ Kit::money($due['amount']) }}<br>fee {{ Kit::money($due['fee']) }} ({{ $due['pct'] }}%)@else — @endif</td>
                                 <td>
-                                    @if($s->early_cod_status === 'requested')
-                                        <form method="POST" action="{{ route('admin.xp.earlycod.decide', $s->seller_id) }}" class="d-flex gap-1">@csrf
-                                            <input name="note" class="form-control form-control-sm" placeholder="Note (optional)">
-                                            <button name="decision" value="approve" class="btn btn-sm btn-success">Approve</button>
-                                            <button name="decision" value="reject" class="btn btn-sm btn-outline-danger">Reject</button></form>
-                                    @elseif($s->early_cod_status === 'active')
-                                        @if($due && $due['count'])
-                                            <a class="btn btn-sm btn-outline-secondary py-0" href="{{ route('admin.xp.earlycod.export', $s->seller_id) }}">Download due list</a>
-                                            <form method="POST" action="{{ route('admin.xp.earlycod.remit', $s->seller_id) }}" class="d-flex gap-1 mt-1" onsubmit="return confirm('Mark these COD orders as remitted and debit the fee?')">@csrf
-                                                <input name="utr" required class="form-control form-control-sm" placeholder="Bank UTR after paying">
-                                                <button class="btn btn-sm btn-primary">Mark remitted</button></form>
-                                        @endif
-                                        <form method="POST" action="{{ route('admin.xp.earlycod.decide', $s->seller_id) }}" class="mt-1">@csrf<button name="decision" value="stop" class="btn btn-sm btn-link p-0 text-danger">Stop early COD</button></form>
-                                    @endif
+                                    @if(Route::has('codremittance.index'))<a class="btn btn-sm btn-outline-secondary py-0" href="{{ route('codremittance.index', ['seller' => $s->seller_id]) }}">COD remittance</a>@endif
                                 </td>
                             </tr>
                         @empty
@@ -92,7 +79,7 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="small text-muted mt-2">Flow: pay the due COD to the seller's bank (download the list for amounts and bank details), then enter the UTR and press "Mark remitted" — those orders become Paid and the early-COD fee is debited from the seller's wallet.</div>
+                <div class="small text-muted mt-2">Sellers switch Early COD on themselves. Payouts, deductions and "mark paid" are on the COD remittance page.</div>
             </div>
         </div>
     </div>
@@ -111,10 +98,9 @@
                     <div class="col-6"><label class="form-label small">Max payout ₹</label><input name="protection_max_cover" type="number" step="0.01" class="form-control form-control-sm" value="{{ $set('protection_max_cover') }}"></div>
                     <div class="col-12"><label class="form-label small">Claim window (days after booking)</label><input name="claim_window_days" type="number" class="form-control form-control-sm" value="{{ $set('claim_window_days') }}"></div>
                     <div class="col-12 fw-semibold mt-2">Early COD</div>
-                    <div class="col-12"><select name="early_cod_enabled" class="form-select form-select-sm"><option value="1" @selected($set('early_cod_enabled') === '1')>Open for requests</option><option value="0" @selected($set('early_cod_enabled') !== '1')>Closed</option></select></div>
-                    <div class="col-4"><label class="form-label small">D+2 fee %</label><input name="early_cod_d2_pct" type="number" step="0.01" class="form-control form-control-sm" value="{{ $set('early_cod_d2_pct') }}"></div>
-                    <div class="col-4"><label class="form-label small">D+3 fee %</label><input name="early_cod_d3_pct" type="number" step="0.01" class="form-control form-control-sm" value="{{ $set('early_cod_d3_pct') }}"></div>
-                    <div class="col-4"><label class="form-label small">D+4 fee %</label><input name="early_cod_d4_pct" type="number" step="0.01" class="form-control form-control-sm" value="{{ $set('early_cod_d4_pct') }}"></div>
+                    <div class="col-12"><select name="early_cod_enabled" class="form-select form-select-sm"><option value="1" @selected($set('early_cod_enabled') === '1')>Open (sellers activate themselves)</option><option value="0" @selected($set('early_cod_enabled') !== '1')>Closed</option></select></div>
+                    <div class="col-6"><label class="form-label small">D+4 deduction %</label><input name="early_cod_d4_pct" type="number" step="0.01" class="form-control form-control-sm" value="{{ $set('early_cod_d4_pct') }}"></div>
+                    <div class="col-6"><label class="form-label small">D+2 deduction %</label><input name="early_cod_d2_pct" type="number" step="0.01" class="form-control form-control-sm" value="{{ $set('early_cod_d2_pct') }}"></div>
                     <div class="col-12 mt-2"><button class="btn btn-primary btn-sm w-100" @disabled(!$ready)>Save settings</button></div>
                 </form>
             </div>

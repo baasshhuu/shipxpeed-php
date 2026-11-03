@@ -95,9 +95,8 @@ class Protection
     public static function earlyCodPlans(): array
     {
         return [
-            'd2' => ['days' => 2, 'pct' => Kit::num('early_cod_d2_pct')],
-            'd3' => ['days' => 3, 'pct' => Kit::num('early_cod_d3_pct')],
             'd4' => ['days' => 4, 'pct' => Kit::num('early_cod_d4_pct')],
+            'd2' => ['days' => 2, 'pct' => Kit::num('early_cod_d2_pct')],
         ];
     }
 
