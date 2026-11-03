@@ -42,13 +42,25 @@ class WalletRechargeController extends Controller
 
         if (!$this->cashfree->isConfigured()) {
             Log::error('Cashfree PG keys missing (CASHFREE_PG_APP_ID / CASHFREE_PG_SECRET_KEY)');
-            return back()->with('error', 'Online recharge is temporarily unavailable. Please contact support.');
+            return back()->with('error', 'Online recharge is temporarily unavailable. Please contact support.')->with('recharge_error', true);
         }
 
         $phone = preg_replace('/\D/', '', (string) ($seller->phone ?? $seller->phone_number ?? ''));
         $phone = substr($phone, -10);
+        // sx-recharge-phone-v1: take the mobile from the Recharge window when the profile has none, and save it
+        if (strlen($phone) !== 10 && $request->filled('phone')) {
+            $typed = substr(preg_replace('/\D/', '', (string) $request->input('phone')), -10);
+            if (preg_match('/^[6-9]\d{9}$/', $typed)) {
+                $phone = $typed;
+                try {
+                    $seller->forceFill(['phone_number' => $typed])->save();
+                } catch (\Throwable $e) {
+                    Log::warning('Could not save seller mobile from recharge', ['seller_id' => $seller->id, 'error' => $e->getMessage()]);
+                }
+            }
+        }
         if (strlen($phone) !== 10) {
-            return back()->with('error', 'Please add a valid 10-digit mobile number to your profile before recharging.');
+            return back()->withInput()->with('error', 'Please enter a valid 10-digit mobile number. Cashfree needs it to process the payment.')->with('recharge_error', true);
         }
 
         $amount = round((float) $validated['amount'], 2);
@@ -93,7 +105,7 @@ class WalletRechargeController extends Controller
                 ]);
             } catch (\Throwable $e) {
                 $recharge->update(['gateway_status' => 'ORDER_FAILED']);
-                return back()->with('error', 'Could not start payment: ' . $e->getMessage());
+                return back()->with('error', 'Could not start payment: ' . $e->getMessage())->with('recharge_error', true);
             }
 
             $recharge->update(['gateway_order_id' => $linkId, 'gateway_status' => 'ACTIVE']);
@@ -127,7 +139,7 @@ class WalletRechargeController extends Controller
             ]);
         } catch (\Throwable $e) {
             $recharge->update(['gateway_status' => 'ORDER_FAILED']);
-            return back()->with('error', 'Could not start payment: ' . $e->getMessage());
+            return back()->with('error', 'Could not start payment: ' . $e->getMessage())->with('recharge_error', true);
         }
 
         $recharge->update(['gateway_order_id' => $orderId, 'gateway_status' => 'ACTIVE']);

@@ -40,6 +40,18 @@
                 <!-- Recharge Form -->
                 <form method="POST" action="{{ route('recharge.add') }}" enctype="multipart/form-data">
                     @csrf
+                    {{-- sx-recharge-phone-v1 --}}
+                    @php $sxPhone = substr(preg_replace('/\D/', '', (string) (auth('seller')->user()->phone_number ?? '')), -10); @endphp
+                    @if (session('recharge_error') && session('error'))
+                        <div class="alert alert-danger py-2 small mb-3" id="sxRechargeErr">{{ session('error') }}</div>
+                    @endif
+                    @if (strlen($sxPhone) !== 10)
+                        <div class="mb-3">
+                            <label for="sxRechargePhone" class="form-label">Mobile number <span class="text-danger">*</span></label>
+                            <input type="tel" class="form-control" id="sxRechargePhone" name="phone" value="{{ old('phone') }}" inputmode="numeric" pattern="[6-9][0-9]{9}" maxlength="10" placeholder="10-digit mobile number" required>
+                            <div class="form-text">Needed by the payment gateway. Saved to your profile.</div>
+                        </div>
+                    @endif
 
                     <div class="mb-3">
                         <label for="amount" class="form-label">Amount <span class="text-danger">*</span></label>
@@ -150,4 +162,14 @@
     layout_rtl_change('false');
     preset_change("preset-1");
     font_change("Public-Sans");
+</script>
+
+{{-- sx-recharge-phone-v1: reopen the Recharge window when it returned an error --}}
+<script>
+window.addEventListener('load', function () {
+    var err = document.getElementById('sxRechargeErr');
+    if (!err || !window.bootstrap) return;
+    var modal = err.closest('.modal');
+    if (modal) bootstrap.Modal.getOrCreateInstance(modal).show();
+});
 </script>
