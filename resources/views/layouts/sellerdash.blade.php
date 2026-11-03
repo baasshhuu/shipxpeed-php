@@ -630,6 +630,7 @@
     </header>
 
     @yield('content')
+    @includeIf('partials.status-pills-css')
 
     @include('partial.sellerdash.common.footer')
     
