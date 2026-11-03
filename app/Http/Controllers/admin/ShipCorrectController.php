@@ -66,7 +66,7 @@ class ShipCorrectController extends Controller
         if (!$row) {
             return redirect()->route('admin.shipcorrect.index')->with('error', 'ShipCorrect courier row missing - run php artisan migrate.');
         }
-        $update = ['status' => (int) $data['status'], 'updated_at' => now()];
+        $update = ['status' => $data['status'] === '1' ? 'active' : 'inactive', 'updated_at' => now()];
         if (filled($data['api_key'] ?? null)) {
             if (!Schema::hasColumn('logistic_providers', 'api_key')) {
                 return redirect()->route('admin.shipcorrect.index')->with('error', 'logistic_providers has no api_key column - put SHIPCORRECT_API_KEY in .env instead.');

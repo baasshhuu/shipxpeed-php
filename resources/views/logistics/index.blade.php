@@ -66,7 +66,7 @@
            <td>{{ $brand->email}}</td>
 
             <td>
-                @if($brand->status == '1')
+                @if(in_array((string) $brand->status, ['1', 'active'], true))
                     <a class="btn btn-success btn-round btn-xs"
                     href="{{ route('logistics.status', [$brand->id, '0']) }}">
                         Active

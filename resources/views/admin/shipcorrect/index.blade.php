@@ -31,7 +31,7 @@
             </div>
             <div class="col-md-3"><div class="text-muted small">Panel courier</div>
                 @if($provider)
-                    <span class="fs-pill {{ (string) $provider->status === '1' ? 'fs-ok' : 'fs-warn' }}">logistic_providers #{{ $provider->id }} · {{ (string) $provider->status === '1' ? 'on' : 'off' }}</span>
+                    <span class="fs-pill {{ in_array((string) $provider->status, ['1', 'active'], true) ? 'fs-ok' : 'fs-warn' }}">logistic_providers #{{ $provider->id }} · {{ in_array((string) $provider->status, ['1', 'active'], true) ? 'on' : 'off' }}</span>
                 @else<span class="fs-pill fs-bad">Run php artisan migrate</span>@endif
             </div>
         </div>
@@ -43,8 +43,8 @@
                 <input name="api_key" type="password" autocomplete="off" class="form-control form-control-sm" placeholder="{{ $configured ? 'Saved — leave blank to keep' : 'Paste API key' }}"></div>
             <div class="col-6 col-md-3"><label class="form-label small">ShipCorrect in panel</label>
                 <select name="status" class="form-select form-select-sm">
-                    <option value="1" @selected((string) $provider->status === '1')>On</option>
-                    <option value="0" @selected((string) $provider->status !== '1')>Off</option>
+                    <option value="1" @selected(in_array((string) $provider->status, ['1', 'active'], true))>On</option>
+                    <option value="0" @selected(!in_array((string) $provider->status, ['1', 'active'], true))>Off</option>
                 </select></div>
             <div class="col-6 col-md-3"><button class="btn btn-sm btn-primary w-100">Save</button></div>
         </form>
