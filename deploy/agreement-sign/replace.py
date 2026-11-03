@@ -11,7 +11,7 @@ for i in range(s0, len(L)):
     if '{' in L[i]: started = True
     if started and depth == 0: e = i; break
 if e is None: sys.exit('FAIL: end of acceptAgreement not found')
-if 'CashfreeController::sessionKey' in '\n'.join(L[s0:e+1]):
+if 'aadhaar-sign-v2' in '\n'.join(L[s0:e+1]):
     print('already up to date'); sys.exit(0)
 L[s0:e+1] = open(newfn, encoding='utf-8').read().rstrip('\n').split('\n')
 open(target, 'w', encoding='utf-8').write('\n'.join(L))
