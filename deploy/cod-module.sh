@@ -32,13 +32,18 @@ echo "Shipxpeed COD module installer"
 git fetch -q origin || { echo "FAIL: git fetch"; exit 1; }
 git cat-file -e "$REF:deploy/cod-module.sh" || { echo "FAIL: latest code not found on $REF"; exit 1; }
 
-EXIST=""; for f in $FILES; do [ -e "$f" ] && EXIST="$EXIST $f"; done
-tar czf "$BK" $EXIST && echo "Backup: $BK"
+EXIST=""; NEW=""
+for f in $FILES; do if [ -e "$f" ]; then EXIST="$EXIST $f"; else NEW="$NEW $f"; fi; done
+tar czf "$BK" $EXIST || { echo "FAIL: backup"; exit 1; }
+echo "Backup: $BK"
 restore() {
-  echo "!! restoring backup"; tar xzf "$BK"
-  for f in $FILES; do tar tzf "$BK" | grep -qx "$f" || rm -f "$f"; done
+  echo "!! restoring backup"
+  tar xzf "$BK"
+  for f in $NEW; do rm -f "$f"; done       # only files that did not exist before
   php artisan route:clear >/dev/null 2>&1; php artisan view:clear >/dev/null 2>&1; php artisan config:clear >/dev/null 2>&1
-  echo "RESTORED - nothing changed (the two new COD tables, if created, are empty and harmless)"; exit 1
+  chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
+  echo "RESTORED - site back as it was. login: $(curl -s -o /dev/null -w '%{http_code}' https://shipxpeed.tech/login)"
+  exit 1
 }
 
 for f in $FILES; do mkdir -p "$(dirname "$f")"; git show "$REF:$f" > "$f" || restore; done
@@ -59,15 +64,15 @@ $k = app(Illuminate\Contracts\Http\Kernel::class);
 Auth::guard("web")->setUser(App\Models\User::first());
 foreach (["/codremittance", "/codremittance?tab=upcoming", "/codremittance?tab=payouts", "/codremittance?tab=orders", "/dashboard"] as $u) {
   $res = $k->handle(Illuminate\Http\Request::create("https://shipxpeed.tech" . $u));
-  $c = $res->getStatusCode();
-  echo "CHK admin " . $u . " " . $c . ($c >= 500 ? " ERR " . substr(strip_tags((string) $res->getContent()), 0, 300) : "") . PHP_EOL;
+  $c = $res->getStatusCode(); $x = $res->exception ?? null;
+  echo "CHK admin " . $u . " " . $c . ($c >= 500 && $x ? " ERR " . get_class($x) . ": " . substr($x->getMessage(), 0, 400) . " @ " . str_replace(base_path() . "/", "", $x->getFile()) . ":" . $x->getLine() : "") . PHP_EOL;
 }
 $s = App\Models\SellerList::where("status", 1)->first() ?? App\Models\SellerList::first();
 Auth::guard("seller")->setUser($s);
 foreach (["/seller/cod-remittance", "/seller/cod-remittance?tab=payouts"] as $u) {
   $res = $k->handle(Illuminate\Http\Request::create("https://shipxpeed.tech" . $u));
-  $c = $res->getStatusCode();
-  echo "CHK seller " . $u . " " . $c . ($c >= 500 ? " ERR " . substr(strip_tags((string) $res->getContent()), 0, 300) : "") . PHP_EOL;
+  $c = $res->getStatusCode(); $x = $res->exception ?? null;
+  echo "CHK seller " . $u . " " . $c . ($c >= 500 && $x ? " ERR " . get_class($x) . ": " . substr($x->getMessage(), 0, 400) . " @ " . str_replace(base_path() . "/", "", $x->getFile()) . ":" . $x->getLine() : "") . PHP_EOL;
 }
 echo "CMD " . (array_key_exists("cod:run", Artisan::all()) ? "ok" : "missing") . PHP_EOL;
 ' 2>&1 | grep -E "^(TBL|PLAN|RUN|STAT|CHK|CMD)|Error|Exception")
@@ -79,4 +84,7 @@ echo "$OUT" | grep -q "^CHK seller /seller/cod-remittance 200" || { echo "seller
 echo "$OUT" | grep -q "^CMD ok" || { echo "cod:run command not registered"; restore; }
 
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
+LIVE=$(curl -s -o /dev/null -w '%{http_code}' https://shipxpeed.tech/login)
+echo "Live login page: $LIVE"
+[ "$LIVE" = "200" ] || { echo "live site check failed"; restore; }
 echo "DONE. COD runs every 30 minutes with the scheduler. Backup kept at $BK"
