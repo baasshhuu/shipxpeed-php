@@ -212,7 +212,7 @@ class AssistantController extends Controller
         if ($has(['fail', 'error', 'reject', 'not book', 'nahi hua', 'nhi hua', 'stuck'])) {
             $r = $this->findOrders(['status' => 'failed', 'limit' => 5], $seller);
             if (!$r['count']) return $this->say('Good news: none of your recent orders failed to book.', self::MENU);
-            $lines = array_map(fn ($o) => '• #' . $o['order_number'] . ($o['buyer'] ? ' (' . $o['buyer'] . ')' : '') . "\n  Reason: " . $this->plainReason($o['booking_failure_reason']), $r['orders']);
+            $lines = array_map(fn ($o) => '• #' . ltrim((string) $o['order_number'], '#') . ($o['buyer'] ? ' (' . $o['buyer'] . ')' : '') . "\n  Reason: " . $this->plainReason($o['booking_failure_reason']), $r['orders']);
             return $this->say("Orders that failed to book:\n" . implode("\n", $lines) . "\n\nFix the details on New Orders and tap Ship Now again: " . url('/seller/order'), ['Raise a ticket', 'Menu']);
         }
         if ($has(['wallet', 'balance', 'recharge', 'paisa', 'paise', 'money', 'debit', 'credit'])) {
@@ -237,7 +237,7 @@ class AssistantController extends Controller
         }
         if ($has(['track', 'status', 'where', 'kahan', 'kaha', 'shipment', 'parcel', 'latest', 'awb'])) {
             $r = $this->findOrders(['status' => 'any', 'limit' => 10], $seller);
-            $o = collect($r['orders'])->firstWhere('awb', '!=', null);
+            $o = collect($r['orders'])->first(fn ($x) => $x['awb'] && !preg_match('/cancel/i', (string) $x['status'])) ?: collect($r['orders'])->firstWhere('awb', '!=', null);
             if (!$o) return $this->say('You have no booked shipments yet. Type an order number to check a specific order.', self::MENU);
             return $this->say("Your latest shipment:\n" . $this->orderText($this->resolveOrder((string) $o['id'], $seller)) . "\n\nTo track another, type its AWB or order number.", ['Menu']);
         }
@@ -271,7 +271,7 @@ class AssistantController extends Controller
     {
         $r = $this->findOrders(['status' => $status, 'limit' => 5], $seller);
         if (!$r['count']) return $this->say('No ' . strtolower($title) . ' right now.', self::MENU);
-        $lines = array_map(fn ($o) => '• #' . $o['order_number'] . ' | ' . ($o['awb'] ?: 'no AWB') . ($o['courier'] ? ' | ' . $o['courier'] : '') . ($o['buyer'] ? ' | ' . $o['buyer'] : ''), $r['orders']);
+        $lines = array_map(fn ($o) => '• #' . ltrim((string) $o['order_number'], '#') . ' | ' . ($o['awb'] ?: 'no AWB') . ($o['courier'] ? ' | ' . $o['courier'] : '') . ($o['buyer'] ? ' | ' . $o['buyer'] : ''), $r['orders']);
         return $this->say($title . ":\n" . implode("\n", $lines) . ($link ? "\n\nManage them here: {$link}" : "\n\nType an AWB to see full details."), self::MENU);
     }
 
@@ -279,7 +279,7 @@ class AssistantController extends Controller
     {
         if (!$o) return 'Order not found.';
         $d = $this->getOrder((string) $o->id, $this->seller());
-        $t = 'Order #' . $d['order_number']
+        $t = 'Order #' . ltrim((string) $d['order_number'], '#')
             . "\nStatus: " . ucwords((string) $d['status'])
             . ($d['awb'] ? "\nAWB: {$d['awb']}" : '')
             . ($d['courier'] ? "\nCourier: {$d['courier']}" : '')
