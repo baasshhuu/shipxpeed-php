@@ -69,11 +69,12 @@ class SellerCodController extends Controller
             Cod::refresh($sid);
             $today = now()->toDateString();
             $all = DB::table('cod_remittances')->where('seller_id', $sid)->selectRaw(
-                "COUNT(*) AS orders, COALESCE(SUM(cod_amount),0) AS generated, COALESCE(SUM(fee_amount),0) AS fee, COALESCE(SUM(wallet_adjusted),0) AS adj,
+                "COUNT(*) AS orders, COALESCE(SUM(cod_amount),0) AS cod_total, COALESCE(SUM(fee_amount),0) AS fee, COALESCE(SUM(wallet_adjusted),0) AS adj,
                  COALESCE(SUM(CASE WHEN status='paid' THEN net_payable END),0) AS paid,
                  COALESCE(SUM(CASE WHEN status='pending' AND due_on > ? THEN net_payable END),0) AS upcoming,
                  COALESCE(SUM(CASE WHEN status='pending' AND due_on <= ? THEN net_payable END),0) AS due", [$today, $today])->first();
             $sum = array_map('floatval', (array) $all);
+            $sum['generated'] = $sum['cod_total'];
 
             $next = DB::table('cod_remittances')->where('seller_id', $sid)->where('status', 'pending')->where('net_payable', '>', 0)
                 ->selectRaw('due_on, SUM(net_payable) AS amount, COUNT(*) AS orders')->groupBy('due_on')->orderBy('due_on')->first();

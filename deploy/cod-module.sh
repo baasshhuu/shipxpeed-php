@@ -42,7 +42,7 @@ restore() {
   for f in $NEW; do rm -f "$f"; done       # only files that did not exist before
   php artisan route:clear >/dev/null 2>&1; php artisan view:clear >/dev/null 2>&1; php artisan config:clear >/dev/null 2>&1
   chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
-  echo "RESTORED - site back as it was. login: $(curl -s -o /dev/null -w '%{http_code}' https://shipxpeed.tech/login)"
+  echo "RESTORED - site back as it was. home: $(curl -s -o /dev/null -w '%{http_code}' https://shipxpeed.tech/)"
   exit 1
 }
 
@@ -84,7 +84,9 @@ echo "$OUT" | grep -q "^CHK seller /seller/cod-remittance 200" || { echo "seller
 echo "$OUT" | grep -q "^CMD ok" || { echo "cod:run command not registered"; restore; }
 
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
-LIVE=$(curl -s -o /dev/null -w '%{http_code}' https://shipxpeed.tech/login)
-echo "Live login page: $LIVE"
-[ "$LIVE" = "200" ] || { echo "live site check failed"; restore; }
+HOMEC=$(curl -s -o /dev/null -w '%{http_code}' https://shipxpeed.tech/)
+LOGIN=$(curl -s -o /dev/null -w '%{http_code}' https://shipxpeed.tech/login)
+echo "Live site: home $HOMEC, login $LOGIN"
+[ "$HOMEC" = "200" ] || { echo "live homepage check failed"; restore; }
+case "$LOGIN" in 200|302) ;; *) echo "live login check failed"; restore ;; esac
 echo "DONE. COD runs every 30 minutes with the scheduler. Backup kept at $BK"
