@@ -148,7 +148,7 @@ class AccountController extends Controller
         $w->seller_id = $s->id;
         $w->address_title = $d['name'];
         $w->name = $d['contact_name'];
-        $w->phone = preg_replace('/^(\+?91)/', '', $d['phone']);
+        $w->phone = Respond::phone10($d['phone']);
         $w->email = $d['email'] ?? ($s->email ?: 'support@shipxpeed.com');
         $w->address_line1 = $d['address'];
         $w->address_line2 = $d['address_2'] ?? '';
