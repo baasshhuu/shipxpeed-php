@@ -45,6 +45,10 @@ class ApiV1Auth
         if (!$seller) {
             return Respond::error('Invalid API key.', 401, 'unauthenticated');
         }
+        // Keys from the old generator were base64("<seller id>|<timestamp>"): guessable, so not accepted here.
+        if (self::isLegacyKey($key)) {
+            return Respond::error('This API key is outdated. Generate a new key in Seller panel > API.', 401, 'key_outdated');
+        }
         if ((string) $seller->status !== '1') {
             return Respond::error('This account is not active. Contact support@shipxpeed.com.', 403, 'account_inactive');
         }
@@ -74,6 +78,15 @@ class ApiV1Auth
         self::log($request, $response, (int) $seller->id, $started);
 
         return $response;
+    }
+
+    public static function isLegacyKey(string $key): bool
+    {
+        if (str_starts_with($key, 'sxp_')) {
+            return false;
+        }
+        $decoded = base64_decode($key, true);
+        return $decoded !== false && (bool) preg_match('/^\d+\|/', $decoded);
     }
 
     public static function keyFrom(Request $request): string

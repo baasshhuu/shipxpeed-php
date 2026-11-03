@@ -193,6 +193,15 @@ c=$(code -X POST -H 'Accept: application/json' "$SITE/api/serviceability");     
 # 5b. existing old-API Delhivery orders still in transit (last 30 days) -> start getting tracking updates
 php deploy/old-api-delhivery-backfill.php --apply 2>&1 | sed 's/^/     /'
 
+# 5c. API keys: every account has its own; count old guessable keys (refused by v1 until regenerated)
+php -r '
+require "vendor/autoload.php"; $a = require "bootstrap/app.php"; $a->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$all = App\Models\SellerList::whereNotNull("api_token")->where("api_token", "!=", "")->pluck("api_token", "id");
+$old = $all->filter(fn ($k) => App\Http\Middleware\ApiV1Auth::isLegacyKey((string) $k));
+$dup = $all->count() - $all->unique()->count();
+echo "     API keys: " . $all->count() . " accounts have a key, " . $old->count() . " old-style (must regenerate in Seller panel > API to use v1)"
+   . ($old->count() ? ": seller IDs " . $old->keys()->take(30)->implode(", ") : "") . ($dup ? ". WARNING: $dup shared keys" : ", no shared keys") . ".\n";' 2>/dev/null
+
 # 6. read-only test with a real account (nothing is booked or changed)
 KEY=${SMOKE_KEY:-$(php -r '
 require "vendor/autoload.php"; $a = require "bootstrap/app.php"; $a->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
