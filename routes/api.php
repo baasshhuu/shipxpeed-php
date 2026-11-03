@@ -182,3 +182,6 @@ Route::post('/assign-order', function () {
 
 Route::get('/shopify/install', [App\Http\Controllers\Api\ShopifyController::class, 'shopifyInstall']);
 Route::get('/shopify/callback', [App\Http\Controllers\Api\ShopifyController::class, 'shopifyCallback']);
+
+// Shipxpeed API v1 (clean, versioned API for client integrations). Docs: /developers
+require __DIR__ . '/api_v1.php';

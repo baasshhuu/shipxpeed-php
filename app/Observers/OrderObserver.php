@@ -28,6 +28,10 @@ class OrderObserver
             if (class_exists(\App\Services\Notify\BuyerNotifier::class)) {
                 app(\App\Services\Notify\BuyerNotifier::class)->handleOrderChange($order);
             }
+            // API v1: tell the client's webhook URL
+            if (class_exists(\App\Support\ApiV1\WebhookPusher::class)) {
+                \App\Support\ApiV1\WebhookPusher::orderChanged($order);
+            }
         }
     }
 }
