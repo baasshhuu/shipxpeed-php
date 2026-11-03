@@ -65,7 +65,7 @@ for f in $FILES; do
   if [ ! -s "$P" ]; then rm -f "$P"; continue; fi
   if [ ! -e "$f" ]; then
     mkdir -p "$(dirname "$f")"; git show "$REF:$f" > "$f" && DONE="$DONE $f" && NEWFILES="$NEWFILES $f"
-  elif grep -qi "shipcorrect" "$f"; then
+  elif grep -i "shipcorrect" "$f" >/dev/null 2>&1; then
     echo "already applied: $f"
   elif patch -p1 --forward --dry-run --silent < "$P" >/dev/null 2>&1; then
     patch -p1 --forward --silent --no-backup-if-mismatch < "$P" >/dev/null && DONE="$DONE $f"
@@ -83,7 +83,7 @@ done
 
 # API key into .env (only when given and not already set)
 if [ -n "$KEY" ]; then
-  if grep -q '^SHIPCORRECT_API_KEY=' .env; then
+  if grep '^SHIPCORRECT_API_KEY=' .env >/dev/null 2>&1; then
     sed -i "s|^SHIPCORRECT_API_KEY=.*|SHIPCORRECT_API_KEY=$KEY|" .env
   else
     printf '\nSHIPCORRECT_API_KEY=%s\n' "$KEY" >> .env
@@ -92,10 +92,12 @@ if [ -n "$KEY" ]; then
 fi
 
 php artisan migrate --force --path=database/migrations/2026_11_03_000001_shipcorrect_integration.php 2>&1 | tail -2
+php artisan tinker --execute='DB::table("logistic_providers")->where("code","shipcorrect")->update(["status"=>1]);' >/dev/null 2>&1
 php artisan optimize:clear >/dev/null 2>&1
-php artisan view:cache >/dev/null 2>&1 || { echo "FAIL: a Blade view does not compile"; restore; }
+VC=$(php artisan view:cache 2>&1) || { echo "FAIL: a Blade view does not compile:"; echo "$VC" | tail -5; restore; }
 php artisan config:cache >/dev/null 2>&1 || php artisan config:clear >/dev/null 2>&1
-php artisan route:list --name=admin.shipcorrect 2>/dev/null | grep -q shipcorrect || { echo "FAIL: admin routes not registered"; restore; }
+ROUTES=$(php artisan route:list --name=admin.shipcorrect 2>&1 || true)
+case "$ROUTES" in *shipcorrect*) echo "Admin routes: OK" ;; *) echo "FAIL: admin routes not registered"; echo "$ROUTES" | tail -5; restore ;; esac
 
 for svc in $(systemctl list-units --type=service --no-legend 'php*-fpm*' 2>/dev/null | awk '{print $1}'); do systemctl reload "$svc" 2>/dev/null && echo "Reloaded $svc"; done
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null
