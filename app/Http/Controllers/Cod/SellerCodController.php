@@ -88,9 +88,9 @@ class SellerCodController extends Controller
                 $payouts = DB::table('cod_payouts')->where('seller_id', $sid)
                     ->when($f['from'], fn ($q) => $q->where('paid_on', '>=', $f['from']))
                     ->when($f['to'], fn ($q) => $q->where('paid_on', '<=', $f['to']))
-                    ->orderByDesc('paid_on')->orderByDesc('id')->paginate(25)->withQueryString();
+                    ->orderByDesc('paid_on')->orderByDesc('id')->paginate(25)->appends(\App\Support\CleanQuery::get());
             } else {
-                $rows = $this->rows($sid, $f)->orderByDesc('delivered_on')->orderByDesc('id')->paginate(50)->withQueryString();
+                $rows = $this->rows($sid, $f)->orderByDesc('delivered_on')->orderByDesc('id')->paginate(50)->appends(\App\Support\CleanQuery::get());
             }
             $balance = Kit::balance($sid);
         }

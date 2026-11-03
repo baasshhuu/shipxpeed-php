@@ -103,9 +103,9 @@ class AdminCodController extends Controller
                 ->when($f['seller'], fn ($q) => $q->where('seller_id', $f['seller']))
                 ->when($f['from'], fn ($q) => $q->where('paid_on', '>=', $f['from']))
                 ->when($f['to'], fn ($q) => $q->where('paid_on', '<=', $f['to']))
-                ->orderByDesc('paid_on')->orderByDesc('id')->paginate(50)->withQueryString();
+                ->orderByDesc('paid_on')->orderByDesc('id')->paginate(50)->appends(\App\Support\CleanQuery::get());
         } else {
-            $data['orders'] = $this->ordersQuery($f)->orderByDesc('delivered_on')->orderByDesc('id')->paginate(100)->withQueryString();
+            $data['orders'] = $this->ordersQuery($f)->orderByDesc('delivered_on')->orderByDesc('id')->paginate(100)->appends(\App\Support\CleanQuery::get());
         }
 
         return view('cod.admin', $data);

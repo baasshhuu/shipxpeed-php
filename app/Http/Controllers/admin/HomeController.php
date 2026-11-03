@@ -102,7 +102,7 @@ public function shipment_report(Request $request)
         $perPage = in_array((int) $request->per_page, [25, 50, 100, 200], true) ? (int) $request->per_page : 25;
 
         $step = 'rows';
-        $data = \App\Support\ShipmentReport::query($f)->paginate($perPage)->withQueryString();
+        $data = \App\Support\ShipmentReport::query($f)->paginate($perPage)->appends(\App\Support\CleanQuery::get());
         $extras = \App\Support\ShipmentReport::extras($data->getCollection());
         $rows = $data->getCollection()->map(fn ($o) => \App\Support\ShipmentReport::row($o, $extras));
 

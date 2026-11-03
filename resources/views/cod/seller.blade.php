@@ -137,7 +137,7 @@
                 @endif
                 <button class="vas-btn vas-btn-go vas-btn-sm">Apply</button>
                 <a class="vas-link" href="{{ route('seller.cod', $f['tab'] !== 'all' ? ['tab' => $f['tab']] : []) }}">Clear</a>
-                <a class="vas-btn vas-btn-ghost vas-btn-sm ms-auto" href="{{ route('seller.cod.export', request()->query()) }}"><i class="ti ti-download"></i> Download</a>
+                <a class="vas-btn vas-btn-ghost vas-btn-sm ms-auto" href="{{ route('seller.cod.export', \App\Support\CleanQuery::get()) }}"><i class="ti ti-download"></i> Download</a>
             </form>
 
             @if($f['tab'] === 'payouts')
