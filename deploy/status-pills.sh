@@ -16,4 +16,4 @@ if ! grep -q "partials.status-pills-css" "$L"; then
 fi
 grep -q "partials.status-pills-css" "$L" || { echo "FAIL: could not add include to layout"; exit 1; }
 php artisan view:clear >/dev/null 2>&1
-echo "STATUS PILLS FIX LIVE - layout include: $(grep -c 'partials.status-pills-css' "$L"), style: $(grep -c 'status-pills-v3' "$P")"
+echo "STATUS PILLS FIX LIVE - layout include: $(grep -c 'partials.status-pills-css' "$L"), style: $(grep -c 'status-pills-v4' "$P")"
