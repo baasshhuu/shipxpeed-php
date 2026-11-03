@@ -22,9 +22,14 @@ python3 "$TMP/replace.py" "$F" "$TMP/fn.php" || restore
 php -l "$F" >/dev/null || { echo "FAIL: PHP syntax"; restore; }
 grep -q "seller.agreement.accept" routes/web.php || { echo "FAIL: agreement route missing"; restore; }
 
+grep -q "aadhaar-sign-v2" "$F" || { echo "FAIL: new code not in $F"; restore; }
+
 php artisan optimize:clear >/dev/null 2>&1
-php artisan route:list --name=seller.agreement.accept 2>/dev/null | grep -q acceptAgreement || { echo "FAIL: route check"; restore; }
+# reload PHP so the cached old code is dropped immediately
+for svc in $(systemctl list-units --type=service --no-legend 'php*-fpm*' 2>/dev/null | awk '{print $1}'); do systemctl reload "$svc" 2>/dev/null && echo "Reloaded $svc"; done
+systemctl reload apache2 2>/dev/null; systemctl reload nginx 2>/dev/null
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null
 mkdir -p storage/app/public/agreements && chown www-data:www-data storage/app/public/agreements 2>/dev/null
 rm -rf "$TMP"
+echo "Live function: $(grep -c 'aadhaar-sign-v2' "$F") new copy in Dashboard.php"
 echo "AGREEMENT FIX OK - reload the dashboard and click Sign Agreement"
