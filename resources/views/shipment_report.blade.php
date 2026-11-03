@@ -135,7 +135,7 @@
             <div class="small opacity-75">
                 Showing {{ $data->firstItem() ?? 0 }}–{{ $data->lastItem() ?? 0 }} of {{ number_format($data->total()) }} ·
                 <form method="GET" class="d-inline">
-                    @foreach (request()->query() as $k => $v)@if(is_scalar($v) && !in_array($k, ['per_page', 'page'], true))<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endif@endforeach
+                    @foreach (request()->query() as $k => $v)@if(is_scalar($v) && !in_array($k, ['per_page', 'page'], true))<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endif @endforeach
                     <select name="per_page" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
                         @foreach ([25, 50, 100, 200] as $n)<option value="{{ $n }}" @selected($perPage === $n)>{{ $n }} per page</option>@endforeach
                     </select>
